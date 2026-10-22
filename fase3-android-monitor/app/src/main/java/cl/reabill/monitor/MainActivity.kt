@@ -29,7 +29,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cl.reabill.monitor.ui.screens.ActaApp
 import cl.reabill.monitor.ui.theme.Acta
 
-const val APP_VERSION = "1.12.7"
+const val APP_VERSION = "1.12.8"
 
 class MainActivity : ComponentActivity() {
     private val vm: MonitorViewModel by viewModels()
@@ -47,6 +47,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         setContent {
 
             val oscuro = isSystemInDarkTheme()

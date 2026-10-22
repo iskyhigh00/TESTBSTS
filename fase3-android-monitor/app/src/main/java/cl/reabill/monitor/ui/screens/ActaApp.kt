@@ -133,6 +133,9 @@ fun ActaApp(vm: MonitorViewModel) {
     var showMda by remember { mutableStateOf(false) }
     var mdaTexto by remember { mutableStateOf("") }
     val ocr by vm.ocr.collectAsStateWithLifecycle()
+    val testPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) vm.recognizeMda(uri, test = true)
+    }
     var fotoUri by remember { mutableStateOf<android.net.Uri?>(null) }
     val takePhoto = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
         val u = fotoUri
@@ -140,7 +143,7 @@ fun ActaApp(vm: MonitorViewModel) {
     }
 
     LaunchedEffect(ocr.id) {
-        if (ocr.id > 0 && !ocr.running) {
+        if (ocr.id > 0 && !ocr.running && !ocr.test) {
             if (ocr.candidates.isNotEmpty()) mdaTexto = ocr.candidates.first()
             showMda = true
         }
@@ -185,6 +188,23 @@ fun ActaApp(vm: MonitorViewModel) {
     var calMarker by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(connected) { if (!connected) showCal = false }
+
+    if (ocr.test && ocr.id > 0 && !ocr.running) {
+        AlertDialog(
+            onDismissRequest = { vm.clearOcr() },
+            title = { Text("Prueba de lectura") },
+            text = {
+                Column {
+                    Text(
+                        if (ocr.candidates.isNotEmpty()) "Número leído: " + ocr.candidates.joinToString("  ·  ") else ocr.message,
+                        style = ActaType.Body
+                    )
+                    if (ocr.raw.isNotEmpty()) Text("Texto visto: ${ocr.raw}", style = ActaType.Label, modifier = Modifier.padding(top = 8.dp))
+                }
+            },
+            confirmButton = { ActaButton("Cerrar", onClick = { vm.clearOcr() }, filled = true, height = 44.dp, modifier = Modifier.width(110.dp)) }
+        )
+    }
 
     if (showMda) {
         AlertDialog(
@@ -345,7 +365,8 @@ fun ActaApp(vm: MonitorViewModel) {
             onCopyAll = { vm.fullLogAsync { t -> clipboard.setText(AnnotatedString(t.ifEmpty { log.joinToString("\n") })) } },
             onExport = { exportLauncher.launch("billmon-respaldo-" + java.text.SimpleDateFormat("yyyyMMdd-HHmm", java.util.Locale.US).format(java.util.Date()) + ".json") },
             onImport = { importLauncher.launch(arrayOf("*/*")) },
-            onImportWeekly = { weeklyLauncher.launch(arrayOf("*/*")) }
+            onImportWeekly = { weeklyLauncher.launch(arrayOf("*/*")) },
+            onTestOcr = { testPicker.launch(arrayOf("image/*")) }
         )
         FlashSheet(
             visible = showFlash, vm = vm, serial = status.serial, billSet = status.billSet,
@@ -658,7 +679,7 @@ private fun SettingsSheet(
     visible: Boolean, vm: MonitorViewModel, log: List<String>, connected: Boolean, kind: String,
     onClose: () -> Unit, onLabelConfig: () -> Unit, onRestart: () -> Unit,
     onCopy: () -> Unit, onCopyAll: () -> Unit, onExport: () -> Unit, onImport: () -> Unit,
-    onImportWeekly: () -> Unit
+    onImportWeekly: () -> Unit, onTestOcr: () -> Unit
 ) {
     BackHandler(enabled = visible, onBack = onClose)
     AnimatedVisibility(
@@ -690,6 +711,10 @@ private fun SettingsSheet(
                         style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(bottom = 8.dp)
                     )
                     ActaButton("Importar reporte semanal", onClick = onImportWeekly, height = 46.dp, modifier = Modifier.fillMaxWidth())
+                }
+
+                PrefGroup("Lectura del N° de máquina") {
+                    ActaButton("Probar con una imagen", onClick = onTestOcr, height = 46.dp, modifier = Modifier.fillMaxWidth())
                 }
 
                 PrefGroup("Modo demo") {

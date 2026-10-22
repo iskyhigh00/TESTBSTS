@@ -214,14 +214,17 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    data class OcrUi(val running: Boolean = false, val candidates: List<String> = emptyList(), val message: String = "", val id: Int = 0)
+    data class OcrUi(
+        val running: Boolean = false, val candidates: List<String> = emptyList(), val message: String = "", val id: Int = 0,
+        val test: Boolean = false, val raw: String = ""
+    )
     private val _ocr = MutableStateFlow(OcrUi())
     val ocr: StateFlow<OcrUi> = _ocr
 
     fun clearOcr() { _ocr.update { OcrUi(id = it.id) } }
 
-    fun recognizeMda(uri: android.net.Uri) {
-        _ocr.update { OcrUi(running = true, message = "Leyendo la foto…", id = it.id) }
+    fun recognizeMda(uri: android.net.Uri, test: Boolean = false) {
+        _ocr.update { OcrUi(running = true, message = "Leyendo la foto…", id = it.id, test = test) }
         viewModelScope.launch {
             val res = try {
                 withContext(Dispatchers.IO) {
@@ -235,17 +238,17 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
                     } finally { rec.close() }
                 }
             } catch (e: Exception) { null to (e.message ?: e.javaClass.simpleName) }
-            try { java.io.File(getApplication<Application>().cacheDir, "fotos").deleteRecursively() } catch (_: Exception) {}
+            if (!test) try { java.io.File(getApplication<Application>().cacheDir, "fotos").deleteRecursively() } catch (_: Exception) {}
             val (cands, crudo) = res
             if (cands == null) {
                 addLog("No se pudo leer la foto: $crudo")
-                _ocr.update { OcrUi(message = "No se pudo leer la foto.", id = it.id + 1) }
+                _ocr.update { OcrUi(message = "No se pudo leer la foto.", id = it.id + 1, test = test, raw = crudo) }
             } else if (cands.isEmpty()) {
                 addLog("Foto sin números reconocibles. Texto visto: ${crudo.replace('\n', ' ').take(80)}")
-                _ocr.update { OcrUi(message = "No encontré un número en la foto.", id = it.id + 1) }
+                _ocr.update { OcrUi(message = "No encontré un número en la foto.", id = it.id + 1, test = test, raw = crudo.replace('\n', ' ').take(120)) }
             } else {
                 addLog("Número leído en la foto: ${cands.joinToString(", ")}")
-                _ocr.update { OcrUi(candidates = cands, id = it.id + 1) }
+                _ocr.update { OcrUi(candidates = cands, id = it.id + 1, test = test, raw = crudo.replace('\n', ' ').take(120)) }
             }
         }
     }

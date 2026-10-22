@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.0.7" to listOf(
+            "Datos compartidos activados: ya trae la conexión a la nube. En Preferencias → Datos compartidos toca «Conectar cuenta» con el correo y la clave compartidos."
+        ),
         "2.0.6" to listOf(
             "Datos compartidos: todos los teléfonos con la cuenta compartida ven lo mismo (N° de máquina por serie, identidad, interfaz, lecturas y reporte semanal).",
             "Preferencias → «Datos compartidos»: conecta la cuenta una vez; la app sincroniza sola al abrirse, cada 3 min y después de cada cambio, y tiene «Sincronizar ahora».",

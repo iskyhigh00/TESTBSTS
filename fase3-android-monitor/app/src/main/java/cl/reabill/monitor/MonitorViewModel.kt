@@ -178,6 +178,15 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     fun connect() { if (_demo.value) return; connectRetries = 0; doConnect() }
 
     private val mdaStore = MdaStore(app.applicationContext)
+    class MdaHit(val serie: String, val info: MdaStore.Info?, val lectura: AccountingData?)
+
+    fun buscarMda(texto: String): List<MdaHit> {
+        val n = Mda.norm(texto) ?: return emptyList()
+        return _mdaMap.value.filter { Mda.norm(it.value) == n }.keys.sorted().map { s ->
+            MdaHit(s, mdaStore.info(s), store.history(s).firstOrNull { it.inserted > 0 })
+        }
+    }
+
     private val _mdaMap = MutableStateFlow<Map<String, String>>(mdaStore.all())
 
     val mdaMap: StateFlow<Map<String, String>> = _mdaMap
@@ -406,6 +415,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
                 _status.value = _status.value.copy(firmwareApp = app, billSet = set)
                 addLog("Firmware app: $app   bill-set: $set" + tiempos(client))
                 if (setRaw.isNotEmpty()) addLog("Crudo de lectura: $setRaw")
+                if (!DemoClient.isDemoSerial(id.serial)) mdaStore.setInfo(id.serial, id.model, app, set)
 
                 delay(300)
 

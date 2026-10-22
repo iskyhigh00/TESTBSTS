@@ -141,6 +141,9 @@ fun ActaApp(vm: MonitorViewModel) {
     val mdaMap by vm.mdaMap.collectAsStateWithLifecycle()
     var showMda by remember { mutableStateOf(false) }
     var mdaTexto by remember { mutableStateOf("") }
+    var showBuscar by remember { mutableStateOf(false) }
+    var buscarTexto by remember { mutableStateOf("") }
+    var buscandoFoto by remember { mutableStateOf(false) }
     val ocr by vm.ocr.collectAsStateWithLifecycle()
     val testPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) vm.recognizeMda(uri, test = true)
@@ -153,8 +156,14 @@ fun ActaApp(vm: MonitorViewModel) {
 
     LaunchedEffect(ocr.id) {
         if (ocr.id > 0 && !ocr.running && !ocr.test) {
-            if (ocr.candidates.isNotEmpty()) mdaTexto = ocr.candidates.first()
-            showMda = true
+            if (buscandoFoto) {
+                buscandoFoto = false
+                ocr.candidates.firstOrNull()?.let { buscarTexto = it }
+                showBuscar = true
+            } else {
+                if (ocr.candidates.isNotEmpty()) mdaTexto = ocr.candidates.first()
+                showMda = true
+            }
         }
     }
 
@@ -176,6 +185,7 @@ fun ActaApp(vm: MonitorViewModel) {
     val labelPrefs by vm.labelPrefs.collectAsStateWithLifecycle()
     val ctx = LocalContext.current
     val lanzarFoto = {
+        buscandoFoto = false
         val dir = java.io.File(ctx.cacheDir, "fotos").apply { mkdirs() }
         val f = java.io.File(dir, "mda.jpg").apply { delete(); createNewFile() }
         val u = androidx.core.content.FileProvider.getUriForFile(ctx, ctx.packageName + ".fileprovider", f)
@@ -221,6 +231,73 @@ fun ActaApp(vm: MonitorViewModel) {
                 }
             },
             confirmButton = { ActaButton("Cerrar", onClick = { vm.clearOcr() }, filled = true, height = 44.dp, modifier = Modifier.width(110.dp)) }
+        )
+    }
+
+    if (showBuscar) {
+        val hits = if (buscarTexto.filter { it.isDigit() }.length >= 3) vm.buscarMda(buscarTexto) else emptyList()
+        val n = cl.reabill.monitor.Mda.norm(buscarTexto)
+        val sistema = if (n != null && buscarTexto.filter { it.isDigit() }.length >= 3) weekly?.pct(n) else null
+        val colorAs = if (Acta.dark) Color(0xFFFFB74D) else Color(0xFFC25E00)
+        AlertDialog(
+            onDismissRequest = { showBuscar = false; vm.clearOcr() },
+            title = { Text("Buscar máquina") },
+            text = {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    OutlinedTextField(
+                        value = buscarTexto, onValueChange = { buscarTexto = it.filter { c -> c.isDigit() }.take(12) },
+                        singleLine = true, label = { Text("MDA") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    if (ocr.candidates.size > 1) {
+                        androidx.compose.foundation.layout.FlowRow(
+                            Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) { ocr.candidates.forEach { c -> cl.reabill.monitor.ui.components.ActaChip(c, buscarTexto == c, { buscarTexto = c }) } }
+                    }
+                    ActaButton(
+                        "Tomar foto", height = 40.dp, modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                        onClick = { showBuscar = false; lanzarFoto(); buscandoFoto = true }
+                    )
+                    if (n != null && buscarTexto.filter { it.isDigit() }.length >= 3) {
+                        Text("MDA $n", style = ActaType.BillSet, modifier = Modifier.padding(top = 14.dp))
+                        if (sistema != null || weekly != null) {
+                            Row(Modifier.padding(top = 4.dp)) {
+                                Text("AS ", style = ActaType.Label.copy(fontWeight = FontWeight.Bold, color = colorAs))
+                                Text(
+                                    if (sistema == null) "—" else "${fmtRate(sistema * 100.0)} %",
+                                    style = ActaType.Section.copy(color = colorAs)
+                                )
+                                weekly?.let { Text("  semana ${it.fecha.ifEmpty { "sin fecha" }}", style = ActaType.Label) }
+                            }
+                        }
+                        if (hits.isEmpty()) {
+                            Text("Ningún billetero revisado con esta app está asociado a esa máquina.", style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(top = 10.dp))
+                        }
+                        hits.forEach { h ->
+                            Hairline(Modifier.padding(top = 12.dp))
+                            val l = h.lectura
+                            Row(Modifier.padding(top = 8.dp)) {
+                                Text("AR ", style = ActaType.Label.copy(fontWeight = FontWeight.Bold))
+                                Text(if (l == null) "—" else "${fmtRate(l.rate)} %", style = ActaType.Section)
+                                if (l != null) {
+                                    val d = java.text.SimpleDateFormat("dd-MM-yyyy HH:mm", java.util.Locale.getDefault()).format(java.util.Date(l.timestamp))
+                                    Text("  $d", style = ActaType.Label)
+                                }
+                            }
+                            if (l != null) Text("aceptados ${fmtInt(l.accepted)}  rechazados ${fmtInt(l.rejected)}  insertados ${fmtInt(l.inserted)}", style = ActaType.Log, modifier = Modifier.padding(top = 4.dp))
+                            Text("Serie ${h.serie}", style = ActaType.Cell, modifier = Modifier.padding(top = 6.dp))
+                            h.info?.let { i ->
+                                if (i.modelo.isNotBlank()) Text("Modelo ${i.modelo}", style = ActaType.Cell)
+                                if (i.firmware.isNotBlank()) Text("Firmware ${i.firmware}", style = ActaType.Cell)
+                                if (i.billSet.isNotBlank()) Text("Bill-set ${i.billSet}", style = ActaType.Cell)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = { ActaButton("Cerrar", onClick = { showBuscar = false; vm.clearOcr() }, filled = true, height = 44.dp, modifier = Modifier.width(110.dp)) }
         )
     }
 
@@ -350,6 +427,10 @@ fun ActaApp(vm: MonitorViewModel) {
                             enabled = connected && !busy, modifier = Modifier.weight(1f)
                         )
                     }
+                    ActaButton(
+                        "Buscar máquina", onClick = { buscarTexto = ""; vm.clearOcr(); showBuscar = true },
+                        modifier = Modifier.fillMaxWidth().padding(top = 10.dp)
+                    )
                     if (printUi.message.isNotEmpty()) {
                         Text(printUi.message, style = ActaType.Label, modifier = Modifier.padding(top = 8.dp))
                     }

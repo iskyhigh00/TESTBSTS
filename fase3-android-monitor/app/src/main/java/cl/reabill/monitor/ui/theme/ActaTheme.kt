@@ -2,7 +2,15 @@
 
 package cl.reabill.monitor.ui.theme
 
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
+import androidx.compose.material3.Typography
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.TextStyle
@@ -24,6 +32,10 @@ object Acta {
     val Ink: Color get() = if (dark) Color(0xFFE8ECEF) else Color(0xFF0D1117)
     val Ink2: Color get() = if (dark) Color(0xFF9AA3AD) else Color(0xFF5F6872)
     val Hairline: Color get() = if (dark) Color(0xFF2B323B) else Color(0xFFDDE1E5)
+
+    val Raised: Color get() = if (dark) Color(0xFF161B22) else Color(0xFFFFFFFF)
+
+    val Sistema: Color get() = if (dark) Color(0xFFFFB74D) else Color(0xFFC25E00)
     val Accent: Color get() = if (dark) Color(0xFF4DB6AC) else Color(0xFF00695C)
     val Error: Color get() = if (dark) Color(0xFFF28B82) else Color(0xFFB3261E)
 
@@ -69,4 +81,33 @@ object ActaType {
     val Cell get() = TextStyle(fontFamily = ActaMono, fontWeight = FontWeight.Medium, fontSize = 13.5.sp, color = Acta.Ink)
     val Tiny get() = TextStyle(fontFamily = ActaMono, fontWeight = FontWeight.Normal, fontSize = 10.sp, color = Acta.Ink2)
     val Log get() = TextStyle(fontFamily = ActaMono, fontWeight = FontWeight.Normal, fontSize = 12.sp, color = Acta.Ink)
+}
+
+@Composable
+fun ActaMaterial(content: @Composable () -> Unit) {
+    val d = Acta.dark
+    val colores = if (d) darkColorScheme(
+        primary = Acta.Accent, onPrimary = Acta.Paper, background = Acta.Paper, onBackground = Acta.Ink,
+        surface = Acta.Paper, onSurface = Acta.Ink, onSurfaceVariant = Acta.Ink2,
+        surfaceContainerHigh = Acta.Raised, surfaceContainerHighest = Acta.Raised, surfaceTint = Acta.Raised,
+        outline = Acta.Ink2, outlineVariant = Acta.Hairline, error = Acta.Error
+    ) else lightColorScheme(
+        primary = Acta.Accent, onPrimary = Acta.Paper, background = Acta.Paper, onBackground = Acta.Ink,
+        surface = Acta.Paper, onSurface = Acta.Ink, onSurfaceVariant = Acta.Ink2,
+        surfaceContainerHigh = Acta.Raised, surfaceContainerHighest = Acta.Raised, surfaceTint = Acta.Raised,
+        outline = Acta.Ink2, outlineVariant = Acta.Hairline, error = Acta.Error
+    )
+    val tipos = Typography(
+        headlineSmall = TextStyle(fontFamily = ActaSans, fontWeight = FontWeight.Bold, fontSize = 22.sp, letterSpacing = (-0.4).sp),
+        titleLarge = TextStyle(fontFamily = ActaSans, fontWeight = FontWeight.Bold, fontSize = 22.sp),
+        bodyLarge = TextStyle(fontFamily = ActaMono, fontWeight = FontWeight.Medium, fontSize = 15.sp),
+        bodyMedium = TextStyle(fontFamily = ActaSans, fontWeight = FontWeight.Normal, fontSize = 14.sp),
+        bodySmall = TextStyle(fontFamily = ActaSans, fontWeight = FontWeight.Medium, fontSize = 12.sp),
+        labelLarge = TextStyle(fontFamily = ActaSans, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+    )
+    MaterialTheme(
+        colorScheme = colores, typography = tipos,
+        shapes = Shapes(extraSmall = RoundedCornerShape(10.dp), small = RoundedCornerShape(12.dp), medium = RoundedCornerShape(12.dp), extraLarge = RoundedCornerShape(20.dp)),
+        content = content
+    )
 }

@@ -29,7 +29,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cl.reabill.monitor.ui.screens.ActaApp
 import cl.reabill.monitor.ui.theme.Acta
 
-const val APP_VERSION = "1.12.14"
+const val APP_VERSION = "1.12.15"
 
 class MainActivity : ComponentActivity() {
     private val vm: MonitorViewModel by viewModels()
@@ -52,14 +52,7 @@ class MainActivity : ComponentActivity() {
 
             val oscuro = isSystemInDarkTheme()
             Acta.dark = oscuro
-            val colores = if (oscuro) darkColorScheme(
-                primary = Acta.Accent, onPrimary = Acta.Paper,
-                background = Acta.Paper, surface = Acta.Paper, onSurface = Acta.Ink
-            ) else lightColorScheme(
-                primary = Acta.Accent, onPrimary = Acta.Paper,
-                background = Acta.Paper, surface = Acta.Paper, onSurface = Acta.Ink
-            )
-            MaterialTheme(colorScheme = colores) {
+            cl.reabill.monitor.ui.theme.ActaMaterial {
                 Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     ActaApp(vm)
                 }

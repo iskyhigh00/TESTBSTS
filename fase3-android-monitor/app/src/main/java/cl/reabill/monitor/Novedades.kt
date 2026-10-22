@@ -2,6 +2,10 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.0.9" to listOf(
+            "Impresora y etiqueta: la sección «Impresora» (buscar, conectar, olvidar) ahora está arriba de todo, no al final.",
+            "Si falta el permiso de Bluetooth (por ejemplo tras borrar los datos de la app) lo dice en rojo y hay un botón para abrir los permisos."
+        ),
         "2.0.8" to listOf(
             "Arreglo: la 2.0.6 y la 2.0.7 se cerraban al abrir. Los datos compartidos ahora arrancan después de que la app termina de iniciar."
         ),

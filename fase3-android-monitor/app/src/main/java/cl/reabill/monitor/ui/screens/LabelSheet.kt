@@ -59,7 +59,10 @@ fun LabelSheet(vm: MonitorViewModel, onClose: () -> Unit) {
         if (Build.VERSION.SDK_INT >= 31) arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT)
         else arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
     }
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    var permisosOk by remember { mutableStateOf(perms.all { androidx.core.content.ContextCompat.checkSelfPermission(ctx, it) == android.content.pm.PackageManager.PERMISSION_GRANTED }) }
     val askPerms = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { res ->
+        permisosOk = res.values.all { it }
         if (res.values.all { it }) vm.labelScan() else vm.labelNote("Falta el permiso de Bluetooth para buscar la impresora.")
     }
 
@@ -79,6 +82,45 @@ fun LabelSheet(vm: MonitorViewModel, onClose: () -> Unit) {
         title = { Text("Impresora y etiqueta") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()).heightIn(max = 520.dp)) {
+                Text("Impresora", style = ActaType.Label.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, color = Acta.Ink))
+                Text(
+                    ui.connectedName?.let { "Conectada: $it" }
+                        ?: if (prefs.lastName.isNotEmpty()) "Guardada: ${prefs.lastName}" else "Sin impresora elegida",
+                    style = ActaType.Body, modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
+                )
+                if (!permisosOk) {
+                    Text("Falta el permiso de Bluetooth: sin él no se pueden buscar impresoras.", style = ActaType.Body.copy(color = Acta.Error), modifier = Modifier.padding(bottom = 8.dp))
+                    ActaButton(
+                        "Abrir permisos de la app",
+                        onClick = {
+                            ctx.startActivity(android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                android.net.Uri.fromParts("package", ctx.packageName, null)).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+                        },
+                        danger = true, height = 42.dp, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                    )
+                }
+                FlowRow(horizontalArrangement = spacing, verticalArrangement = spacing) {
+                    ActaButton(
+                        if (ui.scanning) "Detener búsqueda" else "Buscar impresora",
+                        onClick = { if (ui.scanning) vm.labelStopScan() else askPerms.launch(perms) },
+                        height = 42.dp, modifier = Modifier.width(170.dp)
+                    )
+                    if (prefs.lastAddress.isNotEmpty()) {
+                        if (ui.connectedName == null)
+                            ActaButton("Conectar", { vm.labelConnectLast() }, height = 42.dp, modifier = Modifier.width(110.dp))
+                        ActaButton("Olvidar", { vm.labelForget() }, danger = true, height = 42.dp, modifier = Modifier.width(100.dp))
+                    }
+                }
+                ui.devices.take(12).forEach { f ->
+                    ActaButton(
+                        (if (f.likely) "" else "") + f.name + "  ·  " + f.address.takeLast(5) + "  ·  ${f.rssi} dBm",
+                        onClick = { vm.labelConnect(f) }, filled = f.likely, height = 42.dp,
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                    )
+                }
+                if (ui.message.isNotEmpty()) Text(ui.message, style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(top = 10.dp))
+                if (ui.message.isNotEmpty()) Text(ui.message, style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(top = 10.dp))
+                Spacer(Modifier.height(18.dp))
                 if (preview == null) {
                     Text("Sin lectura.", style = ActaType.Body)
                 } else {
@@ -165,33 +207,6 @@ fun LabelSheet(vm: MonitorViewModel, onClose: () -> Unit) {
                     ActaButton("+", { vm.setLabelPrefs(prefs.copy(copies = (prefs.copies + 1).coerceAtMost(10))) }, height = 40.dp, modifier = Modifier.width(48.dp))
                 }
 
-                Spacer(Modifier.height(18.dp))
-                Text("Impresora", style = ActaType.Label)
-                Text(
-                    ui.connectedName?.let { "Conectada: $it" }
-                        ?: if (prefs.lastName.isNotEmpty()) "Guardada: ${prefs.lastName}" else "Sin impresora elegida",
-                    style = ActaType.Body, modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
-                )
-                FlowRow(horizontalArrangement = spacing, verticalArrangement = spacing) {
-                    ActaButton(
-                        if (ui.scanning) "Detener búsqueda" else "Buscar impresora",
-                        onClick = { if (ui.scanning) vm.labelStopScan() else askPerms.launch(perms) },
-                        height = 42.dp, modifier = Modifier.width(170.dp)
-                    )
-                    if (prefs.lastAddress.isNotEmpty()) {
-                        if (ui.connectedName == null)
-                            ActaButton("Conectar", { vm.labelConnectLast() }, height = 42.dp, modifier = Modifier.width(110.dp))
-                        ActaButton("Olvidar", { vm.labelForget() }, danger = true, height = 42.dp, modifier = Modifier.width(100.dp))
-                    }
-                }
-                ui.devices.take(12).forEach { f ->
-                    ActaButton(
-                        (if (f.likely) "" else "") + f.name + "  ·  " + f.address.takeLast(5) + "  ·  ${f.rssi} dBm",
-                        onClick = { vm.labelConnect(f) }, filled = f.likely, height = 42.dp,
-                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
-                    )
-                }
-                if (ui.message.isNotEmpty()) Text(ui.message, style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(top = 10.dp))
             }
         },
         confirmButton = {

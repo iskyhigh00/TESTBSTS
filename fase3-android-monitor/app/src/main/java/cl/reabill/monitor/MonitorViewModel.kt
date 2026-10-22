@@ -216,7 +216,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         if (serie.isBlank() || serie == "—") { addLog("Sin número de serie: no se cambia la interfaz."); return }
         if (!beginOp()) { ocupado(); return }
         val antes = _ifaz.value.valor
-        _ifaz.value = _ifaz.value.copy(trabajando = true, mensaje = "")
+        _ifaz.value = _ifaz.value.copy(trabajando = true, mensaje = "Guardando en el equipo (unos 7 s)…")
         viewModelScope.launch {
             try {
                 addLog("Cambiar interfaz — serie $serie, modelo ${st.model}, firmware ${st.firmwareApp}, bill-set ${st.billSet}: " +

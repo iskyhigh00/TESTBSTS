@@ -2,6 +2,10 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.0.5" to listOf(
+            "Cambiar interfaz: después de escribir, el equipo tarda unos 7 s en guardar la configuración. Ahora la app espera a que termine (como STS) y recién ahí relee para verificar.",
+            "Si el equipo queda en una interfaz distinta a la pedida, lo dice y muestra la real."
+        ),
         "2.0.4" to listOf(
             "SC Advance: al conectar, la app lee la interfaz del equipo (Stand-alone, IGT Netplex, EBDS / Serie o USB), la deja en el Registro y la guarda por serie.",
             "Recuerda la interfaz habitual: si dejas un billetero en stand-alone para probar, muestra a cuál volver.",

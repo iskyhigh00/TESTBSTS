@@ -130,12 +130,23 @@ class AdvanceClient(private val usb: UsbSerialManager) : ValidatorClient {
         val nuevo = Interfaz.ponerEnBloque(antes, valor)
         val (ack, notas) = exchange(0x24, nuevo) { it.size == 10 && (it[2].toInt() and 0x7F) == 0x24 }
         if (ack == null) return false to "El equipo no confirmó la escritura. $notas".trim()
-        Thread.sleep(500)
+
+        if (!esperarLibre(25_000)) return false to "El equipo sigue guardando la configuración después de 25 s: vuelve a leer la interfaz más tarde."
         val despues = readConfigBlock() ?: return false to "Escritura confirmada, pero no se pudo releer para verificar."
         val leido = Interfaz.leer(despues)
         if (leido != valor) return false to "Quedó en ${Interfaz.nombre(leido)}, no en ${Interfaz.nombre(valor)}."
         if (!Interfaz.soloCambioEsperado(antes, despues, valor)) return false to "La interfaz cambió, pero otros bytes de la configuración también: revisa el equipo."
         return true to "verificado"
+    }
+
+    private fun esperarLibre(maxMs: Long): Boolean {
+        val t0 = System.nanoTime()
+        while ((System.nanoTime() - t0) / 1_000_000 < maxMs) {
+            val p = exchangeOnce(0x01, ByteArray(0), 3000) { it.size == 10 }
+            if (p != null && (p[2].toInt() and 0x7F) == 0x01 && (p[3].toInt() and 0x80) == 0) return true
+            Thread.sleep(100)
+        }
+        return false
     }
 
     private fun readText(arg: Int): String {

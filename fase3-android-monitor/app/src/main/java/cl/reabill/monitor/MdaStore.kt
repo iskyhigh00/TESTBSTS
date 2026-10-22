@@ -7,10 +7,20 @@ class MdaStore(context: Context) {
 
     fun mda(serie: String): String? = prefs.getString("mda:$serie", null)
 
-    fun setMda(serie: String, mda: String?) {
+    fun setMda(serie: String, mda: String?) = setMdaConTs(serie, mda, System.currentTimeMillis())
+
+    fun setMdaConTs(serie: String, mda: String?, ts: Long) {
         if (serie.isBlank() || serie == "—") return
-        prefs.edit().apply { if (mda == null) remove("mda:$serie") else putString("mda:$serie", mda) }.apply()
+        prefs.edit().apply {
+            if (mda == null) remove("mda:$serie") else putString("mda:$serie", mda)
+            putLong("mdats:$serie", ts)
+        }.apply()
     }
+
+    fun mdaTs(serie: String): Long = prefs.getLong("mdats:$serie", if (prefs.contains("mda:$serie")) 1L else 0L)
+
+    fun mdaSeries(): Set<String> = prefs.all.keys.filter { it.startsWith("mda:") || it.startsWith("mdats:") }
+        .map { it.substringAfter(':') }.toSet()
 
     class Info(val modelo: String, val firmware: String, val billSet: String, val ts: Long)
 
@@ -19,6 +29,15 @@ class MdaStore(context: Context) {
         val j = org.json.JSONObject().put("m", modelo).put("f", firmware).put("b", billSet).put("t", System.currentTimeMillis())
         prefs.edit().putString("info:$serie", j.toString()).apply()
     }
+
+    fun setInfoConTs(serie: String, i: Info) {
+        if (serie.isBlank() || serie == "—") return
+        val j = org.json.JSONObject().put("m", i.modelo).put("f", i.firmware).put("b", i.billSet).put("t", i.ts)
+        prefs.edit().putString("info:$serie", j.toString()).apply()
+    }
+
+    fun infoSeries(): Set<String> = prefs.all.keys.filter { it.startsWith("info:") }.map { it.removePrefix("info:") }.toSet()
+    fun ifazSeries(): Set<String> = prefs.all.keys.filter { it.startsWith("ifaz:") }.map { it.removePrefix("ifaz:") }.toSet()
 
     fun info(serie: String): Info? = try {
         prefs.getString("info:$serie", null)?.let { org.json.JSONObject(it) }
@@ -47,5 +66,7 @@ class MdaStore(context: Context) {
     }
 
     fun weekly(): WeeklyData? = WeeklyData.fromJson(prefs.getString("semanal", null))
-    fun setWeekly(w: WeeklyData) { prefs.edit().putString("semanal", w.toJson()).apply() }
+    fun setWeekly(w: WeeklyData) = setWeeklyConTs(w, System.currentTimeMillis())
+    fun setWeeklyConTs(w: WeeklyData, ts: Long) { prefs.edit().putString("semanal", w.toJson()).putLong("semanal_ts", ts).apply() }
+    fun weeklyTs(): Long = prefs.getLong("semanal_ts", if (prefs.contains("semanal")) 1L else 0L)
 }

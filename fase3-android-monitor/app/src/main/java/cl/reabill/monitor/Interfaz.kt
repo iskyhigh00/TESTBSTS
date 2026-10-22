@@ -64,6 +64,17 @@ class IfazRegistro(val ultima: Int?, val habitual: Int?, val ts: Long, val hist:
             }
         } catch (_: Exception) { null }
 
+        fun fusionar(a: IfazRegistro?, b: IfazRegistro?): IfazRegistro? {
+            if (a == null) return b
+            if (b == null) return a
+            val hist = (a.hist + b.hist).distinctBy { Triple(it.ts, it.valor, it.origen) }.sortedBy { it.ts }.takeLast(MAX_HIST)
+            val nueva = if (a.ts >= b.ts) a else b
+            val ultima = nueva.ultima ?: a.ultima ?: b.ultima
+            val habitual = if (ultima != null && ultima != Interfaz.STAND_ALONE) ultima
+                else hist.lastOrNull { it.valor != Interfaz.STAND_ALONE }?.valor ?: nueva.habitual ?: a.habitual ?: b.habitual
+            return IfazRegistro(ultima, habitual, maxOf(a.ts, b.ts), hist)
+        }
+
         fun registrar(previo: IfazRegistro?, actual: Int, ahora: Long, origenCambio: String = "fuera"): IfazRegistro {
             val ultimaPrevia = previo?.ultima
             val hist = (previo?.hist ?: emptyList()).toMutableList()

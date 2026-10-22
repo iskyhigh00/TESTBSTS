@@ -2,6 +2,11 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.0.6" to listOf(
+            "Datos compartidos: todos los teléfonos con la cuenta compartida ven lo mismo (N° de máquina por serie, identidad, interfaz, lecturas y reporte semanal).",
+            "Preferencias → «Datos compartidos»: conecta la cuenta una vez; la app sincroniza sola al abrirse, cada 3 min y después de cada cambio, y tiene «Sincronizar ahora».",
+            "Funciona sin internet: lo que cambies se sube cuando vuelva la conexión."
+        ),
         "2.0.5" to listOf(
             "Cambiar interfaz: después de escribir, el equipo tarda unos 7 s en guardar la configuración. Ahora la app espera a que termine (como STS) y recién ahí relee para verificar.",
             "Si el equipo queda en una interfaz distinta a la pedida, lo dice y muestra la real."

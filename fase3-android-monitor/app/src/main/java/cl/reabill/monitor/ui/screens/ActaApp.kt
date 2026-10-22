@@ -1148,6 +1148,61 @@ private fun SettingsSheet(
                     ActaButton("Historial de versiones", onClick = onChangelog, height = 46.dp, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
                 }
 
+                PrefGroup("Datos compartidos") {
+                    val n by vm.nubeUi.collectAsStateWithLifecycle()
+                    var dlg by remember { mutableStateOf(false) }
+                    var correo by remember { mutableStateOf("") }
+                    var clave by remember { mutableStateOf("") }
+                    when {
+                        !n.disponible -> Text("Esta versión no trae la conexión a la nube.", style = ActaType.Body.copy(color = Acta.Ink2))
+                        n.email.isEmpty() -> {
+                            Text("Sin cuenta conectada.", style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(bottom = 8.dp))
+                            if (n.mensaje.isNotEmpty()) Text(n.mensaje, style = ActaType.Label, modifier = Modifier.padding(bottom = 8.dp))
+                            ActaButton("Conectar cuenta", onClick = { correo = ""; clave = ""; dlg = true }, height = 46.dp, modifier = Modifier.fillMaxWidth())
+                        }
+                        else -> {
+                            Text(n.email, style = ActaType.Cell)
+                            val cuando = if (n.ultima > 0) "Última sincronización: " +
+                                java.text.SimpleDateFormat("dd-MM HH:mm", java.util.Locale.getDefault()).format(java.util.Date(n.ultima)) else "Aún no sincroniza."
+                            Text(cuando, style = ActaType.Label, modifier = Modifier.padding(top = 4.dp))
+                            if (n.mensaje.isNotEmpty()) Text(n.mensaje, style = ActaType.Label, modifier = Modifier.padding(top = 2.dp))
+                            ActaButton(
+                                if (n.trabajando) "Sincronizando…" else "Sincronizar ahora", onClick = { vm.sincronizarAhora() },
+                                enabled = !n.trabajando, height = 46.dp, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                            )
+                            Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                ActaButton("Cambiar cuenta", onClick = { correo = n.email; clave = ""; dlg = true }, height = 46.dp, modifier = Modifier.weight(1f))
+                                ActaButton("Desconectar", onClick = { vm.nubeDesconectar() }, danger = true, height = 46.dp, modifier = Modifier.weight(1f))
+                            }
+                        }
+                    }
+                    if (dlg) AlertDialog(
+                        onDismissRequest = { dlg = false },
+                        title = { Text("Cuenta compartida") },
+                        text = {
+                            Column {
+                                OutlinedTextField(
+                                    value = correo, onValueChange = { correo = it.take(120) }, singleLine = true, label = { Text("Correo") },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), modifier = Modifier.fillMaxWidth()
+                                )
+                                OutlinedTextField(
+                                    value = clave, onValueChange = { clave = it.take(120) }, singleLine = true, label = { Text("Clave") },
+                                    visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                                )
+                            }
+                        },
+                        confirmButton = {
+                            ActaButton(
+                                "Conectar", onClick = { dlg = false; vm.nubeConectar(correo, clave) }, filled = true,
+                                enabled = correo.isNotBlank() && clave.isNotEmpty(), height = 44.dp, modifier = Modifier.width(110.dp)
+                            )
+                        },
+                        dismissButton = { ActaButton("Cancelar", onClick = { dlg = false }, height = 44.dp, modifier = Modifier.width(110.dp)) }
+                    )
+                }
+
                 PrefGroup("Reporte semanal del sistema") {
                     val w by vm.weekly.collectAsStateWithLifecycle()
                     Text(

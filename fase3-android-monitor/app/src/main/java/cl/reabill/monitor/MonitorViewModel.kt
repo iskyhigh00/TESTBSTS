@@ -28,6 +28,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
 
     private val usb = UsbSerialManager(app.applicationContext)
     private val store = AccountingStore(app.applicationContext)
+    private val nube by lazy { Nube(app.applicationContext, mdaStore, store) }
     private var mei: ValidatorClient? = null
 
     private val logFile = java.io.File(app.applicationContext.filesDir, "billmon-registro.log")
@@ -86,6 +87,8 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch(Dispatchers.IO) { Updater.cleanupDownloads(getApplication()) }
         checkForUpdate()
         refreshLibrary()
+        nubeEstado()
+        iniciarNube()
     }
 
     private fun refreshLibrary() {
@@ -238,8 +241,78 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
             } catch (e: Exception) {
                 addLog("Cambio de interfaz interrumpido: ${e.message}")
                 _ifaz.value = _ifaz.value.copy(trabajando = false, mensaje = "Interrumpido: ${e.message}")
-            } finally { endOp() }
+            } finally { endOp(); sincronizarPronto() }
         }
+    }
+
+    private val _nube = MutableStateFlow(NubeUi())
+    val nubeUi: StateFlow<NubeUi> = _nube
+    private var nubeJob: kotlinx.coroutines.Job? = null
+    private var pronto: kotlinx.coroutines.Job? = null
+
+    private fun nubeEstado(trabajando: Boolean = false, mensaje: String = _nube.value.mensaje) {
+        _nube.value = NubeUi(nube.disponible, nube.email, nube.ultima, trabajando, mensaje)
+    }
+
+    private fun refrescarDesdeNube() {
+        _mdaMap.value = mdaStore.all()
+        if (!weeklySample) _weekly.value = mdaStore.weekly()
+        val s = _status.value.serial
+        if (s.isNotBlank() && s != "—") {
+            _history.value = store.history(s)
+            val reg = mdaStore.ifaz(s)
+            if (reg != null && _ifaz.value.soportada) _ifaz.value = _ifaz.value.copy(registro = reg)
+        }
+    }
+
+    fun sincronizarAhora(manual: Boolean = true) {
+        if (!nube.disponible || nube.email.isEmpty()) { if (manual) nubeEstado(false, "Conecta una cuenta primero."); return }
+        if (_nube.value.trabajando) return
+        nubeEstado(true, "Sincronizando…")
+        viewModelScope.launch {
+            val r = withContext(Dispatchers.IO) { nube.sincronizar() }
+            if (r.huboCambios) refrescarDesdeNube()
+            if (r.ok) { if (manual || r.subidos > 0 || r.bajados > 0) addLog("Datos compartidos: ${r.mensaje}") }
+            else addLog("Datos compartidos: ${r.mensaje}")
+            nubeEstado(false, r.mensaje)
+        }
+    }
+
+    private fun sincronizarPronto() {
+        if (!nube.disponible || nube.email.isEmpty()) return
+        pronto?.cancel()
+        pronto = viewModelScope.launch { delay(4000); sincronizarAhora(false) }
+    }
+
+    private fun iniciarNube() {
+        if (!nube.disponible || nube.email.isEmpty() || nubeJob?.isActive == true) return
+        nubeJob = viewModelScope.launch {
+            delay(3000)
+            while (true) { sincronizarAhora(false); delay(180_000) }
+        }
+    }
+
+    fun nubeConectar(email: String, clave: String) {
+        if (!nube.disponible) { nubeEstado(false, "Esta versión no trae la conexión a la nube."); return }
+        if (email.isBlank() || clave.isEmpty()) { nubeEstado(false, "Escribe el correo y la clave."); return }
+        nubeEstado(true, "Comprobando la cuenta…")
+        viewModelScope.launch {
+            val err = withContext(Dispatchers.IO) { nube.probarCuenta(email, clave) }
+            if (err != null) { addLog("Datos compartidos: $err"); nubeEstado(false, err); return@launch }
+            nube.guardarCuenta(email, clave)
+            addLog("Datos compartidos: cuenta ${email.trim()} conectada.")
+            nubeJob?.cancel(); nubeJob = null
+            nubeEstado(false, "Cuenta conectada.")
+            sincronizarAhora(true)
+            iniciarNube()
+        }
+    }
+
+    fun nubeDesconectar() {
+        nubeJob?.cancel(); nubeJob = null; pronto?.cancel()
+        nube.quitarCuenta()
+        addLog("Datos compartidos: cuenta desconectada (los datos del teléfono se conservan).")
+        nubeEstado(false, "Sin cuenta conectada.")
     }
 
     class MdaFila(val mda: String, val serie: String, val lectura: AccountingData?)
@@ -274,6 +347,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         mdaStore.setMda(serie, n)
         _mdaMap.value = mdaStore.all()
         addLog(if (n == null) "N° de máquina quitado." else "N° de máquina guardado: $n (serie $serie).")
+        sincronizarPronto()
     }
 
     fun importWeekly(uri: android.net.Uri) {
@@ -289,6 +363,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
                 _weekly.value = w
                 weeklySample = false
                 addLog("Reporte semanal importado: semana ${w.fecha.ifEmpty { "sin fecha" }}, ${w.datos.size} máquinas.")
+                sincronizarPronto()
             } catch (e: Exception) {
                 addLog("No se pudo importar el reporte semanal: ${e.message ?: e.javaClass.simpleName}")
             }
@@ -501,6 +576,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
             } finally {
                 _busy.value = false
                 endOp()
+                if (!DemoClient.isDemoSerial(_status.value.serial)) sincronizarPronto()
             }
         }
     }
@@ -1155,6 +1231,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
                 _history.value = withContext(Dispatchers.IO) { store.history(_status.value.serial) }
                 _mdaMap.value = mdaStore.all()
                 addLog("Respaldo importado: ${c.historial.size} equipos en el archivo, $nuevas lecturas nuevas, $lineas líneas de registro nuevas.")
+                sincronizarPronto()
             } catch (e: Exception) {
                 addLog("No se pudo importar el respaldo: ${e.message}")
             }

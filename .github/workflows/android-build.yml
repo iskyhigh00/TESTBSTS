@@ -18,6 +18,8 @@ jobs:
       APK_PUBLISH_TOKEN: ${{ secrets.APK_PUBLISH_TOKEN }}
       APK_REPO: ${{ secrets.APK_REPO }}
       APK_READ_TOKEN: ${{ secrets.APK_READ_TOKEN }}
+      SUPA_URL: ${{ secrets.SUPA_URL }}
+      SUPA_KEY: ${{ secrets.SUPA_KEY }}
     defaults:
       run:
         working-directory: fase3-android-monitor

@@ -12,13 +12,16 @@ android {
         applicationId = "cl.reabill.monitor"
         minSdk = 26
         targetSdk = 35
-        versionCode = 188
-        versionName = "2.0.5"
+        versionCode = 189
+        versionName = "2.0.6"
 
         val updateToken = System.getenv("APK_READ_TOKEN") ?: ""
         buildConfigField("String", "UPDATE_TOKEN", "\"$updateToken\"")
         val updateRepo = System.getenv("APK_REPO") ?: ""
         buildConfigField("String", "UPDATE_REPO", "\"$updateRepo\"")
+
+        buildConfigField("String", "SUPA_URL", "\"${System.getenv("SUPA_URL") ?: ""}\"")
+        buildConfigField("String", "SUPA_KEY", "\"${System.getenv("SUPA_KEY") ?: ""}\"")
     }
 
     signingConfigs {

@@ -95,8 +95,8 @@ object LabelPick {
 
 object LabelFit {
     const val ALTO = 96f
-    const val HUECO = 3f
-    const val MARGEN = 4f
+    const val HUECO = 4f
+    const val MARGEN = 2f
 
     fun maximo(alturaBase: Float, n: Int): Float =
         if (alturaBase <= 0f || n <= 0) 1f else (ALTO - MARGEN - HUECO * (n - 1)) / alturaBase

@@ -76,13 +76,14 @@ object LabelRenderer {
             val tinta = paints.indices.map { i -> android.graphics.Rect().also { paints[i].getTextBounds(ls[i].text, 0, ls[i].text.length, it) } }
             val heights = tinta.map { it.height().toFloat() }
             val total = heights.sum()
-            val gap = if (style.compact) LabelFit.HUECO else maxOf(2f, (h - total) / (ls.size + 1))
+
+            val gap = if (style.compact || ls.size < 2) LabelFit.HUECO else maxOf(LabelFit.HUECO, (h - 2f - total) / (ls.size - 1))
             val bloque = total + gap * (ls.size - 1)
             var y = if (style.compact) when (style.vpos) {
                 0 -> 2f
                 2 -> h - bloque - 2f
                 else -> (h - bloque) / 2f
-            } else gap
+            } else if (ls.size < 2) (h - total) / 2f else 1f
             ls.forEachIndexed { i, l ->
                 val p = paints[i]
                 val tw = p.measureText(l.text)

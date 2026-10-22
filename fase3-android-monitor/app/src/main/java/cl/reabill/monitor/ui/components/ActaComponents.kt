@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -182,11 +183,12 @@ private val ButtonShape = RoundedCornerShape(12.dp)
 @Composable
 fun ActaButton(
     text: String, onClick: () -> Unit, modifier: Modifier = Modifier,
-    filled: Boolean = false, enabled: Boolean = true, danger: Boolean = false, height: Dp = 52.dp
+    filled: Boolean = false, enabled: Boolean = true, danger: Boolean = false, height: Dp = 52.dp,
+    textSize: androidx.compose.ui.unit.TextUnit = 14.sp
 ) {
     val edge = if (danger) Acta.Error else Acta.Ink
     Box(
-        modifier.height(height).alpha(if (enabled) 1f else 0.4f)
+        modifier.heightIn(min = height).alpha(if (enabled) 1f else 0.4f)
             .clip(ButtonShape)
             .background(if (filled) Acta.Ink else Acta.Paper)
             .border(1.dp, edge, ButtonShape)
@@ -195,9 +197,10 @@ fun ActaButton(
     ) {
         Text(
             text, style = ActaType.Button.copy(
+                fontSize = textSize,
                 color = when { filled -> Acta.Paper; danger -> Acta.Error; else -> Acta.Ink }
             ),
-            textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 10.dp)
+            textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
         )
     }
 }
@@ -206,11 +209,11 @@ fun ActaButton(
 fun ActaChip(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val shape = RoundedCornerShape(20.dp)
     Box(
-        modifier.height(40.dp).clip(shape)
+        modifier.heightIn(min = 40.dp).clip(shape)
             .background(if (selected) Acta.Ink else Acta.Paper)
             .border(1.dp, if (selected) Acta.Ink else Acta.Hairline, shape)
             .clickable(role = Role.Checkbox, onClick = onClick)
-            .padding(horizontal = 14.dp),
+            .padding(horizontal = 14.dp, vertical = 6.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(text, style = ActaType.Button.copy(fontSize = 13.sp, color = if (selected) Acta.Paper else Acta.Ink))
@@ -247,7 +250,7 @@ fun HoldButton(
     val scope = rememberCoroutineScope()
     val haptic = LocalHapticFeedback.current
     Box(
-        modifier.height(52.dp).alpha(if (enabled) 1f else 0.4f)
+        modifier.heightIn(min = 52.dp).alpha(if (enabled) 1f else 0.4f)
             .clip(ButtonShape)
             .border(1.dp, Acta.Ink, ButtonShape)
             .drawBehind {

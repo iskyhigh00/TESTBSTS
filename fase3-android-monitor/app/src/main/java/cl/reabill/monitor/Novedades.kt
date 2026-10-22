@@ -2,6 +2,12 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.1.1" to listOf(
+            "Revisión de todos los menús: los botones ya no se cortan si el texto es largo (crecen a dos líneas) ni se aprietan en los diálogos.",
+            "Cifras AR y AS de la pantalla principal y del buscador un poco más chicas para que «100,0 %» siempre quepa.",
+            "Textos de la etiqueta: «Restablecer los textos» pasó arriba de la lista; Guardar y Cancelar quedan en su lugar.",
+            "Registro: Copiar, Copiar todo y Limpiar con letra algo menor para que no se aprieten."
+        ),
         "2.1.0" to listOf(
             "Etiqueta: el largo ahora es «Auto» (por defecto): mide el texto y corta la cinta justo, sin gastar de más. Se puede seguir eligiendo un largo fijo.",
             "Impresora: ya no queda conectada todo el tiempo. Se conecta sola al presionar «Imprimir etiqueta» y se suelta al terminar (también al cerrar la pantalla de impresora).",

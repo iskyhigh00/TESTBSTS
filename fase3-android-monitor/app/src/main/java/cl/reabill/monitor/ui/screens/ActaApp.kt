@@ -37,6 +37,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
@@ -237,7 +238,7 @@ fun ActaApp(vm: MonitorViewModel) {
                     if (ocr.raw.isNotEmpty()) Text("Texto visto: ${ocr.raw}", style = ActaType.Label, modifier = Modifier.padding(top = 8.dp))
                 }
             },
-            confirmButton = { ActaButton("Cerrar", onClick = { vm.clearOcr() }, filled = true, height = 44.dp, modifier = Modifier.width(110.dp)) }
+            confirmButton = { ActaButton("Cerrar", onClick = { vm.clearOcr() }, filled = true, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) }
         )
     }
 
@@ -254,7 +255,7 @@ fun ActaApp(vm: MonitorViewModel) {
                     }
                 }
             },
-            confirmButton = { ActaButton("Entendido", onClick = { vm.novedadesVistas() }, filled = true, height = 44.dp, modifier = Modifier.width(130.dp)) }
+            confirmButton = { ActaButton("Entendido", onClick = { vm.novedadesVistas() }, filled = true, height = 44.dp, modifier = Modifier.widthIn(min = 130.dp)) }
         )
     }
 
@@ -314,7 +315,7 @@ fun ActaApp(vm: MonitorViewModel) {
                     danger = true, enabled = sel != null && sel != actual && !ifaz.trabajando, height = 44.dp
                 )
             },
-            dismissButton = { ActaButton("Cancelar", onClick = { showIfaz = false }, height = 44.dp, modifier = Modifier.width(110.dp)) }
+            dismissButton = { ActaButton("Cancelar", onClick = { showIfaz = false }, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) }
         )
     }
 
@@ -336,7 +337,7 @@ fun ActaApp(vm: MonitorViewModel) {
                         }
                 }
             },
-            confirmButton = { ActaButton("Cerrar", onClick = { showCambios = false }, filled = true, height = 44.dp, modifier = Modifier.width(110.dp)) }
+            confirmButton = { ActaButton("Cerrar", onClick = { showCambios = false }, filled = true, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) }
         )
     }
 
@@ -384,7 +385,7 @@ fun ActaApp(vm: MonitorViewModel) {
                     }
                 }
             },
-            confirmButton = { ActaButton("Cerrar", onClick = { showLista = false }, filled = true, height = 44.dp, modifier = Modifier.width(110.dp)) }
+            confirmButton = { ActaButton("Cerrar", onClick = { showLista = false }, filled = true, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) }
         )
     }
 
@@ -437,7 +438,7 @@ fun ActaApp(vm: MonitorViewModel) {
                                 }
                                 Text(
                                     if (lecturaMax == null) "—" else "${fmtRate(lecturaMax.rate)}\u00A0%", maxLines = 1, softWrap = false,
-                                    style = ActaType.Title.copy(fontSize = 32.sp, color = if (lecturaMax == null) Acta.Hairline else Acta.Ink)
+                                    style = ActaType.Title.copy(fontSize = 28.sp, color = if (lecturaMax == null) Acta.Hairline else Acta.Ink)
                                 )
                             }
                             Column(Modifier.weight(1f)) {
@@ -447,7 +448,7 @@ fun ActaApp(vm: MonitorViewModel) {
                                 }
                                 Text(
                                     if (sistema == null) "—" else "${fmtRate(sistema * 100.0)}\u00A0%", maxLines = 1, softWrap = false,
-                                    style = ActaType.Title.copy(fontSize = 32.sp, color = if (sistema == null) Acta.Hairline else colorAs)
+                                    style = ActaType.Title.copy(fontSize = 28.sp, color = if (sistema == null) Acta.Hairline else colorAs)
                                 )
                             }
                         }
@@ -495,7 +496,7 @@ fun ActaApp(vm: MonitorViewModel) {
                     }
                 }
             },
-            confirmButton = { ActaButton("Cerrar", onClick = { showBuscar = false; vm.clearOcr() }, filled = true, height = 44.dp, modifier = Modifier.width(110.dp)) }
+            confirmButton = { ActaButton("Cerrar", onClick = { showBuscar = false; vm.clearOcr() }, filled = true, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) }
         )
     }
 
@@ -525,8 +526,8 @@ fun ActaApp(vm: MonitorViewModel) {
                     ActaButton("Tomar foto", onClick = { showMda = false; vm.clearOcr(); lanzarFoto() }, height = 40.dp, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
                 }
             },
-            confirmButton = { ActaButton("Guardar", onClick = { vm.setMda(mdaTexto); showMda = false; vm.clearOcr() }, filled = true, enabled = mdaTexto.isBlank() || cl.reabill.monitor.Mda.valido(cl.reabill.monitor.Mda.norm(mdaTexto)), height = 44.dp, modifier = Modifier.width(110.dp)) },
-            dismissButton = { ActaButton("Cancelar", onClick = { showMda = false; vm.clearOcr() }, height = 44.dp, modifier = Modifier.width(110.dp)) }
+            confirmButton = { ActaButton("Guardar", onClick = { vm.setMda(mdaTexto); showMda = false; vm.clearOcr() }, filled = true, enabled = mdaTexto.isBlank() || cl.reabill.monitor.Mda.valido(cl.reabill.monitor.Mda.norm(mdaTexto)), height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) },
+            dismissButton = { ActaButton("Cancelar", onClick = { showMda = false; vm.clearOcr() }, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) }
         )
     }
 
@@ -537,8 +538,8 @@ fun ActaApp(vm: MonitorViewModel) {
             text = {
                 Text("Se guarda el estado actual y los contadores quedan en 0.")
             },
-            confirmButton = { ActaButton("Borrar", onClick = { showReset = false; vm.resetAccounting() }, danger = true, height = 44.dp, modifier = Modifier.width(110.dp)) },
-            dismissButton = { ActaButton("Cancelar", onClick = { showReset = false }, height = 44.dp, modifier = Modifier.width(110.dp)) }
+            confirmButton = { ActaButton("Borrar", onClick = { showReset = false; vm.resetAccounting() }, danger = true, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) },
+            dismissButton = { ActaButton("Cancelar", onClick = { showReset = false }, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) }
         )
     }
 
@@ -549,8 +550,8 @@ fun ActaApp(vm: MonitorViewModel) {
             text = {
                 Text("Experimental, sin probar. ¿Reiniciar el equipo?")
             },
-            confirmButton = { ActaButton("Reiniciar", onClick = { showRestart = false; vm.restartAdvance() }, danger = true, height = 44.dp, modifier = Modifier.width(110.dp)) },
-            dismissButton = { ActaButton("Cancelar", onClick = { showRestart = false }, height = 44.dp, modifier = Modifier.width(110.dp)) }
+            confirmButton = { ActaButton("Reiniciar", onClick = { showRestart = false; vm.restartAdvance() }, danger = true, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) },
+            dismissButton = { ActaButton("Cancelar", onClick = { showRestart = false }, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) }
         )
     }
 
@@ -576,7 +577,7 @@ fun ActaApp(vm: MonitorViewModel) {
                     }
                 }
             },
-            confirmButton = { ActaButton("Cerrar", onClick = { showHistory = false }, filled = true, height = 44.dp, modifier = Modifier.width(110.dp)) }
+            confirmButton = { ActaButton("Cerrar", onClick = { showHistory = false }, filled = true, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) }
         )
     }
 
@@ -787,7 +788,7 @@ private fun Hero(
                 Text(
                     ar, maxLines = 1, softWrap = false,
                     style = ActaType.Title.copy(
-                        fontSize = 40.sp,
+                        fontSize = 36.sp,
                         color = when {
                             acc != null -> Acta.Ink
                             fault -> Acta.Error
@@ -803,7 +804,7 @@ private fun Hero(
                 }
                 Text(
                     if (sistema == null || acc == null) "—" else "${fmtRate(sistema * 100.0 * avance.value)}\u00A0%", maxLines = 1, softWrap = false,
-                    style = ActaType.Title.copy(fontSize = 40.sp, color = if (sistema == null || acc == null) Acta.Hairline else colorAs)
+                    style = ActaType.Title.copy(fontSize = 36.sp, color = if (sistema == null || acc == null) Acta.Hairline else colorAs)
                 )
             }
         }
@@ -1199,7 +1200,7 @@ private fun SettingsSheet(
                                 enabled = correo.isNotBlank() && clave.isNotEmpty(), height = 44.dp, modifier = Modifier.width(110.dp)
                             )
                         },
-                        dismissButton = { ActaButton("Cancelar", onClick = { dlg = false }, height = 44.dp, modifier = Modifier.width(110.dp)) }
+                        dismissButton = { ActaButton("Cancelar", onClick = { dlg = false }, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) }
                     )
                 }
 
@@ -1242,9 +1243,9 @@ private fun SettingsSheet(
 
                 PrefGroup("Registro") {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        ActaButton("Copiar", onClick = onCopy, height = 42.dp, modifier = Modifier.weight(1f))
-                        ActaButton("Copiar todo", onClick = onCopyAll, height = 42.dp, modifier = Modifier.weight(1f))
-                        ActaButton("Limpiar", onClick = { vm.clearLog() }, danger = true, height = 42.dp, modifier = Modifier.weight(1f))
+                        ActaButton("Copiar", onClick = onCopy, height = 42.dp, textSize = 13.sp, modifier = Modifier.weight(1f))
+                        ActaButton("Copiar todo", onClick = onCopyAll, height = 42.dp, textSize = 13.sp, modifier = Modifier.weight(1f))
+                        ActaButton("Limpiar", onClick = { vm.clearLog() }, danger = true, height = 42.dp, textSize = 13.sp, modifier = Modifier.weight(1f))
                     }
                     SelectionContainer {
                         Column(Modifier.fillMaxWidth().padding(top = 8.dp)) {

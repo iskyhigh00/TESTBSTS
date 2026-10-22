@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -229,7 +230,7 @@ fun LabelSheet(vm: MonitorViewModel, onClose: () -> Unit) {
                 enabled = preview != null && !ui.printing && prefs.fields.isNotEmpty()
             )
         },
-        dismissButton = { ActaButton("Cerrar", onClick = { vm.labelStopScan(); vm.labelDisconnect(); onClose() }, height = 44.dp, modifier = Modifier.width(100.dp)) }
+        dismissButton = { ActaButton("Cerrar", onClick = { vm.labelStopScan(); vm.labelDisconnect(); onClose() }, height = 44.dp, modifier = Modifier.widthIn(min = 100.dp)) }
     )
 }
 
@@ -242,6 +243,10 @@ private fun NamesDialog(actual: Map<String, String>, onSave: (Map<String, String
         title = { Text("Textos de la etiqueta") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()).heightIn(max = 420.dp)) {
+                ActaButton(
+                    "Restablecer los textos", { editables.forEach { textos[it] = LabelFields.DEFAULT_TEXT[it] ?: "" } },
+                    height = 40.dp, modifier = Modifier.fillMaxWidth()
+                )
                 editables.forEach { k ->
                     OutlinedTextField(
                         value = textos[k] ?: "", onValueChange = { textos[k] = it.take(12) },
@@ -251,12 +256,7 @@ private fun NamesDialog(actual: Map<String, String>, onSave: (Map<String, String
                 }
             }
         },
-        confirmButton = { ActaButton("Guardar", { onSave(textos.toMap()) }, filled = true, height = 44.dp, modifier = Modifier.width(110.dp)) },
-        dismissButton = {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ActaButton("Restablecer", { editables.forEach { textos[it] = LabelFields.DEFAULT_TEXT[it] ?: "" } }, height = 44.dp, modifier = Modifier.width(120.dp))
-                ActaButton("Cancelar", onClose, height = 44.dp, modifier = Modifier.width(100.dp))
-            }
-        }
+        confirmButton = { ActaButton("Guardar", { onSave(textos.toMap()) }, filled = true, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) },
+        dismissButton = { ActaButton("Cancelar", onClose, height = 44.dp, modifier = Modifier.widthIn(min = 100.dp)) }
     )
 }

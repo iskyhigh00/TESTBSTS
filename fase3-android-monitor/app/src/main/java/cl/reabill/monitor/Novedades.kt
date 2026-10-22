@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.0.3" to listOf(
+            "Preferencias → «Historial de versiones»: lista de todos los cambios de cada versión, de la más nueva a la más antigua."
+        ),
         "2.0.2" to listOf(
             "«Real vs sistema» ahora está dentro de Contabilidad: columna «Sistema» (naranja) junto a Actual y Anterior, con aceptados, rechazados, tasa e insertados de la semana."
         ),
@@ -33,12 +36,80 @@ object Novedades {
             "Revisa que los botones Borrar, Reiniciar e Historial se vean como el resto, y que los % no se corten en dos líneas."
         ),
         "1.12.14" to listOf(
-            "Pantalla principal: AR y AS lado a lado, con el MDA asociado a la serie. Toca el MDA para editarlo.",
-            "Sin MDA asociado: botón «Agregar máquina (foto)». La confirmación muestra el número sobre la foto.",
-            "Preferencias → Probar con una imagen: ahora muestra la foto con el número encima.",
-            "Nuevo botón «Buscar máquina»: escribe o fotografía un MDA y ve AS, AR de la última lectura y datos del billetero.",
-            "Esta lista aparece después de cada actualización."
-        )
+            "Ventana «Novedades» después de cada actualización, con lo que hay que probar."
+        ),
+        "1.12.13" to listOf(
+            "Nuevo botón «Buscar máquina»: escribe o fotografía un MDA y ve AS, AR de la última lectura y datos del billetero."
+        ),
+        "1.12.12" to listOf(
+            "Preferencias → Probar con una imagen: muestra la foto con el número encima."
+        ),
+        "1.12.11" to listOf(
+            "Pantalla principal: AR y AS lado a lado, con el MDA asociado a la serie.",
+            "Sin MDA asociado: botón «Agregar máquina (foto)». La confirmación muestra el número sobre la foto."
+        ),
+        "1.12.10" to listOf("Preferencias: Actualización y Reporte semanal quedan arriba."),
+        "1.12.9" to listOf("Etiqueta en 3 líneas: la fecha va con el firmware y el bill-set, y el bill-set muestra los últimos 3 dígitos."),
+        "1.12.8" to listOf("La pantalla no se apaga mientras la app está abierta."),
+        "1.12.7" to listOf("El modo demo usa el reporte semanal real importado (solo usa el de ejemplo si no hay ninguno) y no lo pierde al salir."),
+        "1.12.6" to listOf("Nombre de la impresora sin signos de relleno al final."),
+        "1.12.5" to listOf("Importa el formato reacbill-aceptacion v1 (porcentajes 0–100, null sin dato); rechaza versiones desconocidas."),
+        "1.12.4" to listOf("Probar la lectura del N° de máquina con una imagen de la galería; ignora otras etiquetas con letras y prefiere números de 6 dígitos."),
+        "1.12.3" to listOf("Se quitaron los textos instructivos y la fila de diferencia; mensajes mínimos."),
+        "1.12.2" to listOf(
+            "Tamaño de la etiqueta relativo a lo que cabe (Chico / Medio / Máximo), opción de 2 líneas, copias guardadas y vista previa que se actualiza.",
+            "Tras borrar la contabilidad, el demo y el comparador usan la lectura previa."
+        ),
+        "1.12.1" to listOf("El resultado de buscar actualización y el botón para instalarla aparecen en Preferencias."),
+        "1.12.0" to listOf(
+            "Foto del N° de máquina con lectura de texto en el teléfono.",
+            "Etiqueta con N° de máquina, aceptación real (AR) y semanal (AS); textos editables, tamaño y posición.",
+            "La aceptación tras borrar usa la última lectura de antes."
+        ),
+        "1.11.0" to listOf(
+            "N° de máquina por serie y comparación con el reporte semanal del sistema (JSON de la Bitácora o CSV).",
+            "Correcciones de Bluetooth y de la etiqueta."
+        ),
+        "1.10.3" to listOf("Versión del bill-set como dato opcional de la etiqueta."),
+        "1.10.2" to listOf("La etiqueta muestra solo el número del bill-set, sin la versión que algunos equipos agregan."),
+        "1.10.1" to listOf("Posición del texto de la etiqueta (izquierda, centro o derecha; líneas juntas o separadas) y explicación del modo compatible."),
+        "1.10.0" to listOf(
+            "Pantalla limpia con botones.",
+            "Preferencias (engranaje) con impresora, registro, respaldo y actualización.",
+            "Modo demo con billetero simulado."
+        ),
+        "1.9.0" to listOf("Botón para conectar a la impresora guardada y para olvidarla."),
+        "1.8.9" to listOf("Elegir los datos de la etiqueta (fecha, modelo, serie, aceptación, firmware, bill-set)."),
+        "1.8.8" to listOf("Etiqueta continua por defecto y márgenes laterales mayores."),
+        "1.8.7" to listOf("El Registro anota cada evento USB (enchufado / desenchufado) con VID y PID."),
+        "1.8.6" to listOf("Firmware y bill-set también con la familia de direcciones E60F/E618."),
+        "1.8.5" to listOf("La búsqueda de impresora muestra todos los dispositivos BLE (nombre, dirección y señal), con escaneo rápido."),
+        "1.8.4" to listOf("La búsqueda de impresora lista los dispositivos BLE con nombre (los P12 primero) y da más pistas si no encuentra."),
+        "1.8.3" to listOf("Registro con Limpiar, Copiar (desde la última limpieza) y Copiar todo."),
+        "1.8.2" to listOf("Lee firmware y bill-set también en equipos con direcciones E259/E262."),
+        "1.8.1" to listOf("Lectura de bill-set y firmware: no reintenta si el equipo da la misma respuesta; registra el crudo completo."),
+        "1.8.0" to listOf("Impresión de etiquetas en impresora P12 por Bluetooth LE (fecha, firmware, aceptación)."),
+        "1.7.0" to listOf(
+            "Reinicio experimental del Advance.",
+            "Tasa de aceptación anterior en vez de diferencia; historial completo a pedido."
+        ),
+        "1.6.2" to listOf("Tiempos, comandos y reintentos en el Registro (Advance) y tiempo total de lectura."),
+        "1.6.1" to listOf("Advance sin SET_INTERFACE en el primer intento, exclusión de operaciones USB, diagnóstico del borrado y no abrir dispositivos de almacenamiento."),
+        "1.6.0" to listOf("Exportar e importar historial y registro en JSON (fusiona sin duplicar)."),
+        "1.5.1" to listOf("Ícono compatible con íconos temáticos (capa monocroma), PNG con transparencia e íconos clásicos."),
+        "1.5.0" to listOf("Carga de bill-set del SC Advance; la app detecta Cashflow o Advance por PID."),
+        "1.4.0" to listOf("Soporte SC Advance: identidad, firmware, contabilidad, borrado y calibración."),
+        "1.3.10" to listOf("Botones arriba del registro, el borrado exige copia previa, calibración con SET_INTERFACE y «Anterior» = última lectura distinta."),
+        "1.3.9" to listOf("SET_INTERFACE antes de cada trama de descarga y SET_CONFIGURATION al abrir."),
+        "1.3.8" to listOf("Escritura de bloques más robusta (envío con timeout largo, reescucha antes de reenviar, diagnóstico)."),
+        "1.3.7" to listOf("Copiar solo la sesión actual; detalle de contabilidad solo si cambia."),
+        "1.3.6" to listOf("Reintenta con reconexión al entrar en modo descarga."),
+        "1.3.5" to listOf("Borrar contabilidad usa SET_INTERFACE antes de cada comando."),
+        "1.3.4" to listOf("Registra los descriptores USB cuando el equipo no responde a la identidad."),
+        "1.3.3" to listOf("Nombre de archivo coherente entre la selección y la biblioteca."),
+        "1.3.2" to listOf("Corrige la validación del bill-set (palabras de 16 bits)."),
+        "1.3.1" to listOf("Biblioteca de bill-sets guardados en la app."),
+        "1.3.0" to listOf("Cargar bill-set (.BIN SC83) desde la app, con la misma secuencia que STS.")
     )
 
     private fun partes(v: String) = v.split('.').map { it.toIntOrNull() ?: 0 }

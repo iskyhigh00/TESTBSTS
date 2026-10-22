@@ -144,6 +144,7 @@ fun ActaApp(vm: MonitorViewModel) {
     var mdaTexto by remember { mutableStateOf("") }
     var showBuscar by remember { mutableStateOf(false) }
     var showLista by remember { mutableStateOf(false) }
+    var showCambios by remember { mutableStateOf(false) }
     var filtroLista by remember { mutableStateOf("") }
     var buscarTexto by remember { mutableStateOf("") }
     var buscandoFoto by remember { mutableStateOf(false) }
@@ -251,6 +252,28 @@ fun ActaApp(vm: MonitorViewModel) {
                 }
             },
             confirmButton = { ActaButton("Entendido", onClick = { vm.novedadesVistas() }, filled = true, height = 44.dp, modifier = Modifier.width(130.dp)) }
+        )
+    }
+
+    if (showCambios) {
+        AlertDialog(
+            onDismissRequest = { showCambios = false },
+            title = { Text("Historial de versiones") },
+            text = {
+                Column(Modifier.heightIn(max = 460.dp).verticalScroll(rememberScrollState())) {
+                    cl.reabill.monitor.Novedades.NOTAS.entries
+                        .sortedWith { a, b -> cl.reabill.monitor.Novedades.comparar(b.key, a.key) }
+                        .forEachIndexed { i, (v, lineas) ->
+                            if (i > 0) Hairline(Modifier.padding(top = 12.dp))
+                            Row(Modifier.padding(top = if (i > 0) 10.dp else 0.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text("v$v", style = ActaType.Section.copy(fontFamily = cl.reabill.monitor.ui.theme.ActaMono))
+                                if (v == APP_VERSION) Text("  instalada", style = ActaType.Label.copy(color = Acta.Accent))
+                            }
+                            lineas.forEach { Text("•  $it", style = ActaType.Body, modifier = Modifier.padding(top = 4.dp)) }
+                        }
+                }
+            },
+            confirmButton = { ActaButton("Cerrar", onClick = { showCambios = false }, filled = true, height = 44.dp, modifier = Modifier.width(110.dp)) }
         )
     }
 
@@ -571,6 +594,7 @@ fun ActaApp(vm: MonitorViewModel) {
             visible = showSettings, vm = vm, log = log, connected = connected, kind = kind,
             onClose = { showSettings = false },
             onLabelConfig = { showLabel = true },
+            onChangelog = { showCambios = true },
             onRestart = { showSettings = false; showRestart = true },
             onCopy = { clipboard.setText(AnnotatedString(vm.sessionLog().ifEmpty { log.take(30).joinToString("\n") })) },
             onCopyAll = { vm.fullLogAsync { t -> clipboard.setText(AnnotatedString(t.ifEmpty { log.joinToString("\n") })) } },
@@ -992,7 +1016,7 @@ private fun HistorySection(history: List<AccountingData>, serial: String, onShow
 @Composable
 private fun SettingsSheet(
     visible: Boolean, vm: MonitorViewModel, log: List<String>, connected: Boolean, kind: String,
-    onClose: () -> Unit, onLabelConfig: () -> Unit, onRestart: () -> Unit,
+    onClose: () -> Unit, onLabelConfig: () -> Unit, onChangelog: () -> Unit, onRestart: () -> Unit,
     onCopy: () -> Unit, onCopyAll: () -> Unit, onExport: () -> Unit, onImport: () -> Unit,
     onImportWeekly: () -> Unit, onTestOcr: () -> Unit
 ) {
@@ -1024,6 +1048,7 @@ private fun SettingsSheet(
                         }
                     }
                     ActaButton("Buscar actualización", onClick = { vm.checkForUpdate() }, height = 46.dp, modifier = Modifier.fillMaxWidth())
+                    ActaButton("Historial de versiones", onClick = onChangelog, height = 46.dp, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
                 }
 
                 PrefGroup("Reporte semanal del sistema") {

@@ -517,19 +517,12 @@ fun ActaApp(vm: MonitorViewModel) {
                 )
                 IdentityBlock(phase, status.billSet, status.serial, status.model, status.manufacturer, status.firmwareApp)
 
+                val mdaActual = mdaMap[status.serial]
                 AccountingSection(
                     acc = accounting, history = history, phase = phase, connected = connected,
+                    sistema = if (connected) mdaActual?.let { m -> weekly?.conteo(m)?.let { SisCols(it.first, it.second, weekly?.pct(m), weekly?.fecha.orEmpty()) } } else null,
                     onRead = { vm.readAccounting() }, onReset = { showReset = true }
                 )
-
-                if (connected) {
-                    val mdaActual = mdaMap[status.serial]
-                    val conteoSis = mdaActual?.let { weekly?.conteo(it) }
-                    if (conteoSis != null) ComparativaSection(
-                        real = cl.reabill.monitor.LabelPick.reading(accounting, history)?.first,
-                        sistema = conteoSis, fecha = weekly?.fecha.orEmpty()
-                    )
-                }
 
                 if (history.isNotEmpty()) HistorySection(history, status.serial, onShowAll = { showHistory = true })
 
@@ -860,7 +853,7 @@ private fun PendingText(text: String, style: TextStyle) {
 @Composable
 private fun AccountingSection(
     acc: AccountingData?, history: List<AccountingData>, phase: Phase, connected: Boolean,
-    onRead: () -> Unit, onReset: () -> Unit
+    sistema: SisCols?, onRead: () -> Unit, onReset: () -> Unit
 ) {
     val prev = acc?.let { previousSnapshot(it, history) }
     SectionHeader("Contabilidad") {
@@ -872,9 +865,10 @@ private fun AccountingSection(
     }
     Column(Modifier.padding(horizontal = Gutter)) {
         Row(Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
-            HeadCell("Concepto", Modifier.weight(1.5f), TextAlign.Start)
+            HeadCell("Concepto", Modifier.weight(if (sistema != null) 1.6f else 1.5f), TextAlign.Start)
             HeadCell("Actual", Modifier.weight(1f))
             HeadCell("Anterior", Modifier.weight(1f))
+            if (sistema != null) Text("Sistema", style = ActaType.Label.copy(fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Acta.Sistema), textAlign = TextAlign.End, modifier = Modifier.weight(1f))
         }
         if (acc == null) {
             Hairline()
@@ -883,16 +877,19 @@ private fun AccountingSection(
                 style = ActaType.Label, modifier = Modifier.padding(vertical = 12.dp)
             )
         } else {
-            LedgerRow("Aceptados", acc.accepted, prev?.accepted)
-            LedgerRow("Rechazados", acc.rejected, prev?.rejected)
-            RateRow(acc.rate, prev?.rate)
-            PlainRow("Insertados", fmtInt(acc.inserted))
-            PlainRow("Apilados", fmtInt(acc.stacked))
-            PlainRow("Alcanzan depósito", fmtInt(acc.deposited))
+            LedgerRow("Aceptados", acc.accepted, prev?.accepted, sistema?.let { fmtInt(it.aceptados) }, sistema != null)
+            LedgerRow("Rechazados", acc.rejected, prev?.rejected, sistema?.let { fmtInt(it.rechazados) }, sistema != null)
+            RateRow(acc.rate, prev?.rate, sistema?.pct?.let { "${fmtRate(it * 100.0)}\u00A0%" }, sistema != null)
+            PlainRow("Insertados", fmtInt(acc.inserted), sistema?.let { fmtInt(it.aceptados + it.rechazados) }, sistema != null)
+            PlainRow("Apilados", fmtInt(acc.stacked), null, sistema != null)
+            PlainRow(if (sistema != null) "En depósito" else "Alcanzan depósito", fmtInt(acc.deposited), null, sistema != null)
             if (prev != null) {
                 val d = java.text.SimpleDateFormat("dd-MM-yyyy HH:mm", java.util.Locale.getDefault())
                     .format(java.util.Date(prev.timestamp))
                 Text("Anterior: lectura del $d", style = ActaType.Label, modifier = Modifier.padding(top = 6.dp))
+            }
+            if (sistema != null) {
+                Text("Sistema: semana ${sistema.fecha.ifEmpty { "sin fecha" }}", style = ActaType.Label.copy(color = Acta.Sistema), modifier = Modifier.padding(top = 4.dp))
             }
             Spacer(Modifier.height(10.dp))
             ActaButton(
@@ -920,70 +917,49 @@ private fun HeadCell(text: String, modifier: Modifier, align: TextAlign = TextAl
     Text(text, style = ActaType.Label.copy(fontSize = 11.sp), textAlign = align, modifier = modifier)
 }
 
+private class SisCols(val aceptados: Int, val rechazados: Int, val pct: Double?, val fecha: String)
+
 @Composable
-private fun LedgerRow(label: String, value: Int, previous: Int?) {
+private fun SisCell(texto: String?, modifier: Modifier) {
+    Text(texto ?: "", style = ActaType.Cell.copy(color = Acta.Sistema), textAlign = TextAlign.End, modifier = modifier)
+}
+
+@Composable
+private fun LedgerRow(label: String, value: Int, previous: Int?, sis: String?, hayColumna: Boolean) {
     Hairline()
     Row(Modifier.fillMaxWidth().padding(vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, style = ActaType.Body, modifier = Modifier.weight(1.5f))
+        Text(label, style = ActaType.Body, modifier = Modifier.weight(if (hayColumna) 1.6f else 1.5f))
         CountText(value, previous, ActaType.Cell, Modifier.weight(1f), TextAlign.End)
         Text(
             previous?.let { fmtInt(it) } ?: "—",
             style = ActaType.Cell.copy(color = Acta.Ink2), textAlign = TextAlign.End, modifier = Modifier.weight(1f)
         )
+        if (hayColumna) SisCell(sis, Modifier.weight(1f))
     }
 }
 
 @Composable
-private fun RateRow(current: Double, previous: Double?) {
+private fun RateRow(current: Double, previous: Double?, sis: String?, hayColumna: Boolean) {
     Hairline()
     Row(Modifier.fillMaxWidth().padding(vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text("Tasa de aceptación", style = ActaType.Body, modifier = Modifier.weight(1.5f))
+        Text(if (hayColumna) "Tasa" else "Tasa de aceptación", style = ActaType.Body, modifier = Modifier.weight(if (hayColumna) 1.6f else 1.5f))
         Text("${fmtRate(current)}\u00A0%", style = ActaType.Cell, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
         Text(
             previous?.let { "${fmtRate(it)}\u00A0%" } ?: "—",
             style = ActaType.Cell.copy(color = Acta.Ink2), textAlign = TextAlign.End, modifier = Modifier.weight(1f)
         )
+        if (hayColumna) SisCell(sis, Modifier.weight(1f))
     }
 }
 
 @Composable
-private fun PlainRow(label: String, value: String) {
+private fun PlainRow(label: String, value: String, sis: String?, hayColumna: Boolean) {
     Hairline()
     Row(Modifier.fillMaxWidth().padding(vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, style = ActaType.Body, modifier = Modifier.weight(1.5f))
+        Text(label, style = ActaType.Body, modifier = Modifier.weight(if (hayColumna) 1.6f else 1.5f))
         Text(value, style = ActaType.Cell, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
         Spacer(Modifier.weight(1f))
-    }
-}
-
-@Composable
-private fun ComparativaSection(real: AccountingData?, sistema: Pair<Int, Int>, fecha: String) {
-    SectionHeader("Real vs sistema")
-    Column(Modifier.padding(horizontal = Gutter)) {
-        Row(Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
-            Spacer(Modifier.weight(1.2f))
-            Text("AR billetero", style = ActaType.Label.copy(fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Acta.Ink), textAlign = TextAlign.End, modifier = Modifier.weight(1f))
-            Text("AS sistema", style = ActaType.Label.copy(fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Acta.Sistema), textAlign = TextAlign.End, modifier = Modifier.weight(1f))
-        }
-        val (sa, sr) = sistema
-        CompRow("Aceptados", real?.accepted, sa)
-        CompRow("Rechazados", real?.rejected, sr)
-        CompRow("Total", real?.let { it.accepted + it.rejected }, sa + sr)
-        Hairline()
-        Text(
-            "Sistema: semana ${fecha.ifEmpty { "sin fecha" }}" + (real?.let { "  ·  Real: lectura del " + java.text.SimpleDateFormat("dd-MM-yyyy HH:mm", java.util.Locale.getDefault()).format(java.util.Date(it.timestamp)) } ?: ""),
-            style = ActaType.Tiny, modifier = Modifier.padding(top = 6.dp)
-        )
-    }
-}
-
-@Composable
-private fun CompRow(label: String, real: Int?, sistema: Int) {
-    Hairline()
-    Row(Modifier.fillMaxWidth().padding(vertical = 7.dp)) {
-        Text(label, style = ActaType.Body, modifier = Modifier.weight(1.2f).alignByBaseline())
-        Text(real?.let { fmtInt(it) } ?: "—", style = ActaType.Cell, textAlign = TextAlign.End, modifier = Modifier.weight(1f).alignByBaseline())
-        Text(fmtInt(sistema), style = ActaType.Cell.copy(color = Acta.Sistema), textAlign = TextAlign.End, modifier = Modifier.weight(1f).alignByBaseline())
+        if (hayColumna) SisCell(sis, Modifier.weight(1f))
     }
 }
 

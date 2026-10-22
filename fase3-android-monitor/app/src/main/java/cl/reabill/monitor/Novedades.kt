@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.0.2" to listOf(
+            "«Real vs sistema» ahora está dentro de Contabilidad: columna «Sistema» (naranja) junto a Actual y Anterior, con aceptados, rechazados, tasa e insertados de la semana."
+        ),
         "2.0.1" to listOf(
             "El reporte semanal acepta la versión 2 (con billetes aceptados y rechazados); las versiones desconocidas se rechazan. Vuelve a importar el reporte.",
             "Pantalla principal: nueva sección «Real vs sistema» con aceptados, rechazados y total, lado a lado.",

@@ -20,15 +20,18 @@ class WeeklyData(
     val fecha: String,
     val datos: Map<String, Double>,
     val semanas: List<String> = emptyList(),
-    val hist: Map<String, List<Double?>> = emptyMap()
+    val hist: Map<String, List<Double?>> = emptyMap(),
+    val conteos: Map<String, Pair<Int, Int>> = emptyMap()
 ) {
     fun pct(mda: String?): Double? = Mda.norm(mda)?.let { datos[it] }
+    fun conteo(mda: String?): Pair<Int, Int>? = Mda.norm(mda)?.let { conteos[it] }
 
     fun toJson(): String {
         val d = JSONObject(); datos.forEach { (k, v) -> d.put(k, v) }
         val h = JSONObject()
         hist.forEach { (k, l) -> h.put(k, JSONArray().also { a -> l.forEach { x -> a.put(if (x == null) JSONObject.NULL else JSONArray().put(x).put(JSONObject.NULL)) } }) }
-        return JSONObject().put("fecha", fecha).put("datos", d).put("semanas", JSONArray(semanas)).put("hist", h).toString()
+        val c = JSONObject(); conteos.forEach { (k, v) -> c.put(k, JSONArray().put(v.first).put(v.second)) }
+        return JSONObject().put("fecha", fecha).put("datos", d).put("semanas", JSONArray(semanas)).put("hist", h).put("conteos", c).toString()
     }
 
     companion object {
@@ -53,15 +56,17 @@ object WeeklyImport {
     }
 
     const val FORMATO_REACBILL = "reacbill-aceptacion"
-    const val VERSION_REACBILL = 1
+
+    val VERSIONES_REACBILL = setOf(1, 2)
 
     internal fun fromReacbill(o: JSONObject): WeeklyData {
         val v = o.optInt("version", 0)
-        require(v == VERSION_REACBILL) { "el reporte es de la versión $v y esta app solo entiende la $VERSION_REACBILL; actualiza BILLMON" }
+        require(v in VERSIONES_REACBILL) { "el reporte es de la versión $v y esta app solo entiende la 1 y la 2; actualiza BILLMON" }
         val unidad = o.optString("unidad", "porcentaje")
         require(unidad == "porcentaje") { "unidad no soportada: $unidad" }
         val arr = o.optJSONArray("maquinas") ?: throw IllegalArgumentException("el reporte no trae la lista de máquinas")
         val datos = LinkedHashMap<String, Double>()
+        val conteos = LinkedHashMap<String, Pair<Int, Int>>()
         for (i in 0 until minOf(arr.length(), MAX_MAQUINAS)) {
             val m = arr.optJSONObject(i) ?: continue
             val mda = Mda.norm(m.opt("mda")?.toString()) ?: continue
@@ -69,8 +74,18 @@ object WeeklyImport {
             val pct = m.optDouble("aceptacion_billetes", Double.NaN)
             if (pct.isNaN() || pct < 0.0 || pct > 100.0) continue
             datos[mda] = Math.round(pct * 100.0) / 10000.0
+            if (v >= 2) {
+                val a = entero(m, "billetes_aceptados"); val r = entero(m, "billetes_rechazados")
+                if (a != null && r != null) conteos[mda] = a to r
+            }
         }
-        return WeeklyData(fechaLarga(o.optString("semana", "")), datos)
+        return WeeklyData(fechaLarga(o.optString("semana", "")), datos, conteos = conteos)
+    }
+
+    private fun entero(m: JSONObject, k: String): Int? {
+        val x = m.opt(k) as? Number ?: return null
+        val d = x.toDouble()
+        return if (d >= 0 && d == Math.floor(d) && d <= Int.MAX_VALUE) d.toInt() else null
     }
 
     internal fun fechaLarga(s: String): String {
@@ -106,7 +121,15 @@ object WeeklyImport {
                 }
             }
         }
-        return WeeklyData(p.optString("fecha", ""), datos, sem, hist)
+        val conteos = LinkedHashMap<String, Pair<Int, Int>>()
+        p.optJSONObject("conteos")?.let { c ->
+            for (k in c.keys()) {
+                val m = Mda.norm(k) ?: continue
+                val a = c.optJSONArray(k) ?: continue
+                if (a.length() >= 2 && !a.isNull(0) && !a.isNull(1)) conteos[m] = a.optInt(0) to a.optInt(1)
+            }
+        }
+        return WeeklyData(p.optString("fecha", ""), datos, sem, hist, conteos)
     }
 
     private fun fromText(t: String): WeeklyData {

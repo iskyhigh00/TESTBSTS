@@ -375,11 +375,25 @@ fun ActaApp(vm: MonitorViewModel) {
                         hits.forEach { h ->
                             val l = h.lectura
                             Hairline(Modifier.padding(top = 14.dp))
-                            if (l != null) {
+                            val cs = weekly?.conteo(n)
+                            if (l != null || cs != null) {
                                 Row(Modifier.fillMaxWidth().padding(top = 10.dp)) {
-                                    Dato("Aceptados", fmtInt(l.accepted), Modifier.weight(1f))
-                                    Dato("Rechazados", fmtInt(l.rejected), Modifier.weight(1f))
-                                    Dato("Insertados", fmtInt(l.inserted), Modifier.weight(1f))
+                                    Spacer(Modifier.width(30.dp))
+                                    Text("Aceptados", style = ActaType.Label.copy(fontSize = 11.sp), modifier = Modifier.weight(1f))
+                                    Text("Rechazados", style = ActaType.Label.copy(fontSize = 11.sp), modifier = Modifier.weight(1f))
+                                    Text("Total", style = ActaType.Label.copy(fontSize = 11.sp), modifier = Modifier.weight(1f))
+                                }
+                                if (l != null) Row(Modifier.fillMaxWidth().padding(top = 2.dp)) {
+                                    Text("AR", style = ActaType.Label.copy(fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Acta.Ink), modifier = Modifier.width(30.dp).alignByBaseline())
+                                    Text(fmtInt(l.accepted), style = ActaType.Cell, modifier = Modifier.weight(1f).alignByBaseline())
+                                    Text(fmtInt(l.rejected), style = ActaType.Cell, modifier = Modifier.weight(1f).alignByBaseline())
+                                    Text(fmtInt(l.accepted + l.rejected), style = ActaType.Cell, modifier = Modifier.weight(1f).alignByBaseline())
+                                }
+                                if (cs != null) Row(Modifier.fillMaxWidth().padding(top = 2.dp)) {
+                                    Text("AS", style = ActaType.Label.copy(fontSize = 11.sp, fontWeight = FontWeight.Bold, color = colorAs), modifier = Modifier.width(30.dp).alignByBaseline())
+                                    Text(fmtInt(cs.first), style = ActaType.Cell.copy(color = colorAs), modifier = Modifier.weight(1f).alignByBaseline())
+                                    Text(fmtInt(cs.second), style = ActaType.Cell.copy(color = colorAs), modifier = Modifier.weight(1f).alignByBaseline())
+                                    Text(fmtInt(cs.first + cs.second), style = ActaType.Cell.copy(color = colorAs), modifier = Modifier.weight(1f).alignByBaseline())
                                 }
                             }
                             Filas(
@@ -507,6 +521,15 @@ fun ActaApp(vm: MonitorViewModel) {
                     acc = accounting, history = history, phase = phase, connected = connected,
                     onRead = { vm.readAccounting() }, onReset = { showReset = true }
                 )
+
+                if (connected) {
+                    val mdaActual = mdaMap[status.serial]
+                    val conteoSis = mdaActual?.let { weekly?.conteo(it) }
+                    if (conteoSis != null) ComparativaSection(
+                        real = cl.reabill.monitor.LabelPick.reading(accounting, history)?.first,
+                        sistema = conteoSis, fecha = weekly?.fecha.orEmpty()
+                    )
+                }
 
                 if (history.isNotEmpty()) HistorySection(history, status.serial, onShowAll = { showHistory = true })
 
@@ -930,6 +953,37 @@ private fun PlainRow(label: String, value: String) {
         Text(label, style = ActaType.Body, modifier = Modifier.weight(1.5f))
         Text(value, style = ActaType.Cell, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
         Spacer(Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun ComparativaSection(real: AccountingData?, sistema: Pair<Int, Int>, fecha: String) {
+    SectionHeader("Real vs sistema")
+    Column(Modifier.padding(horizontal = Gutter)) {
+        Row(Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
+            Spacer(Modifier.weight(1.2f))
+            Text("AR billetero", style = ActaType.Label.copy(fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Acta.Ink), textAlign = TextAlign.End, modifier = Modifier.weight(1f))
+            Text("AS sistema", style = ActaType.Label.copy(fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Acta.Sistema), textAlign = TextAlign.End, modifier = Modifier.weight(1f))
+        }
+        val (sa, sr) = sistema
+        CompRow("Aceptados", real?.accepted, sa)
+        CompRow("Rechazados", real?.rejected, sr)
+        CompRow("Total", real?.let { it.accepted + it.rejected }, sa + sr)
+        Hairline()
+        Text(
+            "Sistema: semana ${fecha.ifEmpty { "sin fecha" }}" + (real?.let { "  ·  Real: lectura del " + java.text.SimpleDateFormat("dd-MM-yyyy HH:mm", java.util.Locale.getDefault()).format(java.util.Date(it.timestamp)) } ?: ""),
+            style = ActaType.Tiny, modifier = Modifier.padding(top = 6.dp)
+        )
+    }
+}
+
+@Composable
+private fun CompRow(label: String, real: Int?, sistema: Int) {
+    Hairline()
+    Row(Modifier.fillMaxWidth().padding(vertical = 7.dp)) {
+        Text(label, style = ActaType.Body, modifier = Modifier.weight(1.2f).alignByBaseline())
+        Text(real?.let { fmtInt(it) } ?: "—", style = ActaType.Cell, textAlign = TextAlign.End, modifier = Modifier.weight(1f).alignByBaseline())
+        Text(fmtInt(sistema), style = ActaType.Cell.copy(color = Acta.Sistema), textAlign = TextAlign.End, modifier = Modifier.weight(1f).alignByBaseline())
     }
 }
 

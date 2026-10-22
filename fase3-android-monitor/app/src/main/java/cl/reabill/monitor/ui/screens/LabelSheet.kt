@@ -86,7 +86,7 @@ fun LabelSheet(vm: MonitorViewModel, onClose: () -> Unit) {
         onDismissRequest = { vm.labelStopScan(); vm.labelDisconnect(); onClose() },
         title = { Text("Impresora y etiqueta") },
         text = {
-            Column(Modifier.heightIn(max = 600.dp).verticalScroll(rememberScrollState())) {
+            Column(Modifier.heightIn(max = 600.dp)) {
                 Text(
                     "Impresora: " + (ui.connectedName?.let { "$it (conectada)" } ?: if (prefs.lastName.isNotEmpty()) "${prefs.lastName} (guardada)" else "ninguna elegida"),
                     style = ActaType.Label, modifier = Modifier.padding(bottom = 4.dp)
@@ -96,6 +96,28 @@ fun LabelSheet(vm: MonitorViewModel, onClose: () -> Unit) {
                     ActaChip("Etiqueta", pestana == 0, { pestana = 0 })
                     ActaChip("Impresora", pestana == 1, { pestana = 1 })
                 }
+                if (pestana == 0) {
+                if (preview == null) {
+                    Text("Sin lectura.", style = ActaType.Body)
+                } else {
+                    Image(
+                        preview, contentDescription = "Vista previa de la etiqueta",
+                        modifier = Modifier.fillMaxWidth().border(1.dp, Acta.Hairline).background(Color.White),
+                        contentScale = ContentScale.FillWidth, filterQuality = FilterQuality.None
+                    )
+                }
+
+                if (preview != null) {
+                    val etiquetaMm = preview.width / 8
+                    val salidaMm = if (prefs.dieCut) 0 else (prefs.salida + 4) / 8
+                    Text(
+                        "Etiqueta $etiquetaMm mm" + (if (salidaMm > 0) " + salida $salidaMm mm" else "") + "  =  ${etiquetaMm + salidaMm} mm de cinta",
+                        style = ActaType.Label, modifier = Modifier.padding(top = 6.dp)
+                    )
+                }
+                    Spacer(Modifier.height(8.dp))
+                }
+                Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
                 if (pestana == 1) {
                 if (!permisosOk) {
                     Text("Falta el permiso de Bluetooth: sin él no se pueden buscar impresoras.", style = ActaType.Body.copy(color = Acta.Error), modifier = Modifier.padding(bottom = 8.dp))
@@ -136,24 +158,6 @@ fun LabelSheet(vm: MonitorViewModel, onClose: () -> Unit) {
                     }
                 }
                 } else {
-                if (preview == null) {
-                    Text("Sin lectura.", style = ActaType.Body)
-                } else {
-                    Image(
-                        preview, contentDescription = "Vista previa de la etiqueta",
-                        modifier = Modifier.fillMaxWidth().border(1.dp, Acta.Hairline).background(Color.White),
-                        contentScale = ContentScale.FillWidth, filterQuality = FilterQuality.None
-                    )
-                }
-
-                if (preview != null) {
-                    val etiquetaMm = preview.width / 8
-                    val salidaMm = if (prefs.dieCut) 0 else (prefs.salida + 4) / 8
-                    Text(
-                        "Etiqueta $etiquetaMm mm" + (if (salidaMm > 0) " + salida $salidaMm mm" else "") + "  =  ${etiquetaMm + salidaMm} mm de cinta",
-                        style = ActaType.Label, modifier = Modifier.padding(top = 6.dp)
-                    )
-                }
                 Spacer(Modifier.height(14.dp))
                 Text("Datos en la etiqueta", style = ActaType.Label)
                 FlowRow(Modifier.padding(top = 6.dp), horizontalArrangement = spacing, verticalArrangement = spacing) {
@@ -241,6 +245,7 @@ fun LabelSheet(vm: MonitorViewModel, onClose: () -> Unit) {
                 }
 
                 }
+            }
             }
         },
         confirmButton = {

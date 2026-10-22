@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.1.6" to listOf(
+            "En «Impresora y etiqueta», la vista previa de la etiqueta queda fija arriba: al desplazarte por las opciones siempre se ve el cambio al instante.",
+        ),
         "2.1.5" to listOf(
             "Letra más grande en la etiqueta: cuando una línea queda limitada por el ancho, las demás crecen para aprovechar toda la altura de la cinta (menos espacio vacío arriba y abajo).",
         ),

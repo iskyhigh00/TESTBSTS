@@ -2,6 +2,10 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.0.0" to listOf(
+            "AR y AS aparecen al mismo tiempo y ruedan con la misma animación (el AS espera a que llegue la lectura del billetero).",
+            "Nueva numeración: cada número llega hasta 9 y luego se reinicia (2.0.9 → 2.1.0)."
+        ),
         "1.12.18" to listOf(
             "La foto de confirmación se acerca al número: el que se ve queda enmarcado y el leído aparece ARRIBA, sin taparlo, para compararlos."
         ),

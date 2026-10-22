@@ -627,14 +627,14 @@ private fun Hero(
     phase: Phase, acc: AccountingData?, connected: Boolean, mda: String?, sistema: Double?, hayReporte: Boolean,
     leyendo: Boolean, onEdit: () -> Unit, onPhoto: () -> Unit
 ) {
-    val shown = remember { Animatable(Acta.RATE_MIN.toFloat()) }
-    LaunchedEffect(acc?.timestamp) {
-        val a = acc
-        if (a == null) shown.snapTo(Acta.RATE_MIN.toFloat())
-        else shown.animateTo(a.rate.toFloat(), tween(800, easing = FastOutSlowInEasing))
+
+    val avance = remember { Animatable(0f) }
+    LaunchedEffect(acc?.timestamp, sistema) {
+        if (acc == null) avance.snapTo(0f)
+        else { avance.snapTo(0f); avance.animateTo(1f, tween(800, easing = FastOutSlowInEasing)) }
     }
     val fault = phase == Phase.NoResponse
-    val ar = if (acc == null) "—" else "${fmtRate(shown.value.toDouble())}\u00A0%"
+    val ar = if (acc == null) "—" else "${fmtRate(acc.rate * avance.value)}\u00A0%"
     val sentence = when {
         acc != null && acc.inserted == 0 -> "No hay billetes insertados en la contabilidad."
         acc != null -> "${fmtInt(acc.accepted)} de ${fmtInt(acc.inserted)} billetes insertados fueron aceptados."
@@ -691,8 +691,8 @@ private fun Hero(
                     Text("  sistema", style = ActaType.Label, modifier = Modifier.alignByBaseline())
                 }
                 Text(
-                    if (sistema == null) "—" else "${fmtRate(sistema * 100.0)}\u00A0%", maxLines = 1, softWrap = false,
-                    style = ActaType.Title.copy(fontSize = 40.sp, color = if (sistema == null) Acta.Hairline else colorAs)
+                    if (sistema == null || acc == null) "—" else "${fmtRate(sistema * 100.0 * avance.value)}\u00A0%", maxLines = 1, softWrap = false,
+                    style = ActaType.Title.copy(fontSize = 40.sp, color = if (sistema == null || acc == null) Acta.Hairline else colorAs)
                 )
             }
         }

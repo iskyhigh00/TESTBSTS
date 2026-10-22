@@ -50,6 +50,7 @@ class DemoClient : ValidatorClient {
     override fun resetAccounting(): Boolean {
         pause(900)
         inserted = 0; accepted = 0; stacked = 0; deposited = 0
+        reads = 0
         return true
     }
 }

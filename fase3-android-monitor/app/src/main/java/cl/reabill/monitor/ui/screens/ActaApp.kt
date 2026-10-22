@@ -299,7 +299,8 @@ fun ActaApp(vm: MonitorViewModel) {
                 )
 
                 if (connected) MachineSection(
-                    mda = mdaMap[status.serial], weekly = weekly, rate = accounting?.rate,
+                    mda = mdaMap[status.serial], weekly = weekly,
+                    rate = cl.reabill.monitor.LabelPick.reading(accounting, history)?.first?.rate,
                     leyendo = ocr.running,
                     onEdit = { mdaTexto = mdaMap[status.serial] ?: ""; vm.clearOcr(); showMda = true },
                     onPhoto = {

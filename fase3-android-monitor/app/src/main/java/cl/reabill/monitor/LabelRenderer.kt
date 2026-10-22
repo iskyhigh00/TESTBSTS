@@ -11,12 +11,13 @@ data class LabelStyle(
     val vpos: Int = 1,
     val compact: Boolean = true,
     val scale: Int = 100,
-    val rotate180: Boolean = false
+    val rotate180: Boolean = false,
+    val twoLines: Boolean = false
 )
 
 object LabelRenderer {
-    fun lines(d: LabelData, f: Set<String>, names: Map<String, String> = emptyMap()): List<String> =
-        LabelText.lines(d, f, names).map { it.text }
+    fun lines(d: LabelData, f: Set<String>, names: Map<String, String> = emptyMap(), twoLines: Boolean = false): List<String> =
+        LabelText.lines(d, f, names, twoLines).map { it.text }
 
     fun render(
         d: LabelData, lengthMm: Int, fields: Set<String>, names: Map<String, String>, style: LabelStyle
@@ -26,10 +27,13 @@ object LabelRenderer {
         val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
         val c = Canvas(bmp)
         c.drawColor(Color.WHITE)
-        val ls = LabelText.lines(d, fields, names)
+        val ls = LabelText.lines(d, fields, names, style.twoLines)
         if (ls.isNotEmpty()) {
-            val k = style.scale.coerceIn(50, 200) / 100f
             val avail = w - 28f
+            fun encoger(p: Paint, texto: String) {
+                val tw = p.measureText(texto)
+                if (tw > avail) p.textSize = p.textSize * avail / tw
+            }
             val paints = ls.map { l ->
                 val base = when (ls.size) {
                     1 -> 48f
@@ -40,21 +44,16 @@ object LabelRenderer {
                 Paint(Paint.ANTI_ALIAS_FLAG).apply {
                     color = Color.BLACK
                     typeface = if (l.bold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
-                    textSize = base * k
-                    val tw = measureText(l.text)
-                    if (tw > avail) textSize = textSize * avail / tw
+                    textSize = base
+                    encoger(this, l.text)
                 }
             }
-            var heights = paints.map { it.fontMetrics.descent - it.fontMetrics.ascent }
-
-            val ocupa = heights.sum() + 3f * (ls.size - 1)
-            if (ocupa > h - 4f) {
-                val s = (h - 4f) / ocupa
-                paints.forEach { it.textSize = it.textSize * s }
-                heights = paints.map { it.fontMetrics.descent - it.fontMetrics.ascent }
-            }
+            val alturaBase = paints.sumOf { (it.fontMetrics.descent - it.fontMetrics.ascent).toDouble() }.toFloat()
+            val k = LabelFit.factor(alturaBase, ls.size, style.scale)
+            paints.forEachIndexed { i, p -> p.textSize = p.textSize * k; encoger(p, ls[i].text) }
+            val heights = paints.map { it.fontMetrics.descent - it.fontMetrics.ascent }
             val total = heights.sum()
-            val gap = if (style.compact) 3f else maxOf(2f, (h - total) / (ls.size + 1))
+            val gap = if (style.compact) LabelFit.HUECO else maxOf(2f, (h - total) / (ls.size + 1))
             val bloque = total + gap * (ls.size - 1)
             var y = if (style.compact) when (style.vpos) {
                 0 -> 2f

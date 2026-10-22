@@ -854,7 +854,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         val lengthMm: Int = 50, val dieCut: Boolean = false, val rotate: Boolean = false,
         val density: Int = 0, val copies: Int = 1, val confirmed: Boolean = false,
         val fields: Set<String> = LabelFields.DEFAULT, val align: Int = 0, val compact: Boolean = true,
-        val scale: Int = 100, val vpos: Int = 1, val names: Map<String, String> = emptyMap(),
+        val scale: Int = 100, val vpos: Int = 1, val names: Map<String, String> = emptyMap(), val twoLines: Boolean = false,
         val lastAddress: String = "", val lastName: String = ""
     )
 
@@ -864,9 +864,9 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     val print: StateFlow<PrintUi> = _print
     private val _labelPrefs = MutableStateFlow(LabelPrefs(
         prefs.getInt("mm", 50), prefs.getBoolean("die", false), prefs.getBoolean("rot", false),
-        prefs.getInt("dens", 0), 1, prefs.getBoolean("conf", false),
+        prefs.getInt("dens", 0), prefs.getInt("copies", 1).coerceIn(1, 10), prefs.getBoolean("conf", false),
         LabelFields.parse(prefs.getString("campos", null)), prefs.getInt("align", 0), prefs.getBoolean("compact", true),
-        prefs.getInt("scale", 100), prefs.getInt("vpos", 1), LabelFields.parseNames(prefs.getString("nombres", null)),
+        LabelFit.snap(prefs.getInt("scale", 100)), prefs.getInt("vpos", 1), LabelFields.parseNames(prefs.getString("nombres", null)), prefs.getBoolean("dos", false),
         prefs.getString("addr", "") ?: "", prefs.getString("pname", "") ?: ""
     ))
     val labelPrefs: StateFlow<LabelPrefs> = _labelPrefs
@@ -875,7 +875,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         _labelPrefs.value = p
         prefs.edit().putInt("mm", p.lengthMm).putBoolean("die", p.dieCut).putBoolean("rot", p.rotate)
             .putInt("dens", p.density).putBoolean("conf", p.confirmed).putString("campos", LabelFields.encode(p.fields)).putInt("align", p.align).putBoolean("compact", p.compact)
-            .putInt("scale", p.scale).putInt("vpos", p.vpos).putString("nombres", LabelFields.encodeNames(p.names))
+            .putInt("scale", p.scale).putInt("vpos", p.vpos).putInt("copies", p.copies).putBoolean("dos", p.twoLines).putString("nombres", LabelFields.encodeNames(p.names))
             .putString("addr", p.lastAddress).putString("pname", p.lastName).apply()
     }
 
@@ -888,7 +888,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         return LabelData(a.timestamp, s.model, s.serial, s.firmwareApp, s.billSet, mda, a.rate, semanal, previa)
     }
 
-    fun labelStyle(p: LabelPrefs) = LabelStyle(p.align, p.vpos, p.compact, p.scale, p.rotate)
+    fun labelStyle(p: LabelPrefs) = LabelStyle(p.align, p.vpos, p.compact, p.scale, p.rotate, p.twoLines)
 
     private var scanJob: kotlinx.coroutines.Job? = null
 
@@ -965,7 +965,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
                     val job = LabelProtocol.buildJob(LabelRenderer.toBlack(bmp), p.dieCut, p.density.takeIf { it in 1..15 })
                     printer.send(job, p.copies, p.confirmed)
                 }
-                if (err == null) addLog("Etiqueta enviada a la impresora: " + LabelRenderer.lines(d, p.fields, p.names).joinToString(" / ")) else addLog("Impresora: $err")
+                if (err == null) addLog("Etiqueta enviada a la impresora: " + LabelRenderer.lines(d, p.fields, p.names, p.twoLines).joinToString(" / ")) else addLog("Impresora: $err")
                 _print.update { it.copy(message = err ?: "Etiqueta enviada.") }
             } catch (e: Exception) {
                 addLog("Impresora: error al imprimir (${e.javaClass.simpleName}: ${e.message})")

@@ -55,7 +55,7 @@ object LabelText {
     private fun pct(v: Double) = String.format(Locale("es", "CL"), "%.1f", v) + "%"
     private fun join(pre: String, v: String) = if (pre.isEmpty()) v else "$pre $v"
 
-    fun lines(d: LabelData, f: Set<String>, names: Map<String, String> = emptyMap()): List<LabelLine> {
+    fun lines(d: LabelData, f: Set<String>, names: Map<String, String> = emptyMap(), twoLines: Boolean = false): List<LabelLine> {
         fun t(k: String) = LabelFields.textOf(k, names)
         val out = ArrayList<LabelLine>()
         if (LabelFields.MDA in f) out.add(LabelLine(join(t(LabelFields.MDA), d.mda ?: "—"), true))
@@ -75,7 +75,13 @@ object LabelText {
         if (LabelFields.BS in f) fw.add(join(t(LabelFields.BS), numero) + if (LabelFields.VER in f && version.isNotEmpty()) " $version" else "")
         else if (LabelFields.VER in f && version.isNotEmpty()) fw.add(join(t(LabelFields.VER), version))
         if (fw.isNotEmpty()) out.add(LabelLine(fw.joinToString("  ·  "), false))
-        return out
+        if (!twoLines || out.size < 3) return out
+        val fuertes = out.filter { it.bold }.joinToString("  ") { it.text }
+        val suaves = out.filter { !it.bold }.joinToString("  ·  ") { it.text }
+        return listOfNotNull(
+            fuertes.takeIf { it.isNotEmpty() }?.let { LabelLine(it, true) },
+            suaves.takeIf { it.isNotEmpty() }?.let { LabelLine(it, false) }
+        )
     }
 }
 
@@ -87,4 +93,17 @@ object LabelPick {
         if (previa != null) return previa to true
         return actual?.let { it to false }
     }
+}
+
+object LabelFit {
+    const val ALTO = 96f
+    const val HUECO = 3f
+    const val MARGEN = 4f
+
+    fun maximo(alturaBase: Float, n: Int): Float =
+        if (alturaBase <= 0f || n <= 0) 1f else (ALTO - MARGEN - HUECO * (n - 1)) / alturaBase
+
+    fun factor(alturaBase: Float, n: Int, porcentaje: Int): Float = maximo(alturaBase, n) * porcentaje.coerceIn(30, 100) / 100f
+
+    fun snap(p: Int): Int = listOf(60, 80, 100).minByOrNull { kotlin.math.abs(it - p) } ?: 100
 }

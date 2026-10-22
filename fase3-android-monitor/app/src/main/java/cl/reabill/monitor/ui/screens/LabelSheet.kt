@@ -63,7 +63,10 @@ fun LabelSheet(vm: MonitorViewModel, onClose: () -> Unit) {
         if (res.values.all { it }) vm.labelScan() else vm.labelNote("Falta el permiso de Bluetooth para buscar la impresora.")
     }
 
-    val data = remember(accounting, status) { vm.labelData() }
+    val weekly by vm.weekly.collectAsStateWithLifecycle()
+    val mdaMap by vm.mdaMap.collectAsStateWithLifecycle()
+    val history by vm.history.collectAsStateWithLifecycle()
+    val data = remember(accounting, status, weekly, mdaMap, history) { vm.labelData() }
     val preview = remember(data, prefs) {
         data?.let { LabelRenderer.render(it, prefs.lengthMm, prefs.fields, prefs.names, vm.labelStyle(prefs)).asImageBitmap() }
     }
@@ -113,9 +116,20 @@ fun LabelSheet(vm: MonitorViewModel, onClose: () -> Unit) {
                 Spacer(Modifier.height(14.dp))
                 Text("Tamaño del texto", style = ActaType.Label)
                 FlowRow(Modifier.padding(top = 6.dp), horizontalArrangement = spacing, verticalArrangement = spacing) {
-                    listOf(70 to "Chico", 85 to "Medio", 100 to "Normal", 120 to "Grande", 140 to "Muy grande").forEach { (v, n) ->
+                    listOf(60 to "Chico", 80 to "Medio", 100 to "Máximo").forEach { (v, n) ->
                         ActaChip(n, prefs.scale == v, { vm.setLabelPrefs(prefs.copy(scale = v)) })
                     }
+                }
+                Text(
+                    "Máximo = el texto más grande que cabe en los 12 mm de la cinta. Para agrandarlo más, usa «2 líneas» o quita datos.",
+                    style = ActaType.Label, modifier = Modifier.padding(top = 4.dp)
+                )
+
+                Spacer(Modifier.height(14.dp))
+                Text("Distribución", style = ActaType.Label)
+                FlowRow(Modifier.padding(top = 6.dp), horizontalArrangement = spacing, verticalArrangement = spacing) {
+                    ActaChip("4 líneas", !prefs.twoLines, { vm.setLabelPrefs(prefs.copy(twoLines = false)) })
+                    ActaChip("2 líneas (más grande)", prefs.twoLines, { vm.setLabelPrefs(prefs.copy(twoLines = true)) })
                 }
 
                 Spacer(Modifier.height(14.dp))
@@ -130,7 +144,7 @@ fun LabelSheet(vm: MonitorViewModel, onClose: () -> Unit) {
                     ActaChip("Al medio", prefs.vpos == 1, { vm.setLabelPrefs(prefs.copy(vpos = 1)) })
                     ActaChip("Abajo", prefs.vpos == 2, { vm.setLabelPrefs(prefs.copy(vpos = 2)) })
                 }
-                Text("Arriba / medio / abajo vale con «Líneas juntas».", style = ActaType.Label, modifier = Modifier.padding(top = 4.dp))
+                Text("Arriba / medio / abajo se nota con tamaño Chico o Medio y «Líneas juntas».", style = ActaType.Label, modifier = Modifier.padding(top = 4.dp))
                 FlowRow(Modifier.padding(top = 8.dp), horizontalArrangement = spacing, verticalArrangement = spacing) {
                     ActaChip("Líneas juntas", prefs.compact, { vm.setLabelPrefs(prefs.copy(compact = true)) })
                     ActaChip("Líneas separadas", !prefs.compact, { vm.setLabelPrefs(prefs.copy(compact = false)) })

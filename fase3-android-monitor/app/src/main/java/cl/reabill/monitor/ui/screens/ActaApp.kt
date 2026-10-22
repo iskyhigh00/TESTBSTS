@@ -41,6 +41,15 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
@@ -166,6 +175,13 @@ fun ActaApp(vm: MonitorViewModel) {
     val printUi by vm.print.collectAsStateWithLifecycle()
     val labelPrefs by vm.labelPrefs.collectAsStateWithLifecycle()
     val ctx = LocalContext.current
+    val lanzarFoto = {
+        val dir = java.io.File(ctx.cacheDir, "fotos").apply { mkdirs() }
+        val f = java.io.File(dir, "mda.jpg").apply { delete(); createNewFile() }
+        val u = androidx.core.content.FileProvider.getUriForFile(ctx, ctx.packageName + ".fileprovider", f)
+        fotoUri = u
+        takePhoto.launch(u)
+    }
 
     val askBt = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
         if (ok) vm.labelPrint() else vm.labelNote("Sin permiso de Bluetooth: no se puede imprimir.")
@@ -213,6 +229,7 @@ fun ActaApp(vm: MonitorViewModel) {
             text = {
                 Column {
                     if (ocr.message.isNotEmpty()) Text(ocr.message, style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(bottom = 8.dp))
+                    ocr.photo?.let { FotoConfirmacion(it, ocr.boxes, mdaTexto) { c -> mdaTexto = c } }
                     if (ocr.candidates.isNotEmpty()) {
                         androidx.compose.foundation.layout.FlowRow(
                             Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -227,6 +244,7 @@ fun ActaApp(vm: MonitorViewModel) {
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
                     )
+                    ActaButton("Tomar foto", onClick = { showMda = false; vm.clearOcr(); lanzarFoto() }, height = 40.dp, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
                 }
             },
             confirmButton = { ActaButton("Guardar", onClick = { vm.setMda(mdaTexto); showMda = false; vm.clearOcr() }, filled = true, height = 44.dp, modifier = Modifier.width(110.dp)) },
@@ -301,26 +319,19 @@ fun ActaApp(vm: MonitorViewModel) {
                     UpdateStrip(v, updateProgress, onInstall = { vm.installUpdate() })
                 }
 
-                Hero(phase, accounting)
+                Hero(
+                    phase, accounting, connected,
+                    mda = mdaMap[status.serial],
+                    sistema = mdaMap[status.serial]?.let { weekly?.pct(it) },
+                    hayReporte = weekly != null, leyendo = ocr.running,
+                    onEdit = { mdaTexto = mdaMap[status.serial] ?: ""; vm.clearOcr(); showMda = true },
+                    onPhoto = lanzarFoto
+                )
                 IdentityBlock(phase, status.billSet, status.serial, status.model, status.manufacturer, status.firmwareApp)
 
                 AccountingSection(
                     acc = accounting, history = history, phase = phase, connected = connected,
                     onRead = { vm.readAccounting() }, onReset = { showReset = true }
-                )
-
-                if (connected) MachineSection(
-                    mda = mdaMap[status.serial], weekly = weekly,
-                    rate = cl.reabill.monitor.LabelPick.reading(accounting, history)?.first?.rate,
-                    leyendo = ocr.running,
-                    onEdit = { mdaTexto = mdaMap[status.serial] ?: ""; vm.clearOcr(); showMda = true },
-                    onPhoto = {
-                        val dir = java.io.File(ctx.cacheDir, "fotos").apply { mkdirs() }
-                        val f = java.io.File(dir, "mda.jpg").apply { delete(); createNewFile() }
-                        val u = androidx.core.content.FileProvider.getUriForFile(ctx, ctx.packageName + ".fileprovider", f)
-                        fotoUri = u
-                        takePhoto.launch(u)
-                    }
                 )
 
                 if (history.isNotEmpty()) HistorySection(history, status.serial, onShowAll = { showHistory = true })
@@ -428,8 +439,10 @@ private fun UpdateStrip(version: String, progress: Int, onInstall: () -> Unit) {
 }
 
 @Composable
-private fun Hero(phase: Phase, acc: AccountingData?) {
-
+private fun Hero(
+    phase: Phase, acc: AccountingData?, connected: Boolean, mda: String?, sistema: Double?, hayReporte: Boolean,
+    leyendo: Boolean, onEdit: () -> Unit, onPhoto: () -> Unit
+) {
     val shown = remember { Animatable(Acta.RATE_MIN.toFloat()) }
     LaunchedEffect(acc?.timestamp) {
         val a = acc
@@ -437,7 +450,7 @@ private fun Hero(phase: Phase, acc: AccountingData?) {
         else shown.animateTo(a.rate.toFloat(), tween(800, easing = FastOutSlowInEasing))
     }
     val fault = phase == Phase.NoResponse
-    val number = if (acc == null) "—" else "${fmtRate(shown.value.toDouble())} %"
+    val ar = if (acc == null) "—" else "${fmtRate(shown.value.toDouble())} %"
     val sentence = when {
         acc != null && acc.inserted == 0 -> "No hay billetes insertados en la contabilidad."
         acc != null -> "${fmtInt(acc.accepted)} de ${fmtInt(acc.inserted)} billetes insertados fueron aceptados."
@@ -447,23 +460,95 @@ private fun Hero(phase: Phase, acc: AccountingData?) {
         fault -> "El equipo no respondió."
         else -> "Pulsa Leer para obtener la contabilidad."
     }
+    val colorAs = if (Acta.dark) Color(0xFFFFB74D) else Color(0xFFC25E00)
     Column(Modifier.padding(horizontal = Gutter).padding(top = 10.dp, bottom = 14.dp)) {
-        Text("Tasa de aceptación", style = ActaType.Label)
-        Text(
-            number, maxLines = 1, softWrap = false,
-            style = ActaType.Hero.copy(
-                color = when {
-                    acc != null -> Acta.Ink
-                    fault -> Acta.Error
-                    else -> Acta.Hairline
+        if (connected) {
+            if (mda != null) {
+                Row(
+                    Modifier.fillMaxWidth().clickable(onClick = onEdit).padding(bottom = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("MDA", style = ActaType.Label)
+                    Text(mda, style = ActaType.BillSet, modifier = Modifier.padding(start = 10.dp))
+                    Text("  ✎", style = ActaType.Label)
                 }
-            )
-        )
+            } else {
+                Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ActaButton(
+                        if (leyendo) "Leyendo…" else "Agregar máquina (foto)", onClick = onPhoto, enabled = !leyendo,
+                        filled = true, height = 40.dp, modifier = Modifier.weight(1f)
+                    )
+                    ActaButton("Escribir", onClick = onEdit, height = 40.dp, modifier = Modifier.width(96.dp))
+                }
+            }
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(Modifier.weight(1f)) {
+                Text("AR", style = ActaType.Label.copy(fontWeight = FontWeight.Bold))
+                Text(
+                    ar, maxLines = 1, softWrap = false,
+                    style = ActaType.Title.copy(
+                        fontSize = 40.sp,
+                        color = when {
+                            acc != null -> Acta.Ink
+                            fault -> Acta.Error
+                            else -> Acta.Hairline
+                        }
+                    )
+                )
+            }
+            if (connected && mda != null && hayReporte) Column(Modifier.weight(1f)) {
+                Text("AS", style = ActaType.Label.copy(fontWeight = FontWeight.Bold, color = colorAs))
+                Text(
+                    if (sistema == null) "—" else "${fmtRate(sistema * 100.0)} %", maxLines = 1, softWrap = false,
+                    style = ActaType.Title.copy(fontSize = 40.sp, color = if (sistema == null) Acta.Hairline else colorAs)
+                )
+            }
+        }
         Text(
             sentence, style = ActaType.Body.copy(color = if (fault) Acta.Error else Acta.Ink),
             modifier = Modifier.padding(top = 4.dp).fillMaxWidth(0.9f)
         )
         RateScale(acc?.rate, Modifier.padding(top = 12.dp))
+    }
+}
+
+@Composable
+private fun FotoConfirmacion(bmp: android.graphics.Bitmap, boxes: Map<String, android.graphics.RectF>, sel: String, onSel: (String) -> Unit) {
+    val img = remember(bmp) { bmp.asImageBitmap() }
+    val relleno = remember { android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { typeface = android.graphics.Typeface.DEFAULT_BOLD } }
+    val borde = remember {
+        android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            typeface = android.graphics.Typeface.DEFAULT_BOLD; style = android.graphics.Paint.Style.STROKE; color = android.graphics.Color.WHITE
+        }
+    }
+    Canvas(
+        Modifier.fillMaxWidth().aspectRatio(bmp.width.toFloat() / bmp.height).padding(bottom = 4.dp)
+            .pointerInput(boxes) {
+                detectTapGestures { pos ->
+                    val k = size.width.toFloat() / bmp.width
+                    boxes.entries.firstOrNull { (_, r) ->
+                        pos.x in (r.left * k - 12)..(r.right * k + 12) && pos.y in (r.top * k - 12)..(r.bottom * k + 12)
+                    }?.let { onSel(it.key) }
+                }
+            }
+    ) {
+        drawImage(img, dstSize = androidx.compose.ui.unit.IntSize(size.width.toInt(), size.height.toInt()))
+        val k = size.width / bmp.width
+        drawIntoCanvas { c ->
+            boxes.forEach { (cand, r) ->
+                val elegido = cand == sel
+                relleno.color = if (elegido) android.graphics.Color.rgb(229, 57, 53) else android.graphics.Color.rgb(30, 136, 229)
+                relleno.textSize = 100f
+                val ancho = relleno.measureText(cand)
+                val tam = (r.width() * k / ancho * 100f).coerceAtMost(r.height() * k * 1.1f)
+                relleno.textSize = tam; borde.textSize = tam; borde.strokeWidth = tam * 0.12f
+                val x = r.left * k + (r.width() * k - relleno.measureText(cand)) / 2f
+                val y = r.centerY() * k + tam * 0.35f
+                c.nativeCanvas.drawText(cand, x, y, borde)
+                c.nativeCanvas.drawText(cand, x, y, relleno)
+            }
+        }
     }
 }
 
@@ -607,44 +692,6 @@ private fun PlainRow(label: String, value: String) {
         Text(label, style = ActaType.Body, modifier = Modifier.weight(1.5f))
         Text(value, style = ActaType.Cell, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
         Spacer(Modifier.weight(1f))
-    }
-}
-
-@Composable
-private fun MachineSection(
-    mda: String?, weekly: WeeklyData?, rate: Double?, leyendo: Boolean, onEdit: () -> Unit, onPhoto: () -> Unit
-) {
-    SectionHeader("Máquina") {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ActaButton(
-                if (leyendo) "Leyendo…" else "Foto", onClick = onPhoto, enabled = !leyendo,
-                height = 36.dp, modifier = Modifier.padding(vertical = 5.dp).width(90.dp)
-            )
-            ActaButton(
-                if (mda == null) "Escribir" else "Editar", onClick = onEdit,
-                height = 36.dp, modifier = Modifier.padding(vertical = 5.dp).width(90.dp)
-            )
-        }
-    }
-    Column(Modifier.padding(horizontal = Gutter)) {
-        Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("N° de máquina (MDA)", style = ActaType.Body, modifier = Modifier.weight(1f))
-            Text(mda ?: "—", style = ActaType.Cell)
-        }
-        if (mda != null && weekly != null) {
-            val sistema = weekly.pct(mda)
-            Hairline()
-            Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("Sistema (semana ${weekly.fecha.ifEmpty { "sin fecha" }})", style = ActaType.Body, modifier = Modifier.weight(1f))
-                Text(if (sistema == null) "—" else "${fmtRate(sistema * 100.0)} %", style = ActaType.Cell)
-            }
-            if (rate != null) {
-                Row(Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("Billetero (contadores)", style = ActaType.Body, modifier = Modifier.weight(1f))
-                    Text("${fmtRate(rate)} %", style = ActaType.Cell)
-                }
-            }
-        }
     }
 }
 

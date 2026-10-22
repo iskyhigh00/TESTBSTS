@@ -217,10 +217,38 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
 
     data class OcrUi(
         val running: Boolean = false, val candidates: List<String> = emptyList(), val message: String = "", val id: Int = 0,
-        val test: Boolean = false, val raw: String = ""
+        val test: Boolean = false, val raw: String = "",
+        val photo: android.graphics.Bitmap? = null, val boxes: Map<String, android.graphics.RectF> = emptyMap()
     )
     private val _ocr = MutableStateFlow(OcrUi())
     val ocr: StateFlow<OcrUi> = _ocr
+
+    private class Res(val cands: List<String>?, val raw: String, val photo: android.graphics.Bitmap?, val boxes: Map<String, android.graphics.RectF>)
+
+    private fun cargarFoto(uri: android.net.Uri): android.graphics.Bitmap {
+        val cr = getApplication<Application>().contentResolver
+        val b = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        cr.openInputStream(uri)!!.use { android.graphics.BitmapFactory.decodeStream(it, null, b) }
+        var muestra = 1
+        while (maxOf(b.outWidth, b.outHeight) / muestra > 2400) muestra *= 2
+        val o = android.graphics.BitmapFactory.Options().apply { inSampleSize = muestra }
+        val bmp = cr.openInputStream(uri)!!.use { android.graphics.BitmapFactory.decodeStream(it, null, o) }
+            ?: throw IllegalStateException("Foto ilegible")
+        val grados = try {
+            cr.openInputStream(uri)!!.use {
+                when (android.media.ExifInterface(it).getAttributeInt(
+                    android.media.ExifInterface.TAG_ORIENTATION, android.media.ExifInterface.ORIENTATION_NORMAL)) {
+                    android.media.ExifInterface.ORIENTATION_ROTATE_90 -> 90f
+                    android.media.ExifInterface.ORIENTATION_ROTATE_180 -> 180f
+                    android.media.ExifInterface.ORIENTATION_ROTATE_270 -> 270f
+                    else -> 0f
+                }
+            }
+        } catch (_: Exception) { 0f }
+        if (grados == 0f) return bmp
+        val m = android.graphics.Matrix().apply { postRotate(grados) }
+        return android.graphics.Bitmap.createBitmap(bmp, 0, 0, bmp.width, bmp.height, m, true)
+    }
 
     fun clearOcr() { _ocr.update { OcrUi(id = it.id) } }
 
@@ -229,18 +257,29 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             val res = try {
                 withContext(Dispatchers.IO) {
-                    val img = com.google.mlkit.vision.common.InputImage.fromFilePath(getApplication<Application>(), uri)
+                    val bmp = cargarFoto(uri)
+                    val img = com.google.mlkit.vision.common.InputImage.fromBitmap(bmp, 0)
                     val rec = com.google.mlkit.vision.text.TextRecognition.getClient(
                         com.google.mlkit.vision.text.latin.TextRecognizerOptions.DEFAULT_OPTIONS)
                     try {
                         val t = com.google.android.gms.tasks.Tasks.await(rec.process(img))
-                        val lineas = t.textBlocks.flatMap { b -> b.lines }.map { l -> l.text to (l.boundingBox?.height() ?: 0) }
-                        MdaOcr.candidatos(lineas) to t.text
+                        val ls = t.textBlocks.flatMap { b -> b.lines }
+                        val lineas = ls.map { l -> l.text to (l.boundingBox?.height() ?: 0) }
+                        val cands = MdaOcr.candidatos(lineas)
+                        val cajas = HashMap<String, android.graphics.RectF>()
+                        cands.forEach { c ->
+                            val l = ls.firstOrNull { l ->
+                                Regex("(?<!\\d)\\d{3,7}(?!\\d)").findAll(l.text.replace(Regex("(?<=\\d) (?=\\d)"), ""))
+                                    .any { m -> Mda.norm(m.value) == c } && l.boundingBox != null
+                            }
+                            l?.boundingBox?.let { cajas[c] = android.graphics.RectF(it) }
+                        }
+                        Res(cands, t.text, if (test) null else bmp, cajas)
                     } finally { rec.close() }
                 }
-            } catch (e: Exception) { null to (e.message ?: e.javaClass.simpleName) }
+            } catch (e: Exception) { Res(null, e.message ?: e.javaClass.simpleName, null, emptyMap()) }
             if (!test) try { java.io.File(getApplication<Application>().cacheDir, "fotos").deleteRecursively() } catch (_: Exception) {}
-            val (cands, crudo) = res
+            val cands = res.cands; val crudo = res.raw
             if (cands == null) {
                 addLog("No se pudo leer la foto: $crudo")
                 _ocr.update { OcrUi(message = "No se pudo leer la foto.", id = it.id + 1, test = test, raw = crudo) }
@@ -249,7 +288,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
                 _ocr.update { OcrUi(message = "No encontré un número en la foto.", id = it.id + 1, test = test, raw = crudo.replace('\n', ' ').take(120)) }
             } else {
                 addLog("Número leído en la foto: ${cands.joinToString(", ")}")
-                _ocr.update { OcrUi(candidates = cands, id = it.id + 1, test = test, raw = crudo.replace('\n', ' ').take(120)) }
+                _ocr.update { OcrUi(candidates = cands, id = it.id + 1, test = test, raw = crudo.replace('\n', ' ').take(120), photo = res.photo, boxes = res.boxes) }
             }
         }
     }

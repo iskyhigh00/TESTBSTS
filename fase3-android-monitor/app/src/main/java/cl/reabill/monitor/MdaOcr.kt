@@ -11,7 +11,7 @@ object MdaOcr {
             if (sinPermitidas.any { it.isLetter() }) return@forEach
             val limpio = texto.replace(Regex("(?<=\\d) (?=\\d)"), "")
             Regex("(?<!\\d)\\d{3,7}(?!\\d)").findAll(limpio).forEach { m ->
-                val n = Mda.norm(m.value) ?: return@forEach
+                val n = Mda.norm(m.value)?.takeIf { Mda.valido(it) } ?: return@forEach
                 if (m.value.length == 6) seis.add(n) else otros.add(n)
             }
         }

@@ -6,6 +6,8 @@ import org.json.JSONObject
 object Mda {
     const val PREFIJO = 100000
 
+    fun valido(n: String?): Boolean = n != null && n.length == 6 && n.startsWith("10")
+
     fun norm(raw: String?): String? {
         val d = (raw ?: "").filter { it.isDigit() }.take(12)
         if (d.isEmpty()) return null

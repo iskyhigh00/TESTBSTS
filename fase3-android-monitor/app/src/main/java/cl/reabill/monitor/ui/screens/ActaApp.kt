@@ -304,7 +304,8 @@ fun ActaApp(vm: MonitorViewModel) {
 
     if (showBuscar) {
         val hits = if (buscarTexto.filter { it.isDigit() }.length >= 3) vm.buscarMda(buscarTexto) else emptyList()
-        val n = cl.reabill.monitor.Mda.norm(buscarTexto)
+        val nTodo = cl.reabill.monitor.Mda.norm(buscarTexto)
+        val n = nTodo?.takeIf { cl.reabill.monitor.Mda.valido(it) }
         val sistema = if (n != null && buscarTexto.filter { it.isDigit() }.length >= 3) weekly?.pct(n) else null
         val colorAs = Acta.Sistema
         AlertDialog(
@@ -328,6 +329,9 @@ fun ActaApp(vm: MonitorViewModel) {
                         "Tomar foto", height = 40.dp, modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                         onClick = { showBuscar = false; lanzarFoto(); buscandoFoto = true }
                     )
+                    if (n == null && buscarTexto.filter { it.isDigit() }.length >= 3) {
+                        Text("Número de máquina no válido.", style = ActaType.Body.copy(color = Acta.Error), modifier = Modifier.padding(top = 14.dp))
+                    }
                     if (n != null && buscarTexto.filter { it.isDigit() }.length >= 3) {
                         Text("MDA", style = ActaType.Label.copy(fontWeight = FontWeight.Bold), modifier = Modifier.padding(top = 18.dp))
                         Text(n, style = ActaType.BillSet)
@@ -414,13 +418,14 @@ fun ActaApp(vm: MonitorViewModel) {
                     OutlinedTextField(
                         value = mdaTexto, onValueChange = { mdaTexto = it.filter { c -> c.isDigit() }.take(12) },
                         singleLine = true, label = { Text("MDA") },
+                        isError = mdaTexto.isNotBlank() && !cl.reabill.monitor.Mda.valido(cl.reabill.monitor.Mda.norm(mdaTexto)),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
                     )
                     ActaButton("Tomar foto", onClick = { showMda = false; vm.clearOcr(); lanzarFoto() }, height = 40.dp, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
                 }
             },
-            confirmButton = { ActaButton("Guardar", onClick = { vm.setMda(mdaTexto); showMda = false; vm.clearOcr() }, filled = true, height = 44.dp, modifier = Modifier.width(110.dp)) },
+            confirmButton = { ActaButton("Guardar", onClick = { vm.setMda(mdaTexto); showMda = false; vm.clearOcr() }, filled = true, enabled = mdaTexto.isBlank() || cl.reabill.monitor.Mda.valido(cl.reabill.monitor.Mda.norm(mdaTexto)), height = 44.dp, modifier = Modifier.width(110.dp)) },
             dismissButton = { ActaButton("Cancelar", onClick = { showMda = false; vm.clearOcr() }, height = 44.dp, modifier = Modifier.width(110.dp)) }
         )
     }

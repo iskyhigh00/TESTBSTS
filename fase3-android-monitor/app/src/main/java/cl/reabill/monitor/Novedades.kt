@@ -2,6 +2,11 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "1.12.17" to listOf(
+            "Los N° de máquina deben tener 6 dígitos y empezar con 10. Escribe 10025 y ya no se convierte en 110025: aparece «no válido».",
+            "Guardar el MDA queda desactivado y el campo en rojo si el número no es válido.",
+            "La lectura por foto descarta los números que no empiezan con 10."
+        ),
         "1.12.16" to listOf(
             "Nuevo botón «Ver máquinas»: lista de todas las máquinas asociadas a un billetero, con su serie, AR y AS.",
             "Filtra por MDA o serie, y toca una fila para abrir sus datos completos en el buscador."

@@ -192,7 +192,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     class MdaHit(val serie: String, val info: MdaStore.Info?, val lectura: AccountingData?)
 
     fun buscarMda(texto: String): List<MdaHit> {
-        val n = Mda.norm(texto) ?: return emptyList()
+        val n = Mda.norm(texto)?.takeIf { Mda.valido(it) } ?: return emptyList()
         return _mdaMap.value.filter { Mda.norm(it.value) == n }.keys.sorted().map { s ->
             MdaHit(s, mdaStore.info(s), store.history(s).firstOrNull { it.inserted > 0 })
         }
@@ -210,7 +210,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         val serie = _status.value.serial
         if (serie.isBlank() || serie == "—") { addLog("Sin serie del equipo: no se puede guardar el N° de máquina."); return }
         val n = Mda.norm(texto)
-        if (texto.isNotBlank() && n == null) { addLog("N° de máquina inválido: escribe solo números."); return }
+        if (texto.isNotBlank() && !Mda.valido(n)) { addLog("N° de máquina inválido: tiene 6 dígitos y empieza con 10."); return }
         mdaStore.setMda(serie, n)
         _mdaMap.value = mdaStore.all()
         addLog(if (n == null) "N° de máquina quitado." else "N° de máquina guardado: $n (serie $serie).")

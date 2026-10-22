@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.1.5" to listOf(
+            "Letra más grande en la etiqueta: cuando una línea queda limitada por el ancho, las demás crecen para aprovechar toda la altura de la cinta (menos espacio vacío arriba y abajo).",
+        ),
         "2.1.4" to listOf(
             "Etiqueta más corta: el largo automático ahora mide solo el texto (mínimo 15 mm, antes 25 mm) y los márgenes son más chicos.",
             "Nuevo «Salida de cinta» (cinta continua): Normal 11 mm, Corta 7 mm o Mínima 4 mm de cinta que avanza al terminar. Bajo la vista previa se ve el largo real: etiqueta + salida = mm de cinta.",

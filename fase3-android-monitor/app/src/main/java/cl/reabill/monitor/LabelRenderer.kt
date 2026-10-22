@@ -29,27 +29,31 @@ object LabelRenderer {
         val ls = LabelText.lines(d, fields, names, style.twoLines)
 
         fun construir(availW: Float): List<Paint> {
-            fun encoger(p: Paint, texto: String) {
-                val tw = p.measureText(texto)
-                if (tw > availW) p.textSize = p.textSize * availW / tw
-            }
-            val paints = ls.map { l ->
-                val base = when (ls.size) {
+            val bases = ls.map { l ->
+                when (ls.size) {
                     1 -> 48f
                     2 -> 36f
                     3 -> if (l.bold) 34f else 26f
                     else -> if (l.bold) 30f else 22f
                 }
+            }
+            val paints = ls.map { l ->
                 Paint(Paint.ANTI_ALIAS_FLAG).apply {
                     color = Color.BLACK
                     typeface = if (l.bold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
-                    textSize = base
-                    encoger(this, l.text)
+                    textSize = 100f
                 }
             }
-            val alturaBase = paints.sumOf { (it.fontMetrics.descent - it.fontMetrics.ascent).toDouble() }.toFloat()
-            val k = LabelFit.factor(alturaBase, ls.size, style.scale)
-            paints.forEachIndexed { i, p -> p.textSize = p.textSize * k; encoger(p, ls[i].text) }
+
+            val altoU = paints.map { (it.fontMetrics.descent - it.fontMetrics.ascent) / 100f }
+            val tope = paints.indices.map { 100f * availW / maxOf(1f, paints[it].measureText(ls[it].text)) }
+            fun tam(i: Int, k: Float) = minOf(k * bases[i], tope[i])
+            fun alto(k: Float) = paints.indices.sumOf { (altoU[it] * tam(it, k)).toDouble() }.toFloat() + LabelFit.HUECO * (ls.size - 1)
+
+            var lo = 0.01f; var hi = 10f
+            repeat(30) { val m = (lo + hi) / 2; if (alto(m) <= LabelFit.ALTO - LabelFit.MARGEN) lo = m else hi = m }
+            val k = lo * style.scale.coerceIn(30, 100) / 100f
+            paints.forEachIndexed { i, p -> p.textSize = tam(i, k) }
             return paints
         }
 

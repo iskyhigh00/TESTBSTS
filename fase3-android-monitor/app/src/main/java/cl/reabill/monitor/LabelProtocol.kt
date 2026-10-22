@@ -55,8 +55,13 @@ object LabelProtocol {
     fun chunks(data: ByteArray, size: Int): List<ByteArray> =
         (data.indices step size).map { data.copyOfRange(it, minOf(it + size, data.size)) }
 
+    fun cleanName(name: String?): String {
+        val sin = (name ?: "").filter { it.isLetterOrDigit() || it in "_-. ()" }
+        return sin.trim()
+    }
+
     fun isP12Name(name: String?): Boolean {
-        val n = name?.trim { it <= ' ' || it == '\u0000' } ?: return false
+        val n = cleanName(name)
         return n.endsWith("_BLE", ignoreCase = true) &&
             (n.startsWith("P12", true) || n.startsWith("P15", true) || n.startsWith("L13", true))
     }

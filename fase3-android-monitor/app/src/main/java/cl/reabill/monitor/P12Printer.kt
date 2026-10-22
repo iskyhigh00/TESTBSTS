@@ -55,7 +55,7 @@ class P12Printer(private val ctx: Context, private val log: (String) -> Unit) {
             override fun onScanResult(callbackType: Int, r: ScanResult) {
                 val name = r.scanRecord?.deviceName ?: r.device.name
 
-                val n = (name ?: "").trim { it <= ' ' || it == '\u0000' }
+                val n = LabelProtocol.cleanName(name)
                 onFound(Found(if (n.isEmpty()) "(sin nombre)" else n, r.device.address, LabelProtocol.isP12Name(n), r.rssi))
             }
             override fun onScanFailed(errorCode: Int) { log("Búsqueda Bluetooth falló (código $errorCode).") }

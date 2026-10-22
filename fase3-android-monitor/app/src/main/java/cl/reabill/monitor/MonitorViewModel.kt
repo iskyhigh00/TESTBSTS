@@ -870,7 +870,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         prefs.getInt("dens", 0), prefs.getInt("copies", 1).coerceIn(1, 10), prefs.getBoolean("conf", false),
         LabelFields.parse(prefs.getString("campos", null)), prefs.getInt("align", 0), prefs.getBoolean("compact", true),
         LabelFit.snap(prefs.getInt("scale", 100)), prefs.getInt("vpos", 1), LabelFields.parseNames(prefs.getString("nombres", null)), prefs.getBoolean("dos", false),
-        prefs.getString("addr", "") ?: "", prefs.getString("pname", "") ?: ""
+        prefs.getString("addr", "") ?: "", LabelProtocol.cleanName(prefs.getString("pname", ""))
     ))
     val labelPrefs: StateFlow<LabelPrefs> = _labelPrefs
 

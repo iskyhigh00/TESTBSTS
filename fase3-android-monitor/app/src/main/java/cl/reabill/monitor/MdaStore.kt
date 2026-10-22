@@ -25,6 +25,9 @@ class MdaStore(context: Context) {
             ?.let { Info(it.optString("m"), it.optString("f"), it.optString("b"), it.optLong("t")) }
     } catch (_: Exception) { null }
 
+    fun versionVista(): String? = prefs.getString("version_vista", null)
+    fun setVersionVista(v: String) { prefs.edit().putString("version_vista", v).apply() }
+
     fun all(): Map<String, String> =
         prefs.all.filterKeys { it.startsWith("mda:") }.mapKeys { it.key.removePrefix("mda:") }
             .mapNotNull { (k, v) -> (v as? String)?.let { k to it } }.toMap()

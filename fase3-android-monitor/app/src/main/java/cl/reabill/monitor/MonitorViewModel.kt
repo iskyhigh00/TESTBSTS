@@ -178,6 +178,10 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     fun connect() { if (_demo.value) return; connectRetries = 0; doConnect() }
 
     private val mdaStore = MdaStore(app.applicationContext)
+    private val _novedades = MutableStateFlow(Novedades.pendientes(mdaStore.versionVista(), APP_VERSION))
+    val novedades: StateFlow<List<Pair<String, List<String>>>> = _novedades
+    fun novedadesVistas() { mdaStore.setVersionVista(APP_VERSION); _novedades.value = emptyList() }
+
     class MdaHit(val serie: String, val info: MdaStore.Info?, val lectura: AccountingData?)
 
     fun buscarMda(texto: String): List<MdaHit> {

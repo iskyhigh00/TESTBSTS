@@ -234,6 +234,23 @@ fun ActaApp(vm: MonitorViewModel) {
         )
     }
 
+    val novedades by vm.novedades.collectAsStateWithLifecycle()
+    if (novedades.isNotEmpty() && !showSettings) {
+        AlertDialog(
+            onDismissRequest = { vm.novedadesVistas() },
+            title = { Text("Novedades · v$APP_VERSION") },
+            text = {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    novedades.forEach { (v, lineas) ->
+                        if (novedades.size > 1) Text("v$v", style = ActaType.Section, modifier = Modifier.padding(top = 6.dp))
+                        lineas.forEach { Text("•  $it", style = ActaType.Body, modifier = Modifier.padding(top = 6.dp)) }
+                    }
+                }
+            },
+            confirmButton = { ActaButton("Entendido", onClick = { vm.novedadesVistas() }, filled = true, height = 44.dp, modifier = Modifier.width(130.dp)) }
+        )
+    }
+
     if (showBuscar) {
         val hits = if (buscarTexto.filter { it.isDigit() }.length >= 3) vm.buscarMda(buscarTexto) else emptyList()
         val n = cl.reabill.monitor.Mda.norm(buscarTexto)

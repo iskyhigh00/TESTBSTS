@@ -2,6 +2,10 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.1.4" to listOf(
+            "Etiqueta más corta: el largo automático ahora mide solo el texto (mínimo 15 mm, antes 25 mm) y los márgenes son más chicos.",
+            "Nuevo «Salida de cinta» (cinta continua): Normal 11 mm, Corta 7 mm o Mínima 4 mm de cinta que avanza al terminar. Bajo la vista previa se ve el largo real: etiqueta + salida = mm de cinta.",
+        ),
         "2.1.3" to listOf(
             "Arreglo: en «Impresora y etiqueta» no se veían los botones de abajo del tamaño del texto (distribución, posición, largo, cinta, opciones y copias). La ventana cortaba el contenido en vez de dejarlo desplazar; lo mismo en «Textos de la etiqueta».",
             "La verificación antes de publicar ahora detecta este tipo de error."

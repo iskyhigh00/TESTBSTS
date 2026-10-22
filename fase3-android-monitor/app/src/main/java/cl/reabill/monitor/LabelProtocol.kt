@@ -7,13 +7,15 @@ object LabelProtocol {
     const val MIN_MM = 10
     const val MAX_MM = 500
 
+    const val FEED_DEFAULT = 0x5B
+
     private val INIT = byteArrayOf(0x10, 0xFF.toByte(), 0x40)
     private val PRINT_START = byteArrayOf(0x10, 0xFF.toByte(), 0xF1.toByte(), 0x02)
     private val RASTER = byteArrayOf(0x1D, 0x76, 0x30, 0x00)
 
     fun mmToDots(mm: Int) = mm.coerceIn(MIN_MM, MAX_MM) * DOTS_PER_MM
 
-    fun buildJob(black: Array<BooleanArray>, dieCut: Boolean, density: Int? = null): ByteArray {
+    fun buildJob(black: Array<BooleanArray>, dieCut: Boolean, density: Int? = null, feedDots: Int = FEED_DEFAULT): ByteArray {
         require(black.size == HEAD_DOTS) { "La imagen debe tener $HEAD_DOTS puntos de alto" }
         val cols = black[0].size
         require(cols in 1..0xFFFF) { "Largo de imagen fuera de rango" }
@@ -31,7 +33,7 @@ object LabelProtocol {
             out.write(byteArrayOf(0x10, 0xFF.toByte(), 0xF1.toByte(), 0x45))
             out.write(INIT); out.write(INIT)
         } else {
-            out.write(byteArrayOf(0x1B, 0x4A, 0x5B))
+            out.write(byteArrayOf(0x1B, 0x4A, feedDots.coerceIn(8, 255).toByte()))
             out.write(byteArrayOf(0x10, 0xFF.toByte(), 0xF1.toByte(), 0x45))
         }
         return out.toByteArray()

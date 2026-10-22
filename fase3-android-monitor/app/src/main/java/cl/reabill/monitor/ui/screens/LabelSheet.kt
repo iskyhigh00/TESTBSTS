@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cl.reabill.monitor.LabelFields
 import cl.reabill.monitor.P12Printer
+import cl.reabill.monitor.LabelProtocol
 import cl.reabill.monitor.LabelRenderer
 import cl.reabill.monitor.MonitorViewModel
 import cl.reabill.monitor.ui.components.ActaButton
@@ -145,6 +146,14 @@ fun LabelSheet(vm: MonitorViewModel, onClose: () -> Unit) {
                     )
                 }
 
+                if (preview != null) {
+                    val etiquetaMm = preview.width / 8
+                    val salidaMm = if (prefs.dieCut) 0 else (prefs.salida + 4) / 8
+                    Text(
+                        "Etiqueta $etiquetaMm mm" + (if (salidaMm > 0) " + salida $salidaMm mm" else "") + "  =  ${etiquetaMm + salidaMm} mm de cinta",
+                        style = ActaType.Label, modifier = Modifier.padding(top = 6.dp)
+                    )
+                }
                 Spacer(Modifier.height(14.dp))
                 Text("Datos en la etiqueta", style = ActaType.Label)
                 FlowRow(Modifier.padding(top = 6.dp), horizontalArrangement = spacing, verticalArrangement = spacing) {
@@ -204,6 +213,16 @@ fun LabelSheet(vm: MonitorViewModel, onClose: () -> Unit) {
                 FlowRow(Modifier.padding(top = 6.dp), horizontalArrangement = spacing, verticalArrangement = spacing) {
                     ActaChip("Continua", !prefs.dieCut, { vm.setLabelPrefs(prefs.copy(dieCut = false)) })
                     ActaChip("Con separación", prefs.dieCut, { vm.setLabelPrefs(prefs.copy(dieCut = true)) })
+                }
+
+                if (!prefs.dieCut) {
+                    Spacer(Modifier.height(14.dp))
+                    Text("Salida de cinta", style = ActaType.Label)
+                    FlowRow(Modifier.padding(top = 6.dp), horizontalArrangement = spacing, verticalArrangement = spacing) {
+                        listOf(LabelProtocol.FEED_DEFAULT to "Normal (11 mm)", 56 to "Corta (7 mm)", 32 to "Mínima (4 mm)").forEach { (v, n) ->
+                            ActaChip(n, prefs.salida == v, { vm.setLabelPrefs(prefs.copy(salida = v)) })
+                        }
+                    }
                 }
 
                 Spacer(Modifier.height(14.dp))

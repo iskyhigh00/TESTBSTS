@@ -16,7 +16,7 @@ data class LabelStyle(
 )
 
 object LabelRenderer {
-    const val AUTO_MIN_MM = 25
+    const val AUTO_MIN_MM = 15
     const val AUTO_MAX_MM = 80
 
     fun lines(d: LabelData, f: Set<String>, names: Map<String, String> = emptyMap(), twoLines: Boolean = false): List<String> =
@@ -60,7 +60,7 @@ object LabelRenderer {
             else -> {
                 val ps = construir(maxAuto - 28f)
                 val mx = ps.indices.maxOf { ps[it].measureText(ls[it].text) }
-                (kotlin.math.ceil(mx.toDouble()).toInt() + 28).coerceIn(LabelProtocol.mmToDots(AUTO_MIN_MM), maxAuto)
+                (kotlin.math.ceil(mx.toDouble()).toInt() + 20).coerceIn(LabelProtocol.mmToDots(AUTO_MIN_MM), maxAuto)
             }
         }
         val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)

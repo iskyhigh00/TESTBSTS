@@ -12,8 +12,8 @@ android {
         applicationId = "cl.reabill.monitor"
         minSdk = 26
         targetSdk = 35
-        versionCode = 196
-        versionName = "2.1.3"
+        versionCode = 197
+        versionName = "2.1.4"
 
         val updateToken = System.getenv("APK_READ_TOKEN") ?: ""
         buildConfigField("String", "UPDATE_TOKEN", "\"$updateToken\"")

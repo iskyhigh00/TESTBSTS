@@ -95,6 +95,27 @@ object LabelRenderer {
         } else bmp
     }
 
+    fun calibracion(): Bitmap {
+        val h = LabelProtocol.HEAD_DOTS
+        val w = LabelProtocol.mmToDots(40)
+        val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        val c = Canvas(bmp)
+        c.drawColor(Color.WHITE)
+        val linea = Paint().apply { color = Color.BLACK; strokeWidth = 1f; style = Paint.Style.FILL }
+        val txt = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.BLACK; textSize = 13f; typeface = Typeface.DEFAULT_BOLD }
+        c.drawRect(0f, 0f, w.toFloat(), 2f, linea)
+        c.drawRect(0f, h - 2f, w.toFloat(), h.toFloat(), linea)
+        for (mm in 0..12) {
+            val y = (mm * 8).coerceAtMost(h - 1).toFloat()
+            val largo = if (mm % 2 == 0) 40f else 20f
+            c.drawRect(0f, y, largo, y + 1f, linea)
+            c.drawRect(w - largo, y, w.toFloat(), y + 1f, linea)
+            if (mm % 2 == 0 && mm < 12) for (x in listOf(56f, 140f, 224f)) c.drawText("$mm", x, y + 12f, txt)
+        }
+        c.drawText("mm desde arriba del dibujo", 90f, h / 2f + 4f, txt.apply { textSize = 11f })
+        return bmp
+    }
+
     fun toBlack(bmp: Bitmap): Array<BooleanArray> {
         val w = bmp.width
         val px = IntArray(w * bmp.height)

@@ -1153,8 +1153,8 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         _print.update { it.copy(connectedName = null, message = "Impresora olvidada.") }
     }
 
-    fun labelPrint() {
-        val d = labelData() ?: run { _print.update { it.copy(message = "Primero lee la contabilidad.") }; return }
+    fun labelPrint(calibracion: Boolean = false) {
+        val d = if (calibracion) null else (labelData() ?: run { _print.update { it.copy(message = "Primero lee la contabilidad.") }; return })
         val p = _labelPrefs.value
         if (_print.value.printing) return
         viewModelScope.launch {
@@ -1168,11 +1168,11 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
                     _print.update { it.copy(connectedName = p.lastName) }
                 }
                 val err = withContext(Dispatchers.Default) {
-                    val bmp = LabelRenderer.render(d, p.lengthMm, p.fields, p.names, labelStyle(p))
+                    val bmp = if (d == null) LabelRenderer.calibracion() else LabelRenderer.render(d, p.lengthMm, p.fields, p.names, labelStyle(p))
                     val job = LabelProtocol.buildJob(LabelRenderer.toBlack(bmp), p.dieCut, p.density.takeIf { it in 1..15 }, p.salida)
                     printer.send(job, p.copies, p.confirmed)
                 }
-                if (err == null) addLog("Etiqueta enviada a la impresora: " + LabelRenderer.lines(d, p.fields, p.names, p.twoLines).joinToString(" / ")) else addLog("Impresora: $err")
+                if (err == null) addLog("Etiqueta enviada a la impresora: " + if (d == null) "regla de calibración" else LabelRenderer.lines(d, p.fields, p.names, p.twoLines).joinToString(" / ")) else addLog("Impresora: $err")
                 _print.update { it.copy(message = err ?: "Etiqueta enviada.") }
             } catch (e: Exception) {
                 addLog("Impresora: error al imprimir (${e.javaClass.simpleName}: ${e.message})")

@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.1.7" to listOf(
+            "Nuevo en «Impresora y etiqueta»: «Imprimir regla de calibración» (40 mm), con una marca por milímetro y su número, para ver hasta dónde imprime la cinta de alto.",
+        ),
         "2.1.6" to listOf(
             "En «Impresora y etiqueta», la vista previa de la etiqueta queda fija arriba: al desplazarte por las opciones siempre se ve el cambio al instante.",
         ),

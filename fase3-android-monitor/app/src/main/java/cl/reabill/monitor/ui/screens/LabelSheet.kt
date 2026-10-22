@@ -230,6 +230,13 @@ fun LabelSheet(vm: MonitorViewModel, onClose: () -> Unit) {
                 }
 
                 Spacer(Modifier.height(14.dp))
+                Text("Prueba de alto", style = ActaType.Label)
+                ActaButton(
+                    "Imprimir regla de calibración", { vm.labelPrint(calibracion = true) },
+                    height = 42.dp, enabled = !ui.printing, modifier = Modifier.fillMaxWidth().padding(top = 6.dp)
+                )
+
+                Spacer(Modifier.height(14.dp))
                 Text("Opciones", style = ActaType.Label)
                 FlowRow(Modifier.padding(top = 6.dp), horizontalArrangement = spacing, verticalArrangement = spacing) {
                     ActaChip("Girar 180°", prefs.rotate, { vm.setLabelPrefs(prefs.copy(rotate = !prefs.rotate)) })

@@ -2,6 +2,10 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.1.3" to listOf(
+            "Arreglo: en «Impresora y etiqueta» no se veían los botones de abajo del tamaño del texto (distribución, posición, largo, cinta, opciones y copias). La ventana cortaba el contenido en vez de dejarlo desplazar; lo mismo en «Textos de la etiqueta».",
+            "La verificación antes de publicar ahora detecta este tipo de error."
+        ),
         "2.1.2" to listOf(
             "Arreglo de compilación: la 2.1.0 y la 2.1.1 no llegaron a publicarse por un error mío; esta trae todo lo de ellas (etiqueta Auto, impresora que se conecta al imprimir, pestañas, menús revisados)."
         ),

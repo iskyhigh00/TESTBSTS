@@ -85,7 +85,7 @@ fun LabelSheet(vm: MonitorViewModel, onClose: () -> Unit) {
         onDismissRequest = { vm.labelStopScan(); vm.labelDisconnect(); onClose() },
         title = { Text("Impresora y etiqueta") },
         text = {
-            Column(Modifier.verticalScroll(rememberScrollState()).heightIn(max = 520.dp)) {
+            Column(Modifier.heightIn(max = 600.dp).verticalScroll(rememberScrollState())) {
                 Text(
                     "Impresora: " + (ui.connectedName?.let { "$it (conectada)" } ?: if (prefs.lastName.isNotEmpty()) "${prefs.lastName} (guardada)" else "ninguna elegida"),
                     style = ActaType.Label, modifier = Modifier.padding(bottom = 4.dp)
@@ -227,7 +227,7 @@ fun LabelSheet(vm: MonitorViewModel, onClose: () -> Unit) {
         confirmButton = {
             ActaButton(
                 if (ui.printing) "Imprimiendo…" else "Imprimir prueba", onClick = { vm.labelPrint() },
-                filled = true, height = 44.dp, modifier = Modifier.width(150.dp),
+                filled = true, height = 44.dp, modifier = Modifier.widthIn(min = 140.dp),
                 enabled = preview != null && !ui.printing && prefs.fields.isNotEmpty()
             )
         },
@@ -243,7 +243,7 @@ private fun NamesDialog(actual: Map<String, String>, onSave: (Map<String, String
         onDismissRequest = onClose,
         title = { Text("Textos de la etiqueta") },
         text = {
-            Column(Modifier.verticalScroll(rememberScrollState()).heightIn(max = 420.dp)) {
+            Column(Modifier.heightIn(max = 460.dp).verticalScroll(rememberScrollState())) {
                 ActaButton(
                     "Restablecer los textos", { editables.forEach { textos[it] = LabelFields.DEFAULT_TEXT[it] ?: "" } },
                     height = 40.dp, modifier = Modifier.fillMaxWidth()

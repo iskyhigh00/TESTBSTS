@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.1.8" to listOf(
+            "Letra de la etiqueta más grande: según la regla de calibración la cinta imprime los 12 mm completos, pero el texto usaba solo unos 10. Ahora el tamaño se calcula por la tinta real de las letras y el texto llena todo el alto.",
+        ),
         "2.1.7" to listOf(
             "Nuevo en «Impresora y etiqueta»: «Imprimir regla de calibración» (40 mm), con una marca por milímetro y su número, para ver hasta dónde imprime la cinta de alto.",
         ),

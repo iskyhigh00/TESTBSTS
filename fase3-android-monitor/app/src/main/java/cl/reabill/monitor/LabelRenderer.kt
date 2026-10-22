@@ -45,7 +45,8 @@ object LabelRenderer {
                 }
             }
 
-            val altoU = paints.map { (it.fontMetrics.descent - it.fontMetrics.ascent) / 100f }
+            val tinta = paints.indices.map { i -> android.graphics.Rect().also { paints[i].getTextBounds(ls[i].text, 0, ls[i].text.length, it) } }
+            val altoU = tinta.map { it.height() / 100f }
             val tope = paints.indices.map { 100f * availW / maxOf(1f, paints[it].measureText(ls[it].text)) }
             fun tam(i: Int, k: Float) = minOf(k * bases[i], tope[i])
             fun alto(k: Float) = paints.indices.sumOf { (altoU[it] * tam(it, k)).toDouble() }.toFloat() + LabelFit.HUECO * (ls.size - 1)
@@ -72,7 +73,8 @@ object LabelRenderer {
         c.drawColor(Color.WHITE)
         if (ls.isNotEmpty()) {
             val paints = construir(w - 28f)
-            val heights = paints.map { it.fontMetrics.descent - it.fontMetrics.ascent }
+            val tinta = paints.indices.map { i -> android.graphics.Rect().also { paints[i].getTextBounds(ls[i].text, 0, ls[i].text.length, it) } }
+            val heights = tinta.map { it.height().toFloat() }
             val total = heights.sum()
             val gap = if (style.compact) LabelFit.HUECO else maxOf(2f, (h - total) / (ls.size + 1))
             val bloque = total + gap * (ls.size - 1)
@@ -85,7 +87,7 @@ object LabelRenderer {
                 val p = paints[i]
                 val tw = p.measureText(l.text)
                 val x = when (style.align) { 1 -> (w - tw) / 2f; 2 -> w - 12f - tw; else -> 12f }
-                c.drawText(l.text, x, y - p.fontMetrics.ascent, p)
+                c.drawText(l.text, x, y - tinta[i].top, p)
                 y += heights[i] + gap
             }
         }

@@ -239,10 +239,10 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
             val (cands, crudo) = res
             if (cands == null) {
                 addLog("No se pudo leer la foto: $crudo")
-                _ocr.update { OcrUi(message = "No se pudo leer la foto. Escribe el número.", id = it.id + 1) }
+                _ocr.update { OcrUi(message = "No se pudo leer la foto.", id = it.id + 1) }
             } else if (cands.isEmpty()) {
                 addLog("Foto sin números reconocibles. Texto visto: ${crudo.replace('\n', ' ').take(80)}")
-                _ocr.update { OcrUi(message = "No encontré un número de 3 a 7 dígitos. Intenta otra foto, más cerca y de frente, o escríbelo.", id = it.id + 1) }
+                _ocr.update { OcrUi(message = "No encontré un número en la foto.", id = it.id + 1) }
             } else {
                 addLog("Número leído en la foto: ${cands.joinToString(", ")}")
                 _ocr.update { OcrUi(candidates = cands, id = it.id + 1) }

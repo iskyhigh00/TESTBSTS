@@ -80,7 +80,7 @@ fun LabelSheet(vm: MonitorViewModel, onClose: () -> Unit) {
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()).heightIn(max = 520.dp)) {
                 if (preview == null) {
-                    Text("Lee la contabilidad de un equipo (o usa el demo) para ver la vista previa de la etiqueta.", style = ActaType.Body)
+                    Text("Sin lectura.", style = ActaType.Body)
                 } else {
                     Image(
                         preview, contentDescription = "Vista previa de la etiqueta",
@@ -89,14 +89,6 @@ fun LabelSheet(vm: MonitorViewModel, onClose: () -> Unit) {
                     )
                 }
 
-                val previa = data
-                if (previa != null && previa.fromPrevious) {
-                    Text(
-                        "La contabilidad está en cero (recién borrada): la aceptación real es la de la última lectura antes de borrar, del " +
-                            java.text.SimpleDateFormat("dd-MM-yyyy HH:mm", java.util.Locale.getDefault()).format(java.util.Date(previa.date)) + ".",
-                        style = ActaType.Label, modifier = Modifier.padding(top = 6.dp)
-                    )
-                }
                 Spacer(Modifier.height(14.dp))
                 Text("Datos en la etiqueta", style = ActaType.Label)
                 FlowRow(Modifier.padding(top = 6.dp), horizontalArrangement = spacing, verticalArrangement = spacing) {
@@ -120,10 +112,6 @@ fun LabelSheet(vm: MonitorViewModel, onClose: () -> Unit) {
                         ActaChip(n, prefs.scale == v, { vm.setLabelPrefs(prefs.copy(scale = v)) })
                     }
                 }
-                Text(
-                    "Máximo = el texto más grande que cabe en los 12 mm de la cinta. Para agrandarlo más, usa «2 líneas» o quita datos.",
-                    style = ActaType.Label, modifier = Modifier.padding(top = 4.dp)
-                )
 
                 Spacer(Modifier.height(14.dp))
                 Text("Distribución", style = ActaType.Label)
@@ -144,7 +132,6 @@ fun LabelSheet(vm: MonitorViewModel, onClose: () -> Unit) {
                     ActaChip("Al medio", prefs.vpos == 1, { vm.setLabelPrefs(prefs.copy(vpos = 1)) })
                     ActaChip("Abajo", prefs.vpos == 2, { vm.setLabelPrefs(prefs.copy(vpos = 2)) })
                 }
-                Text("Arriba / medio / abajo se nota con tamaño Chico o Medio y «Líneas juntas».", style = ActaType.Label, modifier = Modifier.padding(top = 4.dp))
                 FlowRow(Modifier.padding(top = 8.dp), horizontalArrangement = spacing, verticalArrangement = spacing) {
                     ActaChip("Líneas juntas", prefs.compact, { vm.setLabelPrefs(prefs.copy(compact = true)) })
                     ActaChip("Líneas separadas", !prefs.compact, { vm.setLabelPrefs(prefs.copy(compact = false)) })
@@ -169,10 +156,6 @@ fun LabelSheet(vm: MonitorViewModel, onClose: () -> Unit) {
                     ActaChip("Girar 180°", prefs.rotate, { vm.setLabelPrefs(prefs.copy(rotate = !prefs.rotate)) })
                     ActaChip("Modo compatible", prefs.confirmed, { vm.setLabelPrefs(prefs.copy(confirmed = !prefs.confirmed)) })
                 }
-                Text(
-                    "Modo compatible: envía los datos esperando la confirmación de la impresora en cada trozo. Es más lento, pero sirve si la etiqueta sale cortada o con basura. Déjalo apagado si imprime bien.",
-                    style = ActaType.Label, modifier = Modifier.padding(top = 6.dp)
-                )
 
                 Spacer(Modifier.height(14.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -186,7 +169,7 @@ fun LabelSheet(vm: MonitorViewModel, onClose: () -> Unit) {
                 Text("Impresora", style = ActaType.Label)
                 Text(
                     ui.connectedName?.let { "Conectada: $it" }
-                        ?: if (prefs.lastName.isNotEmpty()) "Guardada: ${prefs.lastName} (se conecta sola al imprimir)" else "Sin impresora elegida",
+                        ?: if (prefs.lastName.isNotEmpty()) "Guardada: ${prefs.lastName}" else "Sin impresora elegida",
                     style = ActaType.Body, modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
                 )
                 FlowRow(horizontalArrangement = spacing, verticalArrangement = spacing) {
@@ -231,7 +214,6 @@ private fun NamesDialog(actual: Map<String, String>, onSave: (Map<String, String
         title = { Text("Textos de la etiqueta") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()).heightIn(max = 420.dp)) {
-                Text("Lo que se escribe antes de cada dato. Déjalo vacío para no poner texto.", style = ActaType.Label)
                 editables.forEach { k ->
                     OutlinedTextField(
                         value = textos[k] ?: "", onValueChange = { textos[k] = it.take(12) },

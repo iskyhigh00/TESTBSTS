@@ -194,7 +194,6 @@ fun ActaApp(vm: MonitorViewModel) {
                 Column {
                     if (ocr.message.isNotEmpty()) Text(ocr.message, style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(bottom = 8.dp))
                     if (ocr.candidates.isNotEmpty()) {
-                        Text("Leído en la foto — revisa que sea el correcto:", style = ActaType.Body)
                         androidx.compose.foundation.layout.FlowRow(
                             Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -202,7 +201,6 @@ fun ActaApp(vm: MonitorViewModel) {
                             ocr.candidates.forEach { c -> cl.reabill.monitor.ui.components.ActaChip(c, mdaTexto == c, { mdaTexto = c }) }
                         }
                     }
-                    Text("Queda guardado con la serie ${status.serial}.", style = ActaType.Label, modifier = Modifier.padding(top = 8.dp))
                     OutlinedTextField(
                         value = mdaTexto, onValueChange = { mdaTexto = it.filter { c -> c.isDigit() }.take(12) },
                         singleLine = true, label = { Text("MDA") },
@@ -221,10 +219,7 @@ fun ActaApp(vm: MonitorViewModel) {
             onDismissRequest = { showReset = false },
             title = { Text("Borrar contabilidad") },
             text = {
-                Text(
-                    "Se guardará el estado actual en el historial y luego se " +
-                        "pondrán los contadores en 0. ¿Continuar?"
-                )
+                Text("Se guarda el estado actual y los contadores quedan en 0.")
             },
             confirmButton = {
                 TextButton(onClick = { showReset = false; vm.resetAccounting() }) { Text("Borrar") }
@@ -238,11 +233,7 @@ fun ActaApp(vm: MonitorViewModel) {
             onDismissRequest = { showRestart = false },
             title = { Text("Reiniciar equipo (experimental)") },
             text = {
-                Text(
-                    "Pone el equipo en modo descarga y le envía el cierre, sin escribir ningún archivo, para que se " +
-                        "reinicie y salga del modo calibración. No está probado: úsalo en un equipo de prueba. " +
-                        "Si no vuelve solo, sácalo y vuelve a instalarlo en el cashbox. ¿Continuar?"
-                )
+                Text("Experimental, sin probar. ¿Reiniciar el equipo?")
             },
             confirmButton = {
                 TextButton(onClick = { showRestart = false; vm.restartAdvance() }) { Text("Reiniciar") }
@@ -429,10 +420,10 @@ private fun Hero(phase: Phase, acc: AccountingData?) {
     val sentence = when {
         acc != null && acc.inserted == 0 -> "No hay billetes insertados en la contabilidad."
         acc != null -> "${fmtInt(acc.accepted)} de ${fmtInt(acc.inserted)} billetes insertados fueron aceptados."
-        phase == Phase.Disconnected -> "Conecta un billetero para leer su contabilidad."
+        phase == Phase.Disconnected -> "Sin billetero conectado."
         phase == Phase.ReadingAccounting -> "Leyendo la contabilidad del equipo…"
         phase.isBusy -> "Identificando el equipo…"
-        fault -> "El equipo no respondió. Revisa el cable y vuelve a leer."
+        fault -> "El equipo no respondió."
         else -> "Pulsa Leer para obtener la contabilidad."
     }
     Column(Modifier.padding(horizontal = Gutter).padding(top = 10.dp, bottom = 14.dp)) {
@@ -521,7 +512,7 @@ private fun AccountingSection(
         if (acc == null) {
             Hairline()
             Text(
-                if (connected) "Sin lectura todavía." else "Conecta el equipo para leer.",
+                if (connected) "Sin lectura." else "Sin billetero.",
                 style = ActaType.Label, modifier = Modifier.padding(vertical = 12.dp)
             )
         } else {
@@ -619,35 +610,18 @@ private fun MachineSection(
             Text("N° de máquina (MDA)", style = ActaType.Body, modifier = Modifier.weight(1f))
             Text(mda ?: "—", style = ActaType.Cell)
         }
-        val sistema = weekly?.pct(mda)
         if (mda != null && weekly != null) {
+            val sistema = weekly.pct(mda)
             Hairline()
-            if (sistema == null) {
-                Text(
-                    "El reporte semanal importado no trae esta máquina.",
-                    style = ActaType.Label, modifier = Modifier.padding(vertical = 8.dp)
-                )
-            } else {
-                val sistemaPct = sistema * 100.0
-                Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("Sistema (semana ${weekly.fecha.ifEmpty { "sin fecha" }})", style = ActaType.Body, modifier = Modifier.weight(1f))
-                    Text("${fmtRate(sistemaPct)} %", style = ActaType.Cell)
+            Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("Sistema (semana ${weekly.fecha.ifEmpty { "sin fecha" }})", style = ActaType.Body, modifier = Modifier.weight(1f))
+                Text(if (sistema == null) "—" else "${fmtRate(sistema * 100.0)} %", style = ActaType.Cell)
+            }
+            if (rate != null) {
+                Row(Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Billetero (contadores)", style = ActaType.Body, modifier = Modifier.weight(1f))
+                    Text("${fmtRate(rate)} %", style = ActaType.Cell)
                 }
-                if (rate != null) {
-                    Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text("Billetero (contadores)", style = ActaType.Body, modifier = Modifier.weight(1f))
-                        Text("${fmtRate(rate)} %", style = ActaType.Cell)
-                    }
-                    val dif = rate - sistemaPct
-                    Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text("Diferencia", style = ActaType.Body, modifier = Modifier.weight(1f))
-                        Text((if (dif > 0) "+" else if (dif < 0) "−" else "") + fmtRate(kotlin.math.abs(dif)) + " pts", style = ActaType.Cell)
-                    }
-                }
-                Text(
-                    "Pueden no coincidir: el período y la fórmula del reporte del sistema pueden ser distintos del contador acumulado del billetero.",
-                    style = ActaType.Label, modifier = Modifier.padding(top = 8.dp, bottom = 8.dp)
-                )
             }
         }
     }
@@ -712,18 +686,13 @@ private fun SettingsSheet(
                     val w by vm.weekly.collectAsStateWithLifecycle()
                     Text(
                         w?.let { "Semana ${it.fecha.ifEmpty { "sin fecha" }} · ${it.datos.size} máquinas" }
-                            ?: "Sin reporte importado. Importa el JSON de Admin → Exportar JSON de la Bitácora (o un CSV «MDA;%»).",
+                            ?: "Sin reporte importado",
                         style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(bottom = 8.dp)
                     )
                     ActaButton("Importar reporte semanal", onClick = onImportWeekly, height = 46.dp, modifier = Modifier.fillMaxWidth())
                 }
 
                 PrefGroup("Modo demo") {
-                    Text(
-                        if (demo) "Hay un billetero simulado activo. Puedes leer, borrar, calibrar, cargar bill-set e imprimir como si fuera real; nada se escribe en ningún equipo."
-                        else "Muestra un billetero simulado para probar la app sin equipo conectado.",
-                        style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(bottom = 8.dp)
-                    )
                     if (demo) ActaButton("Salir del demo", onClick = { vm.stopDemo() }, enabled = !busy, height = 46.dp, modifier = Modifier.fillMaxWidth())
                     else ActaButton(
                         "Ver billetero demo", onClick = { vm.startDemo(); onClose() },
@@ -841,7 +810,7 @@ private fun CalibrationSheet(
             Text("Equipo $serial", style = ActaType.Label)
             Text("Calibración", style = ActaType.Title, modifier = Modifier.padding(top = 6.dp))
             Text(
-                "Bill-set $billSet. No borra la contabilidad.",
+                "Bill-set $billSet",
                 style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(top = 4.dp, bottom = 18.dp)
             )
             Hairline(color = Acta.Ink)

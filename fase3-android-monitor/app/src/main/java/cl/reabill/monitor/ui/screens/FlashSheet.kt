@@ -68,7 +68,7 @@ fun FlashSheet(
             Text("Equipo $serial", style = ActaType.Label)
             Text("Cargar bill-set", style = ActaType.Title, modifier = Modifier.padding(top = 6.dp))
             Text(
-                "Bill-set actual $billSet. Para Cashflow SC83.",
+                "Bill-set actual $billSet",
                 style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(top = 4.dp, bottom = 18.dp)
             )
             Hairline(color = Acta.Ink)
@@ -122,14 +122,8 @@ fun FlashSheet(
                 }
                 if (ui.running)
                     Text(
-                        "No desconectes el cable ni cierres la app. Tarda unos segundos.",
+                        "No desconectes el cable.",
                         style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(top = 8.dp)
-                    )
-                else if (!ui.done)
-                    Text(
-                        "Reemplaza el bill-set del equipo con este archivo. Se escribe sin modificarlo; " +
-                            "el equipo se reinicia solo al terminar.",
-                        style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(top = 14.dp)
                     )
             }
             if (!ui.done) {

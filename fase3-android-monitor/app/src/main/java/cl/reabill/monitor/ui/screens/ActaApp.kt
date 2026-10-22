@@ -206,11 +206,13 @@ fun ActaApp(vm: MonitorViewModel) {
     LaunchedEffect(connected) { if (!connected) showCal = false }
 
     if (ocr.test && ocr.id > 0 && !ocr.running) {
+        var elegido by remember(ocr.id) { mutableStateOf(ocr.candidates.firstOrNull() ?: "") }
         AlertDialog(
             onDismissRequest = { vm.clearOcr() },
             title = { Text("Prueba de lectura") },
             text = {
                 Column {
+                    ocr.photo?.let { FotoConfirmacion(it, ocr.boxes, elegido) { c -> elegido = c } }
                     Text(
                         if (ocr.candidates.isNotEmpty()) "Número leído: " + ocr.candidates.joinToString("  ·  ") else ocr.message,
                         style = ActaType.Body

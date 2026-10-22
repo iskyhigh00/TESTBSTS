@@ -274,7 +274,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
                             }
                             l?.boundingBox?.let { cajas[c] = android.graphics.RectF(it) }
                         }
-                        Res(cands, t.text, if (test) null else bmp, cajas)
+                        Res(cands, t.text, bmp, cajas)
                     } finally { rec.close() }
                 }
             } catch (e: Exception) { Res(null, e.message ?: e.javaClass.simpleName, null, emptyMap()) }

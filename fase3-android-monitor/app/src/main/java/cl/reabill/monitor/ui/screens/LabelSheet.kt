@@ -116,7 +116,7 @@ fun LabelSheet(vm: MonitorViewModel, onClose: () -> Unit) {
                 Spacer(Modifier.height(14.dp))
                 Text("Distribución", style = ActaType.Label)
                 FlowRow(Modifier.padding(top = 6.dp), horizontalArrangement = spacing, verticalArrangement = spacing) {
-                    ActaChip("4 líneas", !prefs.twoLines, { vm.setLabelPrefs(prefs.copy(twoLines = false)) })
+                    ActaChip("3 líneas", !prefs.twoLines, { vm.setLabelPrefs(prefs.copy(twoLines = false)) })
                     ActaChip("2 líneas (más grande)", prefs.twoLines, { vm.setLabelPrefs(prefs.copy(twoLines = true)) })
                 }
 

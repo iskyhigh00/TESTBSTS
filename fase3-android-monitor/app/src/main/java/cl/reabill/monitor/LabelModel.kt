@@ -67,14 +67,12 @@ object LabelText {
         if (LabelFields.DATE in f) id.add(join(t(LabelFields.DATE), SimpleDateFormat("dd-MM-yyyy", Locale.US).format(Date(d.date))))
         if (LabelFields.MODEL in f && d.model.isNotBlank() && d.model != "—") id.add(join(t(LabelFields.MODEL), d.model))
         if (LabelFields.SERIAL in f && d.serial.isNotBlank() && d.serial != "—") id.add(join(t(LabelFields.SERIAL), d.serial))
-        if (id.isNotEmpty()) out.add(LabelLine(id.joinToString("  "), false))
-        val fw = ArrayList<String>()
-        if (LabelFields.FW in f) fw.add(join(t(LabelFields.FW), d.firmware))
-        val numero = d.billSet.trim().substringBefore(' ')
+        if (LabelFields.FW in f) id.add(join(t(LabelFields.FW), d.firmware))
+        val numero = d.billSet.trim().substringBefore(' ').takeLast(3)
         val version = d.billSet.trim().substringAfter(' ', "").trim()
-        if (LabelFields.BS in f) fw.add(join(t(LabelFields.BS), numero) + if (LabelFields.VER in f && version.isNotEmpty()) " $version" else "")
-        else if (LabelFields.VER in f && version.isNotEmpty()) fw.add(join(t(LabelFields.VER), version))
-        if (fw.isNotEmpty()) out.add(LabelLine(fw.joinToString("  ·  "), false))
+        if (LabelFields.BS in f) id.add(join(t(LabelFields.BS), numero) + if (LabelFields.VER in f && version.isNotEmpty()) " $version" else "")
+        else if (LabelFields.VER in f && version.isNotEmpty()) id.add(join(t(LabelFields.VER), version))
+        if (id.isNotEmpty()) out.add(LabelLine(id.joinToString("  "), false))
         if (!twoLines || out.size < 3) return out
         val fuertes = out.filter { it.bold }.joinToString("  ") { it.text }
         val suaves = out.filter { !it.bold }.joinToString("  ·  ") { it.text }

@@ -87,8 +87,6 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch(Dispatchers.IO) { Updater.cleanupDownloads(getApplication()) }
         checkForUpdate()
         refreshLibrary()
-        nubeEstado()
-        iniciarNube()
     }
 
     private fun refreshLibrary() {
@@ -1298,6 +1296,11 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         printer.close()
         logWriter.shutdown()
         super.onCleared()
+    }
+
+    init {
+        nubeEstado()
+        iniciarNube()
     }
 
     private companion object {

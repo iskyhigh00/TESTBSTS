@@ -184,7 +184,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     private val _weekly = MutableStateFlow<WeeklyData?>(mdaStore.weekly())
 
     val weekly: StateFlow<WeeklyData?> = _weekly
-    private var weeklyReal: WeeklyData? = null
+    private var weeklySample = false
 
     fun setMda(texto: String) {
         val serie = _status.value.serial
@@ -207,6 +207,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
                 }
                 mdaStore.setWeekly(w)
                 _weekly.value = w
+                weeklySample = false
                 addLog("Reporte semanal importado: semana ${w.fecha.ifEmpty { "sin fecha" }}, ${w.datos.size} máquinas.")
             } catch (e: Exception) {
                 addLog("No se pudo importar el reporte semanal: ${e.message ?: e.javaClass.simpleName}")
@@ -262,8 +263,8 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         }
         _demo.value = true
 
-        weeklyReal = _weekly.value
-        _weekly.value = WeeklyData("21/10/2026", mapOf("100500" to 0.984))
+        weeklySample = _weekly.value == null
+        if (weeklySample) _weekly.value = WeeklyData("21/10/2026", mapOf("100500" to 0.984))
         mdaStore.setMda(DemoClient.SERIAL, "100500")
         _mdaMap.value = mdaStore.all()
         mei = DemoClient()
@@ -285,7 +286,8 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         store.clear(DemoClient.SERIAL)
         mdaStore.setMda(DemoClient.SERIAL, null)
         _mdaMap.value = mdaStore.all()
-        _weekly.value = weeklyReal
+        if (weeklySample) _weekly.value = null
+        weeklySample = false
         addLog("Modo demo terminado.")
     }
 

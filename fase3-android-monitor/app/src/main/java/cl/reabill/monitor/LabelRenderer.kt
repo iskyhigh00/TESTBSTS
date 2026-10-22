@@ -16,23 +16,22 @@ data class LabelStyle(
 )
 
 object LabelRenderer {
+    const val AUTO_MIN_MM = 25
+    const val AUTO_MAX_MM = 80
+
     fun lines(d: LabelData, f: Set<String>, names: Map<String, String> = emptyMap(), twoLines: Boolean = false): List<String> =
         LabelText.lines(d, f, names, twoLines).map { it.text }
 
     fun render(
         d: LabelData, lengthMm: Int, fields: Set<String>, names: Map<String, String>, style: LabelStyle
     ): Bitmap {
-        val w = LabelProtocol.mmToDots(lengthMm)
         val h = LabelProtocol.HEAD_DOTS
-        val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
-        val c = Canvas(bmp)
-        c.drawColor(Color.WHITE)
         val ls = LabelText.lines(d, fields, names, style.twoLines)
-        if (ls.isNotEmpty()) {
-            val avail = w - 28f
+
+        fun construir(availW: Float): List<Paint> {
             fun encoger(p: Paint, texto: String) {
                 val tw = p.measureText(texto)
-                if (tw > avail) p.textSize = p.textSize * avail / tw
+                if (tw > availW) p.textSize = p.textSize * availW / tw
             }
             val paints = ls.map { l ->
                 val base = when (ls.size) {
@@ -51,6 +50,24 @@ object LabelRenderer {
             val alturaBase = paints.sumOf { (it.fontMetrics.descent - it.fontMetrics.ascent).toDouble() }.toFloat()
             val k = LabelFit.factor(alturaBase, ls.size, style.scale)
             paints.forEachIndexed { i, p -> p.textSize = p.textSize * k; encoger(p, ls[i].text) }
+            return paints
+        }
+
+        val maxAuto = LabelProtocol.mmToDots(AUTO_MAX_MM)
+        val w = when {
+            lengthMm > 0 -> LabelProtocol.mmToDots(lengthMm)
+            ls.isEmpty() -> LabelProtocol.mmToDots(AUTO_MIN_MM)
+            else -> {
+                val ps = construir(maxAuto - 28f)
+                val mx = ps.indices.maxOf { ps[it].measureText(ls[it].text) }
+                (kotlin.math.ceil(mx.toDouble()).toInt() + 28).coerceIn(LabelProtocol.mmToDots(AUTO_MIN_MM), maxAuto)
+            }
+        }
+        val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        val c = Canvas(bmp)
+        c.drawColor(Color.WHITE)
+        if (ls.isNotEmpty()) {
+            val paints = construir(w - 28f)
             val heights = paints.map { it.fontMetrics.descent - it.fontMetrics.ascent }
             val total = heights.sum()
             val gap = if (style.compact) LabelFit.HUECO else maxOf(2f, (h - total) / (ls.size + 1))

@@ -1054,7 +1054,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         val message: String = ""
     )
     data class LabelPrefs(
-        val lengthMm: Int = 50, val dieCut: Boolean = false, val rotate: Boolean = false,
+        val lengthMm: Int = 0, val dieCut: Boolean = false, val rotate: Boolean = false,
         val density: Int = 0, val copies: Int = 1, val confirmed: Boolean = false,
         val fields: Set<String> = LabelFields.DEFAULT, val align: Int = 0, val compact: Boolean = true,
         val scale: Int = 100, val vpos: Int = 1, val names: Map<String, String> = emptyMap(), val twoLines: Boolean = false,
@@ -1065,8 +1065,10 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     private val printer = P12Printer(app.applicationContext) { addLog(it) }
     private val _print = MutableStateFlow(PrintUi())
     val print: StateFlow<PrintUi> = _print
+
+    private val migrarLargo = if (!prefs.contains("auto_v1")) prefs.edit().putInt("mm", 0).putBoolean("auto_v1", true).apply() else Unit
     private val _labelPrefs = MutableStateFlow(LabelPrefs(
-        prefs.getInt("mm", 50), prefs.getBoolean("die", false), prefs.getBoolean("rot", false),
+        prefs.getInt("mm", 0), prefs.getBoolean("die", false), prefs.getBoolean("rot", false),
         prefs.getInt("dens", 0), prefs.getInt("copies", 1).coerceIn(1, 10), prefs.getBoolean("conf", false),
         LabelFields.parse(prefs.getString("campos", null)), prefs.getInt("align", 0), prefs.getBoolean("compact", true),
         LabelFit.snap(prefs.getInt("scale", 100)), prefs.getInt("vpos", 1), LabelFields.parseNames(prefs.getString("nombres", null)), prefs.getBoolean("dos", false),
@@ -1175,8 +1177,17 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
                 _print.update { it.copy(message = "No se pudo imprimir: ${e.message ?: e.javaClass.simpleName}") }
             } finally {
                 _print.update { it.copy(printing = false) }
+
+                delay(1500)
+                if (!_print.value.printing) { printer.close(); _print.update { it.copy(connectedName = null) } }
             }
         }
+    }
+
+    fun labelDisconnect() {
+        if (_print.value.printing) return
+        printer.close()
+        _print.update { it.copy(connectedName = null, scanning = false) }
     }
 
     fun exportBackup(uri: android.net.Uri) {

@@ -45,7 +45,7 @@ import cl.reabill.monitor.ui.components.ActaChip
 import cl.reabill.monitor.ui.theme.Acta
 import cl.reabill.monitor.ui.theme.ActaType
 
-private val LENGTHS = listOf(30, 40, 50, 60, 80)
+private val LENGTHS = listOf(0, 30, 40, 50, 60, 80)
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -76,18 +76,24 @@ fun LabelSheet(vm: MonitorViewModel, onClose: () -> Unit) {
     var showNames by remember { mutableStateOf(false) }
     if (showNames) NamesDialog(prefs.names, onSave = { vm.setLabelPrefs(prefs.copy(names = it)); showNames = false }, onClose = { showNames = false })
     val spacing = Arrangement.spacedBy(8.dp)
+    var pestana by remember { mutableStateOf(if (prefs.lastAddress.isEmpty()) 1 else 0) }
+    var verOtros by remember { mutableStateOf(false) }
 
     AlertDialog(
-        onDismissRequest = { vm.labelStopScan(); onClose() },
+        onDismissRequest = { vm.labelStopScan(); vm.labelDisconnect(); onClose() },
         title = { Text("Impresora y etiqueta") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()).heightIn(max = 520.dp)) {
-                Text("Impresora", style = ActaType.Label.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, color = Acta.Ink))
                 Text(
-                    ui.connectedName?.let { "Conectada: $it" }
-                        ?: if (prefs.lastName.isNotEmpty()) "Guardada: ${prefs.lastName}" else "Sin impresora elegida",
-                    style = ActaType.Body, modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
+                    "Impresora: " + (ui.connectedName?.let { "$it (conectada)" } ?: if (prefs.lastName.isNotEmpty()) "${prefs.lastName} (guardada)" else "ninguna elegida"),
+                    style = ActaType.Label, modifier = Modifier.padding(bottom = 4.dp)
                 )
+                if (ui.message.isNotEmpty()) Text(ui.message, style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(bottom = 8.dp))
+                Row(Modifier.padding(top = 4.dp, bottom = 12.dp), horizontalArrangement = spacing) {
+                    ActaChip("Etiqueta", pestana == 0, { pestana = 0 })
+                    ActaChip("Impresora", pestana == 1, { pestana = 1 })
+                }
+                if (pestana == 1) {
                 if (!permisosOk) {
                     Text("Falta el permiso de Bluetooth: sin él no se pueden buscar impresoras.", style = ActaType.Body.copy(color = Acta.Error), modifier = Modifier.padding(bottom = 8.dp))
                     ActaButton(
@@ -111,16 +117,22 @@ fun LabelSheet(vm: MonitorViewModel, onClose: () -> Unit) {
                         ActaButton("Olvidar", { vm.labelForget() }, danger = true, height = 42.dp, modifier = Modifier.width(100.dp))
                     }
                 }
-                ui.devices.take(12).forEach { f ->
-                    ActaButton(
-                        (if (f.likely) "" else "") + f.name + "  ·  " + f.address.takeLast(5) + "  ·  ${f.rssi} dBm",
-                        onClick = { vm.labelConnect(f) }, filled = f.likely, height = 42.dp,
-                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
-                    )
+                val nombrados = ui.devices.filter { it.name != "(sin nombre)" }
+                val otros = ui.devices.filter { it.name == "(sin nombre)" }
+                fun fila(f: P12Printer.Found) = f.name + "  ·  " + f.address.takeLast(5) + "  ·  ${f.rssi} dBm"
+                nombrados.take(8).forEach { f ->
+                    ActaButton(fila(f), onClick = { vm.labelConnect(f) }, filled = f.likely, height = 42.dp, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
                 }
-                if (ui.message.isNotEmpty()) Text(ui.message, style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(top = 10.dp))
-                if (ui.message.isNotEmpty()) Text(ui.message, style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(top = 10.dp))
-                Spacer(Modifier.height(18.dp))
+                if (otros.isNotEmpty()) {
+                    ActaButton(
+                        if (verOtros) "Ocultar sin nombre (${otros.size})" else "Ver sin nombre (${otros.size})",
+                        onClick = { verOtros = !verOtros }, height = 38.dp, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                    )
+                    if (verOtros) otros.take(10).forEach { f ->
+                        ActaButton(fila(f), onClick = { vm.labelConnect(f) }, height = 42.dp, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
+                    }
+                }
+                } else {
                 if (preview == null) {
                     Text("Sin lectura.", style = ActaType.Body)
                 } else {
@@ -182,7 +194,7 @@ fun LabelSheet(vm: MonitorViewModel, onClose: () -> Unit) {
                 Spacer(Modifier.height(14.dp))
                 Text("Largo (mm)", style = ActaType.Label)
                 FlowRow(Modifier.padding(top = 6.dp), horizontalArrangement = spacing, verticalArrangement = spacing) {
-                    LENGTHS.forEach { mm -> ActaChip("$mm", mm == prefs.lengthMm, { vm.setLabelPrefs(prefs.copy(lengthMm = mm)) }) }
+                    LENGTHS.forEach { mm -> ActaChip(if (mm == 0) "Auto" else "$mm", mm == prefs.lengthMm, { vm.setLabelPrefs(prefs.copy(lengthMm = mm)) }) }
                 }
 
                 Spacer(Modifier.height(14.dp))
@@ -207,6 +219,7 @@ fun LabelSheet(vm: MonitorViewModel, onClose: () -> Unit) {
                     ActaButton("+", { vm.setLabelPrefs(prefs.copy(copies = (prefs.copies + 1).coerceAtMost(10))) }, height = 40.dp, modifier = Modifier.width(48.dp))
                 }
 
+                }
             }
         },
         confirmButton = {
@@ -216,7 +229,7 @@ fun LabelSheet(vm: MonitorViewModel, onClose: () -> Unit) {
                 enabled = preview != null && !ui.printing && prefs.fields.isNotEmpty()
             )
         },
-        dismissButton = { ActaButton("Cerrar", onClick = { vm.labelStopScan(); onClose() }, height = 44.dp, modifier = Modifier.width(100.dp)) }
+        dismissButton = { ActaButton("Cerrar", onClick = { vm.labelStopScan(); vm.labelDisconnect(); onClose() }, height = 44.dp, modifier = Modifier.width(100.dp)) }
     )
 }
 

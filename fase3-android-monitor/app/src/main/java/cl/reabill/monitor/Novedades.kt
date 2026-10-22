@@ -2,6 +2,13 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.1.0" to listOf(
+            "Etiqueta: el largo ahora es «Auto» (por defecto): mide el texto y corta la cinta justo, sin gastar de más. Se puede seguir eligiendo un largo fijo.",
+            "Impresora: ya no queda conectada todo el tiempo. Se conecta sola al presionar «Imprimir etiqueta» y se suelta al terminar (también al cerrar la pantalla de impresora).",
+            "La impresora guardada se conserva: no hay que volver a buscarla.",
+            "Pantalla «Impresora y etiqueta» ordenada en dos pestañas: «Etiqueta» (vista previa, datos, textos, tamaño, posición, largo) e «Impresora» (buscar, conectar, olvidar). Los dispositivos sin nombre quedan plegados.",
+            "Se recuperó la edición de la etiqueta que había quedado abajo de la lista de impresoras."
+        ),
         "2.0.9" to listOf(
             "Impresora y etiqueta: la sección «Impresora» (buscar, conectar, olvidar) ahora está arriba de todo, no al final.",
             "Si falta el permiso de Bluetooth (por ejemplo tras borrar los datos de la app) lo dice en rojo y hay un botón para abrir los permisos."

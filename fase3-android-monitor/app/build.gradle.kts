@@ -1,0 +1,76 @@
+plugins {
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.compose")
+}
+
+android {
+    namespace = "cl.reabill.monitor"
+    compileSdk = 35
+
+    defaultConfig {
+        applicationId = "cl.reabill.monitor"
+        minSdk = 26
+        targetSdk = 35
+        versionCode = 164
+        versionName = "1.12.0"
+
+        val updateToken = System.getenv("APK_READ_TOKEN") ?: ""
+        buildConfigField("String", "UPDATE_TOKEN", "\"$updateToken\"")
+        val updateRepo = System.getenv("APK_REPO") ?: ""
+        buildConfigField("String", "UPDATE_REPO", "\"$updateRepo\"")
+    }
+
+    signingConfigs {
+        create("stable") {
+            val ks = System.getenv("KEYSTORE_FILE")
+            if (ks != null) {
+                storeFile = file(ks)
+                storePassword = System.getenv("KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("KEY_ALIAS")
+                keyPassword = System.getenv("KEY_PASSWORD")
+            }
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("stable").takeIf { it.storeFile != null } ?: signingConfigs.getByName("debug")
+        }
+        release {
+            isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("stable").takeIf { it.storeFile != null } ?: signingConfigs.getByName("debug")
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
+}
+
+dependencies {
+    val composeBom = platform("androidx.compose:compose-bom:2024.09.03")
+    implementation(composeBom)
+    implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.ui:ui-tooling-preview")
+    debugImplementation("androidx.compose.ui:ui-tooling")
+
+    implementation("androidx.core:core-ktx:1.13.1")
+    implementation("androidx.activity:activity-compose:1.9.2")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.6")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.6")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.6")
+
+    implementation("com.github.mik3y:usb-serial-for-android:3.8.0")
+
+    implementation("com.google.mlkit:text-recognition:16.0.1")
+}

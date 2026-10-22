@@ -43,9 +43,37 @@ object WeeklyImport {
         val t = texto.trim().removePrefix("﻿").trim()
         require(t.isNotEmpty()) { "el archivo está vacío" }
         if (t.startsWith("{")) {
-            return fromObject(JSONObject(t)) ?: throw IllegalArgumentException("el JSON no trae el reporte semanal (config.termoplanoPct). Abre REACBILL en la Bitácora con las semanas cargadas y vuelve a exportar")
+            val raiz = JSONObject(t)
+            if (raiz.optString("formato") == FORMATO_REACBILL) return fromReacbill(raiz)
+            return fromObject(raiz) ?: throw IllegalArgumentException("el JSON no trae el reporte semanal (config.termoplanoPct). Abre REACBILL en la Bitácora con las semanas cargadas y vuelve a exportar")
         }
         return fromText(t)
+    }
+
+    const val FORMATO_REACBILL = "reacbill-aceptacion"
+    const val VERSION_REACBILL = 1
+
+    internal fun fromReacbill(o: JSONObject): WeeklyData {
+        val v = o.optInt("version", 0)
+        require(v == VERSION_REACBILL) { "el reporte es de la versión $v y esta app solo entiende la $VERSION_REACBILL; actualiza BILLMON" }
+        val unidad = o.optString("unidad", "porcentaje")
+        require(unidad == "porcentaje") { "unidad no soportada: $unidad" }
+        val arr = o.optJSONArray("maquinas") ?: throw IllegalArgumentException("el reporte no trae la lista de máquinas")
+        val datos = LinkedHashMap<String, Double>()
+        for (i in 0 until minOf(arr.length(), MAX_MAQUINAS)) {
+            val m = arr.optJSONObject(i) ?: continue
+            val mda = Mda.norm(m.opt("mda")?.toString()) ?: continue
+            if (m.isNull("aceptacion_billetes") || !m.has("aceptacion_billetes")) continue
+            val pct = m.optDouble("aceptacion_billetes", Double.NaN)
+            if (pct.isNaN() || pct < 0.0 || pct > 100.0) continue
+            datos[mda] = Math.round(pct * 100.0) / 10000.0
+        }
+        return WeeklyData(fechaLarga(o.optString("semana", "")), datos)
+    }
+
+    internal fun fechaLarga(s: String): String {
+        val m = Regex("^(\\d{4})-(\\d{2})-(\\d{2})$").find(s.trim()) ?: return s.trim()
+        return "${m.groupValues[3]}/${m.groupValues[2]}/${m.groupValues[1]}"
     }
 
     internal fun fromObject(o: JSONObject): WeeklyData? {

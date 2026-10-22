@@ -695,36 +695,6 @@ private fun SettingsSheet(
                 Text("Preferencias", style = ActaType.Title.copy(fontSize = 34.sp), modifier = Modifier.padding(top = 18.dp))
                 Text("BILLMON v$APP_VERSION", style = ActaType.Tiny, modifier = Modifier.padding(top = 2.dp, bottom = 8.dp))
 
-                PrefGroup("Impresora de etiquetas") {
-                    Text(
-                        if (prefs.lastName.isNotEmpty()) "Guardada: ${prefs.lastName}" else "Sin impresora guardada",
-                        style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(bottom = 8.dp)
-                    )
-                    ActaButton("Configurar impresora y etiqueta", onClick = onLabelConfig, height = 46.dp, modifier = Modifier.fillMaxWidth())
-                }
-
-                PrefGroup("Reporte semanal del sistema") {
-                    val w by vm.weekly.collectAsStateWithLifecycle()
-                    Text(
-                        w?.let { "Semana ${it.fecha.ifEmpty { "sin fecha" }} · ${it.datos.size} máquinas" }
-                            ?: "Sin reporte importado",
-                        style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(bottom = 8.dp)
-                    )
-                    ActaButton("Importar reporte semanal", onClick = onImportWeekly, height = 46.dp, modifier = Modifier.fillMaxWidth())
-                }
-
-                PrefGroup("Lectura del N° de máquina") {
-                    ActaButton("Probar con una imagen", onClick = onTestOcr, height = 46.dp, modifier = Modifier.fillMaxWidth())
-                }
-
-                PrefGroup("Modo demo") {
-                    if (demo) ActaButton("Salir del demo", onClick = { vm.stopDemo() }, enabled = !busy, height = 46.dp, modifier = Modifier.fillMaxWidth())
-                    else ActaButton(
-                        "Ver billetero demo", onClick = { vm.startDemo(); onClose() },
-                        enabled = !connected && !busy, height = 46.dp, modifier = Modifier.fillMaxWidth()
-                    )
-                }
-
                 PrefGroup("Actualización") {
                     val msg by vm.updateMsg.collectAsStateWithLifecycle()
                     val nueva by vm.updateVersion.collectAsStateWithLifecycle()
@@ -739,6 +709,36 @@ private fun SettingsSheet(
                         }
                     }
                     ActaButton("Buscar actualización", onClick = { vm.checkForUpdate() }, height = 46.dp, modifier = Modifier.fillMaxWidth())
+                }
+
+                PrefGroup("Reporte semanal del sistema") {
+                    val w by vm.weekly.collectAsStateWithLifecycle()
+                    Text(
+                        w?.let { "Semana ${it.fecha.ifEmpty { "sin fecha" }} · ${it.datos.size} máquinas" }
+                            ?: "Sin reporte importado",
+                        style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    ActaButton("Importar reporte semanal", onClick = onImportWeekly, height = 46.dp, modifier = Modifier.fillMaxWidth())
+                }
+
+                PrefGroup("Impresora de etiquetas") {
+                    Text(
+                        if (prefs.lastName.isNotEmpty()) "Guardada: ${prefs.lastName}" else "Sin impresora guardada",
+                        style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    ActaButton("Configurar impresora y etiqueta", onClick = onLabelConfig, height = 46.dp, modifier = Modifier.fillMaxWidth())
+                }
+
+                PrefGroup("Lectura del N° de máquina") {
+                    ActaButton("Probar con una imagen", onClick = onTestOcr, height = 46.dp, modifier = Modifier.fillMaxWidth())
+                }
+
+                PrefGroup("Modo demo") {
+                    if (demo) ActaButton("Salir del demo", onClick = { vm.stopDemo() }, enabled = !busy, height = 46.dp, modifier = Modifier.fillMaxWidth())
+                    else ActaButton(
+                        "Ver billetero demo", onClick = { vm.startDemo(); onClose() },
+                        enabled = !connected && !busy, height = 46.dp, modifier = Modifier.fillMaxWidth()
+                    )
                 }
 
                 PrefGroup("Respaldo") {

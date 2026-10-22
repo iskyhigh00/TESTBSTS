@@ -189,6 +189,9 @@ fun ActaApp(vm: MonitorViewModel) {
     var showRestart by remember { mutableStateOf(false) }
     var showLabel by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
+    var pidiendoClave by remember { mutableStateOf(false) }
+    var claveAjustes by remember { mutableStateOf("") }
+    var claveMala by remember { mutableStateOf(false) }
     val printUi by vm.print.collectAsStateWithLifecycle()
     val labelPrefs by vm.labelPrefs.collectAsStateWithLifecycle()
     val ctx = LocalContext.current
@@ -581,10 +584,33 @@ fun ActaApp(vm: MonitorViewModel) {
         )
     }
 
+    if (pidiendoClave) {
+        val entrar = {
+            if (vm.desbloquearPreferencias(claveAjustes)) { pidiendoClave = false; showSettings = true } else claveMala = true
+        }
+        AlertDialog(
+            onDismissRequest = { pidiendoClave = false },
+            title = { Text("Clave de la cuenta") },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = claveAjustes, onValueChange = { claveAjustes = it.take(120); claveMala = false }, singleLine = true, label = { Text("Clave") },
+                        isError = claveMala,
+                        visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password), modifier = Modifier.fillMaxWidth()
+                    )
+                    if (claveMala) Text("Clave incorrecta.", style = ActaType.Body.copy(color = Acta.Error), modifier = Modifier.padding(top = 6.dp))
+                }
+            },
+            confirmButton = { ActaButton("Entrar", onClick = entrar, filled = true, enabled = claveAjustes.isNotEmpty(), height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) },
+            dismissButton = { ActaButton("Cancelar", onClick = { pidiendoClave = false }, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) }
+        )
+    }
+
     Box(Modifier.fillMaxSize().background(Acta.Paper).safeDrawingPadding()) {
         Column(Modifier.fillMaxSize()) {
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
-                TopRow(phase, onSettings = { showSettings = true })
+                TopRow(phase, onSettings = { if (vm.preferenciasBloqueadas()) { claveAjustes = ""; claveMala = false; pidiendoClave = true } else showSettings = true })
                 ActivityRule(
                     busy = phase.isBusy, fault = phase == Phase.NoResponse,
                     modifier = Modifier.padding(horizontal = Gutter)

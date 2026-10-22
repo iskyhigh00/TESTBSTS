@@ -298,12 +298,21 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
             val err = withContext(Dispatchers.IO) { nube.probarCuenta(email, clave) }
             if (err != null) { addLog("Datos compartidos: $err"); nubeEstado(false, err); return@launch }
             nube.guardarCuenta(email, clave)
+            preferenciasAbiertas = false
             addLog("Datos compartidos: cuenta ${email.trim()} conectada.")
             nubeJob?.cancel(); nubeJob = null
             nubeEstado(false, "Cuenta conectada.")
             sincronizarAhora(true)
             iniciarNube()
         }
+    }
+
+    private var preferenciasAbiertas = false
+    fun preferenciasBloqueadas(): Boolean = nube.email.isNotEmpty() && !preferenciasAbiertas
+    fun desbloquearPreferencias(clave: String): Boolean {
+        val ok = nube.claveCoincide(clave)
+        if (ok) preferenciasAbiertas = true
+        return ok
     }
 
     fun nubeDesconectar() {

@@ -20,6 +20,8 @@ class Nube(context: Context, private val mda: MdaStore, private val store: Accou
         prefs.edit().clear().putString("email", email.trim()).putString("clave", clave).apply()
     }
 
+    fun claveCoincide(c: String): Boolean = c.isNotEmpty() && c == (prefs.getString("clave", "") ?: "")
+
     fun quitarCuenta() { prefs.edit().clear().apply() }
 
     private fun enviado(k: String) = prefs.getString("env:$k", null)

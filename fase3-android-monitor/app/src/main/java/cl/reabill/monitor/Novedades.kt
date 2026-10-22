@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.2.0" to listOf(
+            "Preferencias protegidas: con una cuenta compartida conectada, al tocar ⚙ la app pide la clave de la cuenta una vez cada vez que se abre la app. Al conectar o cambiar la cuenta también se vuelve a pedir.",
+        ),
         "2.1.9" to listOf(
             "Etiqueta: el texto llega hasta los bordes de arriba y de abajo de la cinta (márgenes de 1–2 puntos en vez de 4 a 6).",
         ),

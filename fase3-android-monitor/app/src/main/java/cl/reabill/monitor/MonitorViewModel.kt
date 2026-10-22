@@ -182,6 +182,13 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     val novedades: StateFlow<List<Pair<String, List<String>>>> = _novedades
     fun novedadesVistas() { mdaStore.setVersionVista(APP_VERSION); _novedades.value = emptyList() }
 
+    class MdaFila(val mda: String, val serie: String, val lectura: AccountingData?)
+
+    fun listaMaquinas(): List<MdaFila> =
+        _mdaMap.value.filterKeys { !DemoClient.isDemoSerial(it) || _demo.value }
+            .map { (serie, mda) -> MdaFila(Mda.norm(mda) ?: mda, serie, store.history(serie).firstOrNull { it.inserted > 0 }) }
+            .sortedWith(compareBy({ it.mda }, { it.serie }))
+
     class MdaHit(val serie: String, val info: MdaStore.Info?, val lectura: AccountingData?)
 
     fun buscarMda(texto: String): List<MdaHit> {

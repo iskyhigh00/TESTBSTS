@@ -2,6 +2,10 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "1.12.16" to listOf(
+            "Nuevo botón «Ver máquinas»: lista de todas las máquinas asociadas a un billetero, con su serie, AR y AS.",
+            "Filtra por MDA o serie, y toca una fila para abrir sus datos completos en el buscador."
+        ),
         "1.12.15" to listOf(
             "Revisión visual completa: diálogos con la paleta y tipografía de la app, en vez de los colores de fábrica.",
             "Buscar máquina: AR y AS en columnas, y datos del billetero alineados (serie, modelo, firmware, bill-set).",

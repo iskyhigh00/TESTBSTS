@@ -143,6 +143,8 @@ fun ActaApp(vm: MonitorViewModel) {
     var showMda by remember { mutableStateOf(false) }
     var mdaTexto by remember { mutableStateOf("") }
     var showBuscar by remember { mutableStateOf(false) }
+    var showLista by remember { mutableStateOf(false) }
+    var filtroLista by remember { mutableStateOf("") }
     var buscarTexto by remember { mutableStateOf("") }
     var buscandoFoto by remember { mutableStateOf(false) }
     val ocr by vm.ocr.collectAsStateWithLifecycle()
@@ -249,6 +251,54 @@ fun ActaApp(vm: MonitorViewModel) {
                 }
             },
             confirmButton = { ActaButton("Entendido", onClick = { vm.novedadesVistas() }, filled = true, height = 44.dp, modifier = Modifier.width(130.dp)) }
+        )
+    }
+
+    if (showLista) {
+        val filas = remember(mdaMap, showLista) { vm.listaMaquinas() }
+        val f = filtroLista.trim()
+        val vistas = if (f.isEmpty()) filas else filas.filter { it.mda.contains(f) || it.serie.contains(f, ignoreCase = true) }
+        AlertDialog(
+            onDismissRequest = { showLista = false },
+            title = { Text("Máquinas (${filas.size})") },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = filtroLista, onValueChange = { filtroLista = it.take(16) }, singleLine = true,
+                        label = { Text("Filtrar por MDA o serie") }, modifier = Modifier.fillMaxWidth()
+                    )
+                    if (filas.isEmpty()) {
+                        Text("Aún no hay máquinas asociadas a un billetero.", style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(top = 14.dp))
+                    } else if (vistas.isEmpty()) {
+                        Text("Sin resultados.", style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(top = 14.dp))
+                    }
+                    Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()).padding(top = 8.dp)) {
+                        vistas.forEach { r ->
+                            val sis = weekly?.pct(r.mda)
+                            Hairline()
+                            Row(
+                                Modifier.fillMaxWidth().clickable { buscarTexto = r.mda; showLista = false; showBuscar = true }.padding(vertical = 9.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(Modifier.weight(1.3f)) {
+                                    Text(r.mda, style = ActaType.Serial)
+                                    Text(r.serie, style = ActaType.Tiny)
+                                }
+                                Column(Modifier.weight(1f)) {
+                                    Text("AR", style = ActaType.Label.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Acta.Ink))
+                                    Text(r.lectura?.let { "${fmtRate(it.rate)}\u00A0%" } ?: "—", style = ActaType.Cell, maxLines = 1, softWrap = false)
+                                }
+                                Column(Modifier.weight(1f)) {
+                                    Text("AS", style = ActaType.Label.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Acta.Sistema))
+                                    Text(sis?.let { "${fmtRate(it * 100.0)}\u00A0%" } ?: "—", style = ActaType.Cell.copy(color = Acta.Sistema), maxLines = 1, softWrap = false)
+                                }
+                            }
+                        }
+                        if (vistas.isNotEmpty()) Hairline()
+                    }
+                }
+            },
+            confirmButton = { ActaButton("Cerrar", onClick = { showLista = false }, filled = true, height = 44.dp, modifier = Modifier.width(110.dp)) }
         )
     }
 
@@ -467,10 +517,16 @@ fun ActaApp(vm: MonitorViewModel) {
                             enabled = connected && !busy, modifier = Modifier.weight(1f)
                         )
                     }
-                    ActaButton(
-                        "Buscar máquina", onClick = { buscarTexto = ""; vm.clearOcr(); showBuscar = true },
-                        modifier = Modifier.fillMaxWidth().padding(top = 10.dp)
-                    )
+                    Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        ActaButton(
+                            "Buscar máquina", onClick = { buscarTexto = ""; vm.clearOcr(); showBuscar = true },
+                            modifier = Modifier.weight(1f)
+                        )
+                        ActaButton(
+                            "Ver máquinas", onClick = { filtroLista = ""; showLista = true },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
                     if (printUi.message.isNotEmpty()) {
                         Text(printUi.message, style = ActaType.Label, modifier = Modifier.padding(top = 8.dp))
                     }

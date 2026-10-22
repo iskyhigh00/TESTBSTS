@@ -224,7 +224,7 @@ fun ActaApp(vm: MonitorViewModel) {
             onDismissRequest = { vm.clearOcr() },
             title = { Text("Prueba de lectura") },
             text = {
-                Column {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
                     ocr.photo?.let { FotoConfirmacion(it, ocr.boxes, elegido) { c -> elegido = c } }
                     Text(
                         if (ocr.candidates.isNotEmpty()) "Número leído: " + ocr.candidates.joinToString("  ·  ") else ocr.message,
@@ -730,32 +730,59 @@ private fun FotoConfirmacion(bmp: android.graphics.Bitmap, boxes: Map<String, an
     val relleno = remember { android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { typeface = android.graphics.Typeface.DEFAULT_BOLD } }
     val borde = remember {
         android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
-            typeface = android.graphics.Typeface.DEFAULT_BOLD; style = android.graphics.Paint.Style.STROKE; color = android.graphics.Color.WHITE
+            typeface = android.graphics.Typeface.DEFAULT_BOLD; style = android.graphics.Paint.Style.STROKE; color = android.graphics.Color.BLACK
+        }
+    }
+    val corte = remember(bmp, boxes) {
+        if (boxes.isEmpty()) android.graphics.RectF(0f, 0f, bmp.width.toFloat(), bmp.height.toFloat())
+        else {
+            val u = android.graphics.RectF(boxes.values.first())
+            boxes.values.forEach { u.union(it) }
+            val h = u.height(); val w = u.width()
+            val mx = maxOf(w * 0.35f, h * 1.0f)
+            android.graphics.RectF(
+                maxOf(0f, u.left - mx), maxOf(0f, u.top - h * 2.4f),
+                minOf(bmp.width.toFloat(), u.right + mx), minOf(bmp.height.toFloat(), u.bottom + h * 1.2f)
+            )
         }
     }
     Canvas(
-        Modifier.fillMaxWidth().padding(bottom = 8.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(10.dp)).aspectRatio(bmp.width.toFloat() / bmp.height)
-            .pointerInput(boxes) {
+        Modifier.fillMaxWidth().padding(bottom = 8.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(10.dp))
+            .aspectRatio(corte.width() / corte.height())
+            .pointerInput(boxes, corte) {
                 detectTapGestures { pos ->
-                    val k = size.width.toFloat() / bmp.width
+                    val k = size.width.toFloat() / corte.width()
                     boxes.entries.firstOrNull { (_, r) ->
-                        pos.x in (r.left * k - 12)..(r.right * k + 12) && pos.y in (r.top * k - 12)..(r.bottom * k + 12)
+                        val l = (r.left - corte.left) * k; val t = (r.top - corte.top) * k - r.height() * k * 1.4f
+                        pos.x in (l - 12)..((r.right - corte.left) * k + 12) && pos.y in (t - 12)..((r.bottom - corte.top) * k + 12)
                     }?.let { onSel(it.key) }
                 }
             }
     ) {
-        drawImage(img, dstSize = androidx.compose.ui.unit.IntSize(size.width.toInt(), size.height.toInt()))
-        val k = size.width / bmp.width
+        val k = size.width / corte.width()
+        drawImage(
+            img, srcOffset = androidx.compose.ui.unit.IntOffset(corte.left.toInt(), corte.top.toInt()),
+            srcSize = androidx.compose.ui.unit.IntSize(corte.width().toInt(), corte.height().toInt()),
+            dstSize = androidx.compose.ui.unit.IntSize(size.width.toInt(), size.height.toInt())
+        )
         drawIntoCanvas { c ->
             boxes.forEach { (cand, r) ->
                 val elegido = cand == sel
-                relleno.color = if (elegido) android.graphics.Color.rgb(229, 57, 53) else android.graphics.Color.rgb(30, 136, 229)
-                relleno.textSize = 100f
-                val ancho = relleno.measureText(cand)
-                val tam = (r.width() * k / ancho * 100f).coerceAtMost(r.height() * k * 1.1f)
-                relleno.textSize = tam; borde.textSize = tam; borde.strokeWidth = tam * 0.12f
-                val x = r.left * k + (r.width() * k - relleno.measureText(cand)) / 2f
-                val y = r.centerY() * k + tam * 0.35f
+                val color = if (elegido) android.graphics.Color.rgb(229, 57, 53) else android.graphics.Color.rgb(30, 136, 229)
+                val l = (r.left - corte.left) * k; val t = (r.top - corte.top) * k
+                val ancho = r.width() * k; val alto = r.height() * k
+
+                val marco = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+                    style = android.graphics.Paint.Style.STROKE; strokeWidth = if (elegido) 4f else 2f; this.color = color
+                }
+                c.nativeCanvas.drawRoundRect(l - 4f, t - 4f, l + ancho + 4f, t + alto + 4f, 8f, 8f, marco)
+
+                relleno.color = color; relleno.textSize = 100f
+                val tam = (ancho / relleno.measureText(cand) * 100f).coerceAtMost(alto * 0.95f)
+                relleno.textSize = tam; borde.textSize = tam; borde.strokeWidth = tam * 0.1f; borde.color = android.graphics.Color.WHITE
+                val ancho2 = relleno.measureText(cand)
+                val x = l + (ancho - ancho2) / 2f
+                val y = if (t - 10f - tam * 0.2f > tam) t - 10f - tam * 0.2f else t + alto + 10f + tam
                 c.nativeCanvas.drawText(cand, x, y, borde)
                 c.nativeCanvas.drawText(cand, x, y, relleno)
             }

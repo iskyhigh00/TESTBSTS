@@ -731,6 +731,18 @@ private fun SettingsSheet(
                 }
 
                 PrefGroup("Actualización") {
+                    val msg by vm.updateMsg.collectAsStateWithLifecycle()
+                    val nueva by vm.updateVersion.collectAsStateWithLifecycle()
+                    val prog by vm.updateProgress.collectAsStateWithLifecycle()
+                    Text("Versión instalada: v$APP_VERSION", style = ActaType.Label, modifier = Modifier.padding(bottom = 4.dp))
+                    if (msg.isNotEmpty()) Text(msg, style = ActaType.Body, modifier = Modifier.padding(bottom = 8.dp))
+                    if (nueva != null) {
+                        if (prog == -2) {
+                            ActaButton("Actualizar a v$nueva", onClick = { vm.installUpdate() }, filled = true, height = 46.dp, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp))
+                        } else {
+                            Text(if (prog >= 0) "Descargando… $prog %" else "Descargando…", style = ActaType.Label, modifier = Modifier.padding(bottom = 8.dp))
+                        }
+                    }
                     ActaButton("Buscar actualización", onClick = { vm.checkForUpdate() }, height = 46.dp, modifier = Modifier.fillMaxWidth())
                 }
 

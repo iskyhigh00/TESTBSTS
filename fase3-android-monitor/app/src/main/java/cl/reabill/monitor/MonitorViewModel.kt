@@ -51,6 +51,10 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     private val _busy = MutableStateFlow(false)
     val busy: StateFlow<Boolean> = _busy
 
+    private val _updateMsg = MutableStateFlow("")
+
+    val updateMsg: StateFlow<String> = _updateMsg
+
     private val _updateVersion = MutableStateFlow<String?>(null)
     val updateVersion: StateFlow<String?> = _updateVersion
 
@@ -104,18 +108,23 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun checkForUpdate() {
+        _updateMsg.value = "Buscando actualización…"
         viewModelScope.launch {
             val res = withContext(Dispatchers.IO) { Updater.checkLatest() }
             when {
-                res.version == null ->
+                res.version == null -> {
                     addLog("No se pudo consultar actualización (${res.error}).")
+                    _updateMsg.value = "No se pudo consultar: ${res.error}"
+                }
                 Updater.isNewer(res.version, APP_VERSION) -> {
                     _updateVersion.value = res.version
                     addLog("Hay una versión nueva: v${res.version} (tienes v$APP_VERSION).")
+                    _updateMsg.value = "Hay una versión nueva: v${res.version} (tienes v$APP_VERSION)."
                 }
                 else -> {
                     _updateVersion.value = null
                     addLog("Estás al día (v$APP_VERSION).")
+                    _updateMsg.value = "Estás al día (v$APP_VERSION)."
                 }
             }
         }

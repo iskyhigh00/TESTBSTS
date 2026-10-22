@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.1.2" to listOf(
+            "Arreglo de compilación: la 2.1.0 y la 2.1.1 no llegaron a publicarse por un error mío; esta trae todo lo de ellas (etiqueta Auto, impresora que se conecta al imprimir, pestañas, menús revisados)."
+        ),
         "2.1.1" to listOf(
             "Revisión de todos los menús: los botones ya no se cortan si el texto es largo (crecen a dos líneas) ni se aprietan en los diálogos.",
             "Cifras AR y AS de la pantalla principal y del buscador un poco más chicas para que «100,0 %» siempre quepa.",

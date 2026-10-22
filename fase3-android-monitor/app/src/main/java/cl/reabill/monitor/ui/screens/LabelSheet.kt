@@ -39,6 +39,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cl.reabill.monitor.LabelFields
+import cl.reabill.monitor.P12Printer
 import cl.reabill.monitor.LabelRenderer
 import cl.reabill.monitor.MonitorViewModel
 import cl.reabill.monitor.ui.components.ActaButton

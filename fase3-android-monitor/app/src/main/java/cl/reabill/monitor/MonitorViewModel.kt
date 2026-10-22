@@ -182,6 +182,66 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     val novedades: StateFlow<List<Pair<String, List<String>>>> = _novedades
     fun novedadesVistas() { mdaStore.setVersionVista(APP_VERSION); _novedades.value = emptyList() }
 
+    data class IfazUi(
+        val soportada: Boolean = false, val valor: Int? = null, val registro: IfazRegistro? = null,
+        val trabajando: Boolean = false, val mensaje: String = ""
+    )
+    private val _ifaz = MutableStateFlow(IfazUi())
+    val ifaz: StateFlow<IfazUi> = _ifaz
+
+    private suspend fun leerInterfaz(client: ValidatorClient, serie: String) {
+        if (!client.supportsInterface) { _ifaz.value = IfazUi(); return }
+        val (v, det) = withContext(Dispatchers.IO) { client.readInterface() }
+        if (v == null) {
+            addLog("Interfaz: sin lectura. $det")
+            _ifaz.value = IfazUi(soportada = true, registro = mdaStore.ifaz(serie), mensaje = "No se pudo leer la interfaz.")
+            return
+        }
+        val previo = mdaStore.ifaz(serie)
+        val nuevo = IfazRegistro.registrar(previo, v, System.currentTimeMillis(), "fuera")
+        mdaStore.setIfaz(serie, nuevo)
+        val volver = if (v == Interfaz.STAND_ALONE && nuevo.habitual != null) "  ·  habitual: ${Interfaz.nombre(nuevo.habitual)}" else ""
+        addLog("Interfaz de $serie: ${Interfaz.nombre(v)} (valor $v)$volver")
+        if (previo?.ultima != null && previo.ultima != v)
+            addLog("La interfaz cambió fuera de la app: antes ${Interfaz.nombre(previo.ultima)}, ahora ${Interfaz.nombre(v)}.")
+        _ifaz.value = IfazUi(soportada = true, valor = v, registro = nuevo)
+    }
+
+    fun cambiarInterfaz(valor: Int) {
+        val client = mei ?: run { addLog("Conecta el equipo primero."); return }
+        if (!client.supportsInterface) { addLog("Este equipo no permite cambiar la interfaz."); return }
+        if (valor !in Interfaz.VALORES) return
+        val st = _status.value
+        val serie = st.serial
+        if (serie.isBlank() || serie == "—") { addLog("Sin número de serie: no se cambia la interfaz."); return }
+        if (!beginOp()) { ocupado(); return }
+        val antes = _ifaz.value.valor
+        _ifaz.value = _ifaz.value.copy(trabajando = true, mensaje = "")
+        viewModelScope.launch {
+            try {
+                addLog("Cambiar interfaz — serie $serie, modelo ${st.model}, firmware ${st.firmwareApp}, bill-set ${st.billSet}: " +
+                    "${Interfaz.nombre(antes)} → ${Interfaz.nombre(valor)}")
+                val (ok, det) = withContext(Dispatchers.IO) { client.writeInterface(valor) }
+                if (ok) {
+                    val reg = IfazRegistro.registrar(mdaStore.ifaz(serie), valor, System.currentTimeMillis(), "app")
+                    mdaStore.setIfaz(serie, reg)
+                    addLog("Interfaz cambiada y verificada: ${Interfaz.nombre(valor)} (valor $valor).")
+                    _ifaz.value = IfazUi(soportada = true, valor = valor, registro = reg, mensaje = "Interfaz cambiada a ${Interfaz.nombre(valor)}.")
+                } else {
+                    addLog("No se cambió la interfaz: $det")
+                    val (real, _) = withContext(Dispatchers.IO) { client.readInterface() }
+                    val reg = real?.let { IfazRegistro.registrar(mdaStore.ifaz(serie), it, System.currentTimeMillis(), "fuera").also { r -> mdaStore.setIfaz(serie, r) } }
+                        ?: mdaStore.ifaz(serie)
+                    addLog("Interfaz actual del equipo: ${Interfaz.nombre(real)}")
+                    _ifaz.value = IfazUi(soportada = true, valor = real, registro = reg, mensaje = "No se cambió: $det")
+                }
+            } catch (e: Exception) {
+                addLog("Cambio de interfaz interrumpido: ${e.message}")
+                _ifaz.value = _ifaz.value.copy(trabajando = false, mensaje = "Interrumpido: ${e.message}")
+            } finally { endOp() }
+        }
+    }
+
     class MdaFila(val mda: String, val serie: String, val lectura: AccountingData?)
 
     fun listaMaquinas(): List<MdaFila> =
@@ -339,10 +399,12 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         mei = null
         _connected.value = false
         _kind.value = ""
+        _ifaz.value = IfazUi()
         _status.value = DeviceStatus(state = "Desconectado")
         _accounting.value = null
         _history.value = emptyList()
         store.clear(DemoClient.SERIAL)
+        mdaStore.removeIfaz(DemoClient.SERIAL)
         mdaStore.setMda(DemoClient.SERIAL, null)
         _mdaMap.value = mdaStore.all()
         if (weeklySample) _weekly.value = null
@@ -403,6 +465,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun readAll() {
         val client = mei ?: return
+        _ifaz.value = IfazUi()
         opRunning = true
         viewModelScope.launch {
             _busy.value = true
@@ -427,6 +490,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
                 addLog("Firmware app: $app   bill-set: $set" + tiempos(client))
                 if (setRaw.isNotEmpty()) addLog("Crudo de lectura: $setRaw")
                 if (!DemoClient.isDemoSerial(id.serial)) mdaStore.setInfo(id.serial, id.model, app, set)
+                try { leerInterfaz(client, id.serial) } catch (e: Exception) { addLog("Interfaz: error al leer (${e.message})") }
 
                 delay(300)
 

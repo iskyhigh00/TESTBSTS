@@ -16,6 +16,16 @@ class DemoClient : ValidatorClient {
     private var stacked = 3950
     private var deposited = 3820
     private var reads = 0
+    private var interfaz = 3
+
+    override val supportsInterface = true
+    override fun readInterface(): Pair<Int?, String> { pause(250); return interfaz to "" }
+    override fun writeInterface(valor: Int): Pair<Boolean, String> {
+        pause(700)
+        if (valor !in Interfaz.VALORES) return false to "interfaz desconocida"
+        interfaz = valor
+        return true to "demo"
+    }
 
     private fun pause(ms: Long) = try { Thread.sleep(ms) } catch (_: InterruptedException) {}
 

@@ -28,6 +28,13 @@ class MdaStore(context: Context) {
     fun versionVista(): String? = prefs.getString("version_vista", null)
     fun setVersionVista(v: String) { prefs.edit().putString("version_vista", v).apply() }
 
+    fun ifaz(serie: String): IfazRegistro? = IfazRegistro.fromJson(prefs.getString("ifaz:$serie", null))
+    fun setIfaz(serie: String, r: IfazRegistro) {
+        if (serie.isBlank() || serie == "—") return
+        prefs.edit().putString("ifaz:$serie", r.toJson()).apply()
+    }
+    fun removeIfaz(serie: String) { prefs.edit().remove("ifaz:$serie").apply() }
+
     fun all(): Map<String, String> =
         prefs.all.filterKeys { it.startsWith("mda:") }.mapKeys { it.key.removePrefix("mda:") }
             .mapNotNull { (k, v) -> (v as? String)?.let { k to it } }.toMap()

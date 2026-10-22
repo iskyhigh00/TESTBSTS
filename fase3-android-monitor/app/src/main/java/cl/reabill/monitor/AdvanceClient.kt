@@ -100,6 +100,44 @@ class AdvanceClient(private val usb: UsbSerialManager) : ValidatorClient {
         return r.copyOfRange(8, 8 + length) to notas
     }
 
+    private fun readConfigBlock(robusto: Boolean = true): ByteArray? {
+        fun datos(it: ByteArray) = it.size == Interfaz.BLOQUE + 10 && (it[2].toInt() and 0x7F) == 0x23
+        fun acepta(it: ByteArray) =
+            datos(it) || (it.size == 10 && (it[2].toInt() and 0x7F) == 0x23 && (it[3].toInt() and 0x80) != 0)
+
+        var r = if (robusto) exchange(0x23, ByteArray(0)) { acepta(it) }.first else exchangeOnce(0x23, ByteArray(0), 4000) { acepta(it) }
+        var polls = 0
+        while (r != null && r.size == 10 && polls < 100) {
+            polls++
+            Thread.sleep(90)
+            r = exchangeOnce(0x01, ByteArray(0), 4000) { datos(it) || it.size == 10 }
+        }
+        if (r == null || !datos(r)) return null
+        return r.copyOfRange(8, 8 + Interfaz.BLOQUE)
+    }
+
+    override val supportsInterface: Boolean = true
+
+    override fun readInterface(): Pair<Int?, String> {
+        val b = readConfigBlock(robusto = false) ?: return null to "sin respuesta al leer la configuración"
+        val v = Interfaz.leer(b) ?: return null to "bloque de configuración incompleto"
+        return v to ""
+    }
+
+    override fun writeInterface(valor: Int): Pair<Boolean, String> {
+        if (valor !in Interfaz.VALORES) return false to "interfaz desconocida: $valor"
+        val antes = readConfigBlock() ?: return false to "No se pudo leer la configuración: no se escribió nada."
+        val nuevo = Interfaz.ponerEnBloque(antes, valor)
+        val (ack, notas) = exchange(0x24, nuevo) { it.size == 10 && (it[2].toInt() and 0x7F) == 0x24 }
+        if (ack == null) return false to "El equipo no confirmó la escritura. $notas".trim()
+        Thread.sleep(500)
+        val despues = readConfigBlock() ?: return false to "Escritura confirmada, pero no se pudo releer para verificar."
+        val leido = Interfaz.leer(despues)
+        if (leido != valor) return false to "Quedó en ${Interfaz.nombre(leido)}, no en ${Interfaz.nombre(valor)}."
+        if (!Interfaz.soloCambioEsperado(antes, despues, valor)) return false to "La interfaz cambió, pero otros bytes de la configuración también: revisa el equipo."
+        return true to "verificado"
+    }
+
     private fun readText(arg: Int): String {
         val (r, _) = exchange(0x1B, byteArrayOf(arg.toByte())) {
             it.size > 10 && (it[2].toInt() and 0x7F) == 0x1B

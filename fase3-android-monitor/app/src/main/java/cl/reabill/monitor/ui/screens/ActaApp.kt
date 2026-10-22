@@ -145,6 +145,9 @@ fun ActaApp(vm: MonitorViewModel) {
     var showBuscar by remember { mutableStateOf(false) }
     var showLista by remember { mutableStateOf(false) }
     var showCambios by remember { mutableStateOf(false) }
+    var showIfaz by remember { mutableStateOf(false) }
+    var ifazSel by remember { mutableStateOf<Int?>(null) }
+    val ifaz by vm.ifaz.collectAsStateWithLifecycle()
     var filtroLista by remember { mutableStateOf("") }
     var buscarTexto by remember { mutableStateOf("") }
     var buscandoFoto by remember { mutableStateOf(false) }
@@ -252,6 +255,66 @@ fun ActaApp(vm: MonitorViewModel) {
                 }
             },
             confirmButton = { ActaButton("Entendido", onClick = { vm.novedadesVistas() }, filled = true, height = 44.dp, modifier = Modifier.width(130.dp)) }
+        )
+    }
+
+    if (showIfaz) {
+        val actual = ifaz.valor
+        val reg = ifaz.registro
+        val fmt = java.text.SimpleDateFormat("dd-MM-yyyy HH:mm", java.util.Locale.getDefault())
+        AlertDialog(
+            onDismissRequest = { showIfaz = false },
+            title = { Text("Cambiar interfaz") },
+            text = {
+                Column(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState())) {
+                    Filas(
+                        listOfNotNull(
+                            "Serie" to status.serial,
+                            status.model.takeIf { it.isNotBlank() && it != "—" }?.let { "Modelo" to it },
+                            status.firmwareApp.takeIf { it.isNotBlank() && it != "—" }?.let { "Firmware" to it },
+                            status.billSet.takeIf { it.isNotBlank() && it != "—" }?.let { "Bill-set" to it },
+                            mdaMap[status.serial]?.let { "MDA" to it },
+                            "Interfaz actual" to "${cl.reabill.monitor.Interfaz.nombre(actual)}${actual?.let { " (valor $it)" } ?: ""}",
+                            reg?.habitual?.let { "Habitual" to cl.reabill.monitor.Interfaz.nombre(it) },
+                            reg?.ts?.takeIf { it > 0 }?.let { "Última lectura" to fmt.format(java.util.Date(it)) }
+                        )
+                    )
+                    Text("Nueva interfaz", style = ActaType.Label, modifier = Modifier.padding(top = 14.dp))
+                    androidx.compose.foundation.layout.FlowRow(
+                        Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        cl.reabill.monitor.Interfaz.VALORES.forEach { v ->
+                            val esActual = v == actual
+                            val etiqueta = cl.reabill.monitor.Interfaz.nombre(v) +
+                                (if (esActual) " (actual)" else if (v == reg?.habitual && actual == cl.reabill.monitor.Interfaz.STAND_ALONE) " (volver)" else "")
+                            cl.reabill.monitor.ui.components.ActaChip(etiqueta, ifazSel == v, { if (!esActual) ifazSel = v }, Modifier.alpha(if (esActual) 0.45f else 1f))
+                        }
+                    }
+                    val hist = reg?.hist?.takeLast(4)?.reversed().orEmpty()
+                    if (hist.isNotEmpty()) {
+                        Text("Cambios recientes", style = ActaType.Label, modifier = Modifier.padding(top = 14.dp))
+                        hist.forEach { h ->
+                            val quien = when (h.origen) { "app" -> "BILLMON"; "primera" -> "primera lectura"; else -> "fuera de la app" }
+                            Text("${fmt.format(java.util.Date(h.ts))}  ${cl.reabill.monitor.Interfaz.nombre(h.valor)}  ·  $quien", style = ActaType.Tiny, modifier = Modifier.padding(top = 3.dp))
+                        }
+                    }
+                    Text(
+                        "Se escribe solo el valor de la interfaz en la configuración del equipo y se vuelve a leer para verificar. " +
+                            "Stand-alone, Netplex o EBDS pueden dejar de responder por USB al reiniciar el equipo.",
+                        style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(top = 14.dp)
+                    )
+                }
+            },
+            confirmButton = {
+                val sel = ifazSel
+                ActaButton(
+                    if (sel == null) "Elige una" else "Cambiar a ${cl.reabill.monitor.Interfaz.nombre(sel)}",
+                    onClick = { if (sel != null) { showIfaz = false; vm.cambiarInterfaz(sel) } },
+                    danger = true, enabled = sel != null && sel != actual && !ifaz.trabajando, height = 44.dp
+                )
+            },
+            dismissButton = { ActaButton("Cancelar", onClick = { showIfaz = false }, height = 44.dp, modifier = Modifier.width(110.dp)) }
         )
     }
 
@@ -539,6 +602,14 @@ fun ActaApp(vm: MonitorViewModel) {
                     onPhoto = lanzarFoto
                 )
                 IdentityBlock(phase, status.billSet, status.serial, status.model, status.manufacturer, status.firmwareApp)
+                if (connected && ifaz.soportada) InterfazSection(
+                    ifaz,
+                    onChange = {
+                        val v = ifaz.valor
+                        ifazSel = if (v == cl.reabill.monitor.Interfaz.STAND_ALONE) ifaz.registro?.habitual else null
+                        showIfaz = true
+                    }
+                )
 
                 val mdaActual = mdaMap[status.serial]
                 AccountingSection(
@@ -741,6 +812,32 @@ private fun Hero(
             modifier = Modifier.padding(top = 4.dp).fillMaxWidth(0.9f)
         )
         RateScale(acc?.rate, Modifier.padding(top = 12.dp))
+    }
+}
+
+@Composable
+private fun InterfazSection(u: MonitorViewModel.IfazUi, onChange: () -> Unit) {
+    SectionHeader("Interfaz") {
+        ActaButton(
+            if (u.trabajando) "Cambiando…" else "Cambiar", onClick = onChange,
+            enabled = !u.trabajando && u.valor != null, height = 36.dp,
+            modifier = Modifier.padding(vertical = 5.dp).width(96.dp)
+        )
+    }
+    Column(Modifier.padding(horizontal = Gutter)) {
+        Row(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+            Text("Actual", style = ActaType.Body, modifier = Modifier.weight(1f).alignByBaseline())
+            Text(cl.reabill.monitor.Interfaz.nombre(u.valor), style = ActaType.Cell, modifier = Modifier.alignByBaseline())
+        }
+        val hab = u.registro?.habitual
+        if (hab != null && hab != u.valor) {
+            Hairline()
+            Row(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+                Text("Habitual (volver a)", style = ActaType.Body, modifier = Modifier.weight(1f).alignByBaseline())
+                Text(cl.reabill.monitor.Interfaz.nombre(hab), style = ActaType.Cell.copy(color = Acta.Sistema), modifier = Modifier.alignByBaseline())
+            }
+        }
+        if (u.mensaje.isNotEmpty()) Text(u.mensaje, style = ActaType.Label, modifier = Modifier.padding(bottom = 6.dp))
     }
 }
 

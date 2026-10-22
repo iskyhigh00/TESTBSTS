@@ -2,6 +2,12 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.0.4" to listOf(
+            "SC Advance: al conectar, la app lee la interfaz del equipo (Stand-alone, IGT Netplex, EBDS / Serie o USB), la deja en el Registro y la guarda por serie.",
+            "Recuerda la interfaz habitual: si dejas un billetero en stand-alone para probar, muestra a cuál volver.",
+            "Nueva sección «Interfaz» con el botón «Cambiar»: pide confirmación mostrando serie, modelo, firmware, bill-set, MDA, interfaz actual, habitual y cambios recientes; después verifica releyendo.",
+            "Prueba el cambio primero con el billetero demo (Preferencias → Modo demo)."
+        ),
         "2.0.3" to listOf(
             "Preferencias → «Historial de versiones»: lista de todos los cambios de cada versión, de la más nueva a la más antigua."
         ),

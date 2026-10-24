@@ -309,10 +309,18 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
 
     private var preferenciasAbiertas = false
     fun preferenciasBloqueadas(): Boolean = nube.email.isNotEmpty() && !preferenciasAbiertas
-    fun desbloquearPreferencias(clave: String): Boolean {
-        val ok = nube.claveCoincide(clave)
-        if (ok) preferenciasAbiertas = true
-        return ok
+
+    fun desbloquearPreferencias(clave: String, listo: (String?) -> Unit) {
+        if (nube.claveCoincide(clave)) { preferenciasAbiertas = true; listo(null); return }
+        viewModelScope.launch {
+            val err = withContext(Dispatchers.IO) { nube.probarCuenta(nube.email, clave) }
+            if (err == null) {
+                nube.guardarCuenta(nube.email, clave)
+                addLog("Datos compartidos: la clave de la cuenta cambió; se guardó la nueva.")
+                preferenciasAbiertas = true
+            }
+            listo(err?.let { if (it.startsWith("Sin conexión")) "Clave incorrecta (o sin internet para comprobar una clave nueva)." else "Clave incorrecta." })
+        }
     }
 
     fun nubeDesconectar() {
@@ -440,7 +448,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
                     } finally { rec.close() }
                 }
             } catch (e: Exception) { Res(null, e.message ?: e.javaClass.simpleName, null, emptyMap()) }
-            if (!test) try { java.io.File(getApplication<Application>().cacheDir, "fotos").deleteRecursively() } catch (_: Exception) {}
+            if (!test) try { java.io.File(getApplication<Application>().cacheDir, "fotos").deleteRecursively() } catch (e: Exception) { aviso("borrar fotos", e) }
             val cands = res.cands; val crudo = res.raw
             if (cands == null) {
                 addLog("No se pudo leer la foto: $crudo")
@@ -726,74 +734,6 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun restartAdvance() {
-        val client = mei as? AdvanceClient ?: run { addLog("Conecta un SC Advance primero."); return }
-        if (flashing || calibrating || opRunning || _busy.value) { ocupado(); return }
-        flashing = true
-        _busy.value = true
-        addLog("Reiniciando el equipo (experimental): entrando a modo descarga, sin escribir nada...")
-        viewModelScope.launch {
-            val err = try { runRestartAdvance(client) } catch (e: Exception) { "Error: ${e.message}" }
-            if (err != null) {
-                addLog("Reinicio falló: $err El equipo puede haber quedado en modo descarga: sácalo y vuelve a instalarlo en el cashbox.")
-                flashing = false
-                _busy.value = false
-                usb.close(); mei = null
-                _connected.value = false
-                _status.value = DeviceStatus(state = "Desconectado")
-                return@launch
-            }
-            addLog("Cierre enviado. Reconectando para verificar...")
-            flashing = false
-            _busy.value = false
-            _status.value = DeviceStatus(state = "Desconectado")
-            _accounting.value = null
-            _history.value = emptyList()
-            connect()
-            val end = System.currentTimeMillis() + 45000
-            while (System.currentTimeMillis() < end &&
-                (_status.value.billSet == "—" || _busy.value || !_connected.value)) delay(300)
-            addLog(if (_connected.value && _status.value.connected) "Reinicio completo: el equipo volvió en modo normal."
-                   else "El equipo no volvió en modo normal: sácalo y vuelve a instalarlo en el cashbox.")
-        }
-    }
-
-    private suspend fun runRestartAdvance(client: AdvanceClient): String? {
-        val io = Dispatchers.IO
-        val old = usb.openName()
-        val e0 = withContext(io) { client.beginDownload() }
-        if (e0 != null) return e0
-        usb.close(); mei = null
-        _connected.value = false
-        if (!awaitReenum(old, 20000)) return "El equipo no volvió en modo descarga."
-        delay(800)
-        if (!awaitPermission()) return "Permiso USB denegado."
-        withContext(io) { usb.open(); usb.resetEndpoints(3) }
-        if (usb.productId() != UsbSerialManager.ADVANCE_PID) {
-            val pid = usb.productId()
-            usb.close()
-            return "El equipo abierto no es un SC Advance (PID ${"%04X".format(pid)}). Deja un solo validador conectado."
-        }
-        val adv = AdvanceClient(usb)
-        adv.newSession()
-        var e1: String? = null
-        for (intento in 0 until 6) {
-            e1 = withContext(io) { adv.confirmDownload() }
-            if (e1 == null || !e1.contains("no respondió")) break
-            delay(1200)
-            if (!awaitPermission()) return "Permiso USB denegado."
-            withContext(io) { try { usb.close(); usb.open(); usb.resetEndpoints(1); adv.newSession() } catch (_: Exception) {} }
-        }
-        if (e1 != null) return e1
-        addLog("Modo descarga confirmado: enviando el cierre (no se escribe nada).")
-        val e2 = withContext(io) { adv.finishDownload() }
-        if (e2 != null) return e2
-        val old2 = usb.openName()
-        usb.close()
-        if (!awaitReenum(old2, 45000)) return "El equipo no volvió después de reiniciar."
-        return null
-    }
-
     fun resetFlash() { if (!flashing) _flash.value = FlashUi() }
 
     fun pickFirmware(uri: android.net.Uri) {
@@ -814,7 +754,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
             if (file != null) {
                 withContext(Dispatchers.IO) {
                     try { java.io.File(libDir, file.name).writeBytes(file.data) }
-                    catch (_: Exception) {}
+                    catch (e: Exception) { addLog("No se pudo guardar ${file.name} en la biblioteca (${e.message ?: e.javaClass.simpleName}).") }
                 }
                 refreshLibrary()
                 addLog("Bill-set elegido y guardado: ${file.name} (#${file.label}, ${file.data.size} B)")
@@ -886,7 +826,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
             step("Esperando al equipo (${intento + 1}/6)", 0)
             delay(1200)
             if (!awaitPermission()) return "Permiso USB denegado."
-            withContext(io) { try { usb.close(); usb.open(); usb.resetEndpoints(1); adv.newSession() } catch (_: Exception) {} }
+            withContext(io) { try { usb.close(); usb.open(); usb.resetEndpoints(1); adv.newSession() } catch (e: Exception) { addLog("USB: no se pudo reabrir la conexión (${e.message ?: e.javaClass.simpleName}).") } }
         }
         if (e1 != null) return e1
 
@@ -940,7 +880,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
             step("Esperando al equipo (${intento + 1}/6)", 0)
             delay(1200)
             if (!awaitPermission()) return "Permiso USB denegado."
-            withContext(io) { try { usb.close(); usb.open(); usb.resetEndpoints(1) } catch (_: Exception) {} }
+            withContext(io) { try { usb.close(); usb.open(); usb.resetEndpoints(1) } catch (e: Exception) { addLog("USB: no se pudo reabrir la conexión (${e.message ?: e.javaClass.simpleName}).") } }
         }
         if (e1 != null) return e1
         e1 = withContext(io) { FirmwareFlasher.sendAcked(usb, FirmwareFlasher.start, "Inicio") }
@@ -1052,48 +992,22 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun vaciarRegistro() {
-        try { logWriter.submit {}.get(3, java.util.concurrent.TimeUnit.SECONDS) } catch (_: Exception) {}
+        try { logWriter.submit {}.get(3, java.util.concurrent.TimeUnit.SECONDS) } catch (e: Exception) { aviso("vaciar registro", e) }
     }
 
-    data class PrintUi(
-        val devices: List<P12Printer.Found> = emptyList(),
-        val scanning: Boolean = false,
-        val connectedName: String? = null,
-        val printing: Boolean = false,
-        val message: String = ""
-    )
-    data class LabelPrefs(
-        val lengthMm: Int = 0, val dieCut: Boolean = false, val rotate: Boolean = false,
-        val density: Int = 0, val copies: Int = 1, val confirmed: Boolean = false,
-        val fields: Set<String> = LabelFields.DEFAULT, val align: Int = 0, val compact: Boolean = true,
-        val scale: Int = 100, val vpos: Int = 1, val names: Map<String, String> = emptyMap(), val twoLines: Boolean = false,
-        val lastAddress: String = "", val lastName: String = "",
-        val salida: Int = LabelProtocol.FEED_DEFAULT
-    )
-
-    private val prefs = app.applicationContext.getSharedPreferences("etiquetas", android.content.Context.MODE_PRIVATE)
-    private val printer = P12Printer(app.applicationContext) { addLog(it) }
-    private val _print = MutableStateFlow(PrintUi())
-    val print: StateFlow<PrintUi> = _print
-
-    private val migrarLargo = if (!prefs.contains("auto_v1")) prefs.edit().putInt("mm", 0).putBoolean("auto_v1", true).apply() else Unit
-    private val _labelPrefs = MutableStateFlow(LabelPrefs(
-        prefs.getInt("mm", 0), prefs.getBoolean("die", false), prefs.getBoolean("rot", false),
-        prefs.getInt("dens", 0), prefs.getInt("copies", 1).coerceIn(1, 10), prefs.getBoolean("conf", false),
-        LabelFields.parse(prefs.getString("campos", null)), prefs.getInt("align", 0), prefs.getBoolean("compact", true),
-        LabelFit.snap(prefs.getInt("scale", 100)), prefs.getInt("vpos", 1), LabelFields.parseNames(prefs.getString("nombres", null)), prefs.getBoolean("dos", false),
-        prefs.getString("addr", "") ?: "", LabelProtocol.cleanName(prefs.getString("pname", "")),
-        prefs.getInt("sal", LabelProtocol.FEED_DEFAULT).coerceIn(8, 255)
-    ))
-    val labelPrefs: StateFlow<LabelPrefs> = _labelPrefs
-
-    fun setLabelPrefs(p: LabelPrefs) {
-        _labelPrefs.value = p
-        prefs.edit().putInt("mm", p.lengthMm).putBoolean("die", p.dieCut).putBoolean("rot", p.rotate)
-            .putInt("dens", p.density).putBoolean("conf", p.confirmed).putString("campos", LabelFields.encode(p.fields)).putInt("align", p.align).putBoolean("compact", p.compact)
-            .putInt("scale", p.scale).putInt("vpos", p.vpos).putInt("copies", p.copies).putBoolean("dos", p.twoLines).putString("nombres", LabelFields.encodeNames(p.names))
-            .putString("addr", p.lastAddress).putString("pname", p.lastName).putInt("sal", p.salida).apply()
-    }
+    private val etiquetas = Etiquetas(app.applicationContext, viewModelScope, { addLog(it) }) { labelData() }
+    val print: StateFlow<PrintUi> get() = etiquetas.print
+    val labelPrefs: StateFlow<LabelPrefs> get() = etiquetas.labelPrefs
+    fun setLabelPrefs(p: LabelPrefs) = etiquetas.setLabelPrefs(p)
+    fun labelStyle(p: LabelPrefs) = etiquetas.estilo(p)
+    fun labelScan() = etiquetas.labelScan()
+    fun labelNote(m: String) = etiquetas.labelNote(m)
+    fun labelStopScan() = etiquetas.labelStopScan()
+    fun labelConnect(f: P12Printer.Found) = etiquetas.labelConnect(f)
+    fun labelConnectLast() = etiquetas.labelConnectLast()
+    fun labelForget() = etiquetas.labelForget()
+    fun labelPrint() = etiquetas.labelPrint()
+    fun labelDisconnect() = etiquetas.labelDisconnect()
 
     fun labelData(): LabelData? {
 
@@ -1102,103 +1016,6 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         val mda = _mdaMap.value[s.serial]
         val semanal = _weekly.value?.pct(mda)?.times(100.0)
         return LabelData(a.timestamp, s.model, s.serial, s.firmwareApp, s.billSet, mda, a.rate, semanal, previa)
-    }
-
-    fun labelStyle(p: LabelPrefs) = LabelStyle(p.align, p.vpos, p.compact, p.scale, p.rotate, p.twoLines)
-
-    private var scanJob: kotlinx.coroutines.Job? = null
-
-    fun labelScan() {
-        if (!printer.available || !printer.bluetoothOn) {
-            _print.update { it.copy(message = "Enciende el Bluetooth del teléfono.") }; return
-        }
-        _print.update { it.copy(devices = emptyList(), scanning = true, message = "Buscando impresoras…") }
-        if (!printer.startScan { f ->
-                _print.update { u ->
-                    val sin = u.devices.filter { it.address != f.address }
-                    val prev = u.devices.firstOrNull { it.address == f.address }
-                    val nuevo = if (prev != null && f.name == "(sin nombre)") prev.copy(rssi = f.rssi) else f
-                    u.copy(devices = (sin + nuevo).sortedWith(compareByDescending<P12Printer.Found> { it.likely }
-                        .thenByDescending { it.name != "(sin nombre)" }.thenByDescending { it.rssi }))
-                }
-            }) { _print.update { it.copy(scanning = false, message = "No se pudo iniciar la búsqueda.") }; return }
-        scanJob?.cancel()
-        scanJob = viewModelScope.launch {
-            delay(12_000)
-            printer.stopScan()
-            _print.update { it.copy(scanning = false, message = if (it.devices.isEmpty()) "El teléfono no detectó ningún dispositivo Bluetooth LE. Enciende la impresora y revisa que la ubicación del teléfono esté activada." else "") }
-        }
-    }
-
-    fun labelNote(m: String) { _print.update { it.copy(message = m) } }
-
-    fun labelStopScan() { scanJob?.cancel(); printer.stopScan(); _print.update { it.copy(scanning = false) } }
-
-    fun labelConnect(f: P12Printer.Found) {
-        if (_print.value.printing) return
-        printer.stopScan()
-        _print.update { it.copy(scanning = false, message = "Conectando a ${f.name}…") }
-        viewModelScope.launch {
-            val err = printer.connect(f.address)
-            if (err == null) {
-                setLabelPrefs(_labelPrefs.value.copy(lastAddress = f.address, lastName = f.name))
-                _print.update { it.copy(connectedName = f.name, message = "Conectada: ${f.name}") }
-            } else {
-                addLog("Impresora ${f.name}: $err")
-                _print.update { it.copy(connectedName = null, message = err) }
-            }
-        }
-    }
-
-    fun labelConnectLast() {
-        val p = _labelPrefs.value
-        if (p.lastAddress.isEmpty()) return
-        labelConnect(P12Printer.Found(p.lastName, p.lastAddress, true))
-    }
-
-    fun labelForget() {
-        printer.close()
-        setLabelPrefs(_labelPrefs.value.copy(lastAddress = "", lastName = ""))
-        _print.update { it.copy(connectedName = null, message = "Impresora olvidada.") }
-    }
-
-    fun labelPrint(calibracion: Boolean = false) {
-        val d = if (calibracion) null else (labelData() ?: run { _print.update { it.copy(message = "Primero lee la contabilidad.") }; return })
-        val p = _labelPrefs.value
-        if (_print.value.printing) return
-        viewModelScope.launch {
-            _print.update { it.copy(printing = true, message = "") }
-            try {
-
-                if (!printer.isConnected && p.lastAddress.isNotEmpty()) {
-                    _print.update { it.copy(message = "Conectando a ${p.lastName}…") }
-                    val e = printer.connect(p.lastAddress)
-                    if (e != null) { addLog("Impresora: $e"); _print.update { it.copy(connectedName = null, message = e) }; return@launch }
-                    _print.update { it.copy(connectedName = p.lastName) }
-                }
-                val err = withContext(Dispatchers.Default) {
-                    val bmp = if (d == null) LabelRenderer.calibracion() else LabelRenderer.render(d, p.lengthMm, p.fields, p.names, labelStyle(p))
-                    val job = LabelProtocol.buildJob(LabelRenderer.toBlack(bmp), p.dieCut, p.density.takeIf { it in 1..15 }, p.salida)
-                    printer.send(job, p.copies, p.confirmed)
-                }
-                if (err == null) addLog("Etiqueta enviada a la impresora: " + if (d == null) "regla de calibración" else LabelRenderer.lines(d, p.fields, p.names, p.twoLines).joinToString(" / ")) else addLog("Impresora: $err")
-                _print.update { it.copy(message = err ?: "Etiqueta enviada.") }
-            } catch (e: Exception) {
-                addLog("Impresora: error al imprimir (${e.javaClass.simpleName}: ${e.message})")
-                _print.update { it.copy(message = "No se pudo imprimir: ${e.message ?: e.javaClass.simpleName}") }
-            } finally {
-                _print.update { it.copy(printing = false) }
-
-                delay(1500)
-                if (!_print.value.printing) { printer.close(); _print.update { it.copy(connectedName = null) } }
-            }
-        }
-    }
-
-    fun labelDisconnect() {
-        if (_print.value.printing) return
-        printer.close()
-        _print.update { it.copy(connectedName = null, scanning = false) }
     }
 
     fun exportBackup(uri: android.net.Uri) {
@@ -1276,7 +1093,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
 
     fun clearLog() {
         synchronized(sessionLines) { sessionLines.clear() }
-        try { logWriter.execute { try { logFile.writeText("") } catch (_: Exception) {} } } catch (_: Exception) {}
+        try { logWriter.execute { try { logFile.writeText("") } catch (e: Exception) { aviso("borrar registro", e) } } } catch (e: Exception) { aviso("borrar registro", e) }
         _log.value = listOf("${android.text.format.DateFormat.format("HH:mm:ss", System.currentTimeMillis())}  Registro limpiado.")
     }
 
@@ -1294,7 +1111,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         val stamp = android.text.format.DateFormat.format("yyyy-MM-dd HH:mm:ss", now)
         val line = "$stamp\t${msg.replace('\n', ' ')}\n"
         try {
-            logWriter.execute { try { logFile.appendText(line) } catch (_: Exception) {} }
+            logWriter.execute { try { logFile.appendText(line) } catch (e: Exception) { aviso("escribir registro", e) } }
         } catch (_: Exception) {  }
     }
 
@@ -1315,7 +1132,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
 
     override fun onCleared() {
         disconnect()
-        printer.close()
+        etiquetas.cerrar()
         logWriter.shutdown()
         super.onCleared()
     }

@@ -69,19 +69,19 @@ class P12Printer(private val ctx: Context, private val log: (String) -> Unit) {
     fun stopScan() {
         val cb = scanCb ?: return
         scanCb = null
-        try { adapter?.bluetoothLeScanner?.stopScan(cb) } catch (_: Exception) {}
+        try { adapter?.bluetoothLeScanner?.stopScan(cb) } catch (e: Exception) { aviso("cerrar impresora", e) }
     }
 
     private val callback = object : BluetoothGattCallback() {
         override fun onConnectionStateChange(g: BluetoothGatt, status: Int, newState: Int) {
-            if (g !== gatt) { try { g.close() } catch (_: Exception) {}; return }
+            if (g !== gatt) { try { g.close() } catch (e: Exception) { aviso("cerrar impresora", e) }; return }
             if (newState == BluetoothProfile.STATE_CONNECTED && status == BluetoothGatt.GATT_SUCCESS) {
                 if (!g.requestMtu(MTU_WANTED)) g.discoverServices()
             } else {
                 writeChar = null
                 connectDone?.complete("Conexión perdida o rechazada (estado $status)")
                 writeDone?.complete(false)
-                try { g.close() } catch (_: Exception) {}
+                try { g.close() } catch (e: Exception) { aviso("cerrar impresora", e) }
                 if (gatt === g) gatt = null
             }
         }
@@ -142,7 +142,7 @@ class P12Printer(private val ctx: Context, private val log: (String) -> Unit) {
 
     fun close() {
         writeChar = null
-        gatt?.let { try { it.disconnect(); it.close() } catch (_: Exception) {} }
+        gatt?.let { try { it.disconnect(); it.close() } catch (e: Exception) { aviso("cerrar impresora", e) } }
         gatt = null
     }
 

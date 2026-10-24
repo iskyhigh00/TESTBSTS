@@ -17,10 +17,18 @@ class Nube(context: Context, private val mda: MdaStore, private val store: Accou
     val ultima: Long get() = prefs.getLong("ultima", 0L)
 
     fun guardarCuenta(email: String, clave: String) {
-        prefs.edit().clear().putString("email", email.trim()).putString("clave", clave).apply()
+        prefs.edit().clear().putString("email", email.trim()).putString("clave_c", Cifra.cifrar(clave)).apply()
     }
 
-    fun claveCoincide(c: String): Boolean = c.isNotEmpty() && c == (prefs.getString("clave", "") ?: "")
+    private fun clave(): String {
+        prefs.getString("clave", null)?.let { plana ->
+            prefs.edit().remove("clave").putString("clave_c", Cifra.cifrar(plana)).apply()
+            return plana
+        }
+        return prefs.getString("clave_c", null)?.let { Cifra.descifrar(it) } ?: ""
+    }
+
+    fun claveCoincide(c: String): Boolean = c.isNotEmpty() && c == clave()
 
     fun quitarCuenta() { prefs.edit().clear().apply() }
 
@@ -102,7 +110,7 @@ class Nube(context: Context, private val mda: MdaStore, private val store: Accou
     private fun entrar(forzar: Boolean = false) {
         val c = cliente()
         if (c.sesion && !forzar) return
-        val e = email; val p = prefs.getString("clave", "") ?: ""
+        val e = email; val p = clave()
         if (e.isEmpty() || p.isEmpty()) throw NubeError("Falta la cuenta: toca «Conectar».")
         c.login(e, p)
     }

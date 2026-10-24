@@ -2,6 +2,14 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.2.1" to listOf(
+            "Se quitó «Reiniciar equipo (experimental)»: podía dejar el billetero sin responder.",
+            "La clave de la cuenta compartida ahora se guarda cifrada en el teléfono y ya no va en el respaldo de Google.",
+            "¿Olvidaste la clave de Preferencias? Pon una clave nueva a la cuenta en Supabase y escríbela: la app la comprueba en la nube y la guarda.",
+            "App más liviana: versión optimizada solo para teléfonos ARM (descarga y actualización más rápidas).",
+            "Los errores que antes se ignoraban ahora quedan anotados; bibliotecas actualizadas.",
+            "Se quitó la regla de calibración de la impresora (ya cumplió su función).",
+        ),
         "2.2.0" to listOf(
             "Preferencias protegidas: con una cuenta compartida conectada, al tocar ⚙ la app pide la clave de la cuenta una vez cada vez que se abre la app. Al conectar o cambiar la cuenta también se vuelve a pedir.",
         ),

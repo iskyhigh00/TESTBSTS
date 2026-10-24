@@ -38,8 +38,6 @@ import cl.reabill.monitor.ui.components.HoldButton
 import cl.reabill.monitor.ui.theme.Acta
 import cl.reabill.monitor.ui.theme.ActaType
 
-private val Gutter = 18.dp
-
 @Composable
 fun FlashSheet(
     visible: Boolean, vm: MonitorViewModel, serial: String, billSet: String, onClose: () -> Unit

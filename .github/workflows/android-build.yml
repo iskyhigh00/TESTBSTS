@@ -52,11 +52,11 @@ jobs:
           fi
 
       - name: assemble
-        run: gradle assembleDebug --stacktrace
+        run: gradle assembleRelease --stacktrace
 
       - name: files
         run: |
-          cp app/build/outputs/apk/debug/app-debug.apk CashflowMonitor.apk
+          cp app/build/outputs/apk/release/app-release.apk CashflowMonitor.apk
           grep -m1 'versionName' app/build.gradle.kts \
             | sed -E 's/.*"([0-9.]+)".*/\1/' > version.txt
 

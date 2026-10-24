@@ -29,7 +29,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cl.reabill.monitor.ui.screens.ActaApp
 import cl.reabill.monitor.ui.theme.Acta
 
-const val APP_VERSION = "2.2.0"
+const val APP_VERSION = "2.2.1"
 
 class MainActivity : ComponentActivity() {
     private val vm: MonitorViewModel by viewModels()
@@ -84,7 +84,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onStop() {
         super.onStop()
-        try { unregisterReceiver(usbReceiver) } catch (_: Exception) {}
+        try { unregisterReceiver(usbReceiver) } catch (e: Exception) { aviso("soltar receptor USB", e) }
     }
 }
 

@@ -108,7 +108,7 @@ class UsbSerialManager(private val context: Context) {
                 Context.RECEIVER_NOT_EXPORTED)
             usbManager.requestPermission(device, pi)
         } catch (e: Exception) {
-            try { context.unregisterReceiver(receiver) } catch (_: Exception) {}
+            try { context.unregisterReceiver(receiver) } catch (e: Exception) { aviso("cerrar USB", e) }
             onResult(false)
         }
     }
@@ -138,8 +138,8 @@ class UsbSerialManager(private val context: Context) {
     }
 
     fun close() {
-        try { iface?.let { connection?.releaseInterface(it) } } catch (_: Exception) {}
-        try { connection?.close() } catch (_: Exception) {}
+        try { iface?.let { connection?.releaseInterface(it) } } catch (e: Exception) { aviso("cerrar USB", e) }
+        try { connection?.close() } catch (e: Exception) { aviso("cerrar USB", e) }
         connection = null; iface = null; epIn = null; epOut = null
     }
 

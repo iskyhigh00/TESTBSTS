@@ -100,7 +100,8 @@ class Nube(context: Context, private val mda: MdaStore, private val store: Accou
                 }
                 k == "semanal" -> {
                     if (f.ts <= mda.weeklyTs()) return false
-                    val w = WeeklyData.fromJson(f.valor.optString("w")) ?: return false
+
+                    val w = try { WeeklyImport.parse(f.valor.opt("w")?.toString() ?: return false) } catch (e: Exception) { aviso("reporte semanal de la nube", e); return false }
                     mda.setWeeklyConTs(w, f.ts)
                 }
                 else -> return false

@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.2.6" to listOf(
+            "Reporte semanal automático: BILLMON ahora entiende el reporte que REACBILL publica en los datos compartidos (mismo formato del archivo exportado, versiones 1 y 2). Llega solo al sincronizar; ya no hace falta importar el archivo.",
+        ),
         "2.2.5" to listOf(
             "Etiquetas de intercambio: la fecha de la etiqueta es la del día que se imprime (dd-mm-aaaa). Si hace falta otra, se cambia en el cuadro «Fecha en la etiqueta» antes de imprimir.",
         ),

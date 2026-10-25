@@ -86,6 +86,7 @@ import cl.reabill.monitor.FirmwareFile
 import cl.reabill.monitor.MonitorViewModel
 import cl.reabill.monitor.ui.Phase
 import cl.reabill.monitor.ui.components.ActaButton
+import cl.reabill.monitor.ui.components.ActaChip
 import cl.reabill.monitor.ui.components.ActivityRule
 import cl.reabill.monitor.ui.components.CountText
 import cl.reabill.monitor.ui.components.GearButton

@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.2.3" to listOf(
+            "Arreglo de publicación: la 2.2.2 no llegó a compilar. Trae el tema Premium (Preferencias → Tema) y todo lo de la 2.2.2.",
+        ),
         "2.2.2" to listOf(
             "Nuevo tema Premium (púrpura, menta y coral, tarjetas de vidrio, botones con degradado y animaciones). Solo el admin lo activa: Preferencias → Tema, con la clave de la cuenta. El tema clásico sigue igual.",
         ),

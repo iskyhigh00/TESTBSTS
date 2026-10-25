@@ -24,9 +24,10 @@ object LabelRenderer {
 
     fun render(
         d: LabelData, lengthMm: Int, fields: Set<String>, names: Map<String, String>, style: LabelStyle
-    ): Bitmap {
+    ): Bitmap = renderLines(LabelText.lines(d, fields, names, style.twoLines), lengthMm, style)
+
+    fun renderLines(ls: List<LabelLine>, lengthMm: Int, style: LabelStyle): Bitmap {
         val h = LabelProtocol.HEAD_DOTS
-        val ls = LabelText.lines(d, fields, names, style.twoLines)
 
         fun construir(availW: Float): List<Paint> {
             val bases = ls.map { l ->

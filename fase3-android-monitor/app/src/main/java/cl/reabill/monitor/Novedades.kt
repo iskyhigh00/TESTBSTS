@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.2.4" to listOf(
+            "Etiquetas de intercambio: los intercambios de billeteros que se confirman en REACBILL (Bitácora) llegan por los datos compartidos. En Preferencias → Etiquetas de intercambio aparecen los pendientes con «Imprimir 2 etiquetas» (una por billetero, «100403 → 100500»). Al imprimir quedan marcados como impresos para todos.",
+        ),
         "2.2.3" to listOf(
             "Arreglo de publicación: la 2.2.2 no llegó a compilar. Trae el tema Premium (Preferencias → Tema) y todo lo de la 2.2.2.",
         ),

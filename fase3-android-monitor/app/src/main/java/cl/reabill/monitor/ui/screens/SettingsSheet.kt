@@ -202,6 +202,23 @@ internal fun SettingsSheet(
                     )
                 }
 
+                PrefGroup("Etiquetas de intercambio") {
+                    val pend by vm.etqPendientes.collectAsStateWithLifecycle()
+                    val imp by vm.print.collectAsStateWithLifecycle()
+                    if (pend.isEmpty()) Text("No hay etiquetas pendientes.", style = ActaType.Body.copy(color = Acta.Ink2))
+                    pend.forEach { e ->
+                        Column(Modifier.fillMaxWidth().padding(bottom = 10.dp)) {
+                            Text("${e.a} → ${e.b}", style = ActaType.Section)
+                            if (e.detalle.isNotEmpty()) Text(e.detalle, style = ActaType.Body.copy(color = Acta.Ink2))
+                            ActaButton(
+                                if (imp.printing) "Imprimiendo…" else "Imprimir 2 etiquetas", onClick = { vm.imprimirIntercambio(e) },
+                                filled = true, enabled = !imp.printing, height = 46.dp, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                            )
+                        }
+                    }
+                    if (imp.message.isNotEmpty() && pend.isNotEmpty()) Text(imp.message, style = ActaType.Body.copy(color = Acta.Ink2))
+                }
+
                 PrefGroup("Tema") {
                     var quiere by remember { mutableStateOf<Boolean?>(null) }
                     var claveTema by remember { mutableStateOf("") }

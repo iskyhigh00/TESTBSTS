@@ -248,11 +248,26 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     private var nubeJob: kotlinx.coroutines.Job? = null
     private var pronto: kotlinx.coroutines.Job? = null
 
+    private val etqStore = EtqStore(app.applicationContext)
+    private val _etqPend = MutableStateFlow(etqStore.pendientes())
+    val etqPendientes: StateFlow<List<Etq>> = _etqPend
+
+    fun imprimirIntercambio(e: Etq) {
+        etiquetas.imprimirIntercambio(e) { salio ->
+            if (salio && etqStore.marcarImpresa(e.id)) {
+                addLog("Intercambio ${e.a} ⇄ ${e.b}: etiquetas impresas.")
+                _etqPend.value = etqStore.pendientes()
+                sincronizarPronto()
+            }
+        }
+    }
+
     private fun nubeEstado(trabajando: Boolean = false, mensaje: String = _nube.value.mensaje) {
         _nube.value = NubeUi(nube.disponible, nube.email, nube.ultima, trabajando, mensaje)
     }
 
     private fun refrescarDesdeNube() {
+        _etqPend.value = etqStore.pendientes()
         _mdaMap.value = mdaStore.all()
         if (!weeklySample) _weekly.value = mdaStore.weekly()
         val s = _status.value.serial

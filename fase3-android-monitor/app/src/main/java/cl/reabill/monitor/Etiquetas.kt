@@ -117,9 +117,31 @@ class Etiquetas(
     fun labelPrint() {
         val d = datos() ?: run { _print.update { it.copy(message = "Primero lee la contabilidad.") }; return }
         val p = _labelPrefs.value
+        imprimir(
+            descripcion = { "Etiqueta enviada a la impresora: " + LabelRenderer.lines(d, p.fields, p.names, p.twoLines).joinToString(" / ") },
+            copias = p.copies, okMensaje = "Etiqueta enviada.",
+            armar = { listOf(LabelRenderer.render(d, p.lengthMm, p.fields, p.names, estilo(p))) }
+        )
+    }
+
+    fun imprimirIntercambio(e: Etq, alTerminar: (Boolean) -> Unit) {
+        val p = _labelPrefs.value
+        imprimir(
+            descripcion = { "Etiquetas de intercambio ${e.a} ⇄ ${e.b} enviadas a la impresora." },
+            copias = 1, okMensaje = "Se imprimieron las 2 etiquetas.", alTerminar = alTerminar,
+            armar = { e.etiquetas().map { LabelRenderer.renderLines(it, p.lengthMm, estilo(p)) } }
+        )
+    }
+
+    private fun imprimir(
+        descripcion: () -> String, copias: Int, okMensaje: String,
+        alTerminar: (Boolean) -> Unit = {}, armar: () -> List<android.graphics.Bitmap>
+    ) {
+        val p = _labelPrefs.value
         if (_print.value.printing) return
         scope.launch {
             _print.update { it.copy(printing = true, message = "") }
+            var salio = false
             try {
 
                 if (!printer.isConnected && p.lastAddress.isNotEmpty()) {
@@ -129,17 +151,23 @@ class Etiquetas(
                     _print.update { it.copy(connectedName = p.lastName) }
                 }
                 val err = withContext(Dispatchers.Default) {
-                    val bmp = LabelRenderer.render(d, p.lengthMm, p.fields, p.names, estilo(p))
-                    val job = LabelProtocol.buildJob(LabelRenderer.toBlack(bmp), p.dieCut, p.density.takeIf { it in 1..15 }, p.salida)
-                    printer.send(job, p.copies, p.confirmed)
+                    var fallo: String? = null
+                    for (bmp in armar()) {
+                        val job = LabelProtocol.buildJob(LabelRenderer.toBlack(bmp), p.dieCut, p.density.takeIf { it in 1..15 }, p.salida)
+                        fallo = printer.send(job, copias, p.confirmed)
+                        if (fallo != null) break
+                    }
+                    fallo
                 }
-                if (err == null) log("Etiqueta enviada a la impresora: " + LabelRenderer.lines(d, p.fields, p.names, p.twoLines).joinToString(" / ")) else log("Impresora: $err")
-                _print.update { it.copy(message = err ?: "Etiqueta enviada.") }
+                if (err == null) log(descripcion()) else log("Impresora: $err")
+                salio = err == null
+                _print.update { it.copy(message = err ?: okMensaje) }
             } catch (e: Exception) {
                 log("Impresora: error al imprimir (${e.javaClass.simpleName}: ${e.message})")
                 _print.update { it.copy(message = "No se pudo imprimir: ${e.message ?: e.javaClass.simpleName}") }
             } finally {
                 _print.update { it.copy(printing = false) }
+                alTerminar(salio)
 
                 delay(1500)
                 if (!_print.value.printing) { printer.close(); _print.update { it.copy(connectedName = null) } }

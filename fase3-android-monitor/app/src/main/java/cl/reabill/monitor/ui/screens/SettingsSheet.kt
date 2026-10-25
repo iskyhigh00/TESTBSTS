@@ -206,12 +206,19 @@ internal fun SettingsSheet(
                     val pend by vm.etqPendientes.collectAsStateWithLifecycle()
                     val imp by vm.print.collectAsStateWithLifecycle()
                     if (pend.isEmpty()) Text("No hay etiquetas pendientes.", style = ActaType.Body.copy(color = Acta.Ink2))
+
+                    val hoy = remember { java.text.SimpleDateFormat("dd-MM-yyyy", java.util.Locale.US).format(java.util.Date()) }
                     pend.forEach { e ->
-                        Column(Modifier.fillMaxWidth().padding(bottom = 10.dp)) {
+                        var fecha by remember(e.id) { mutableStateOf(hoy) }
+                        Column(Modifier.fillMaxWidth().padding(bottom = 14.dp)) {
                             Text("${e.a} → ${e.b}", style = ActaType.Section)
-                            if (e.detalle.isNotEmpty()) Text(e.detalle, style = ActaType.Body.copy(color = Acta.Ink2))
+                            if (e.nota.isNotEmpty()) Text(e.nota, style = ActaType.Body.copy(color = Acta.Ink2))
+                            OutlinedTextField(
+                                value = fecha, onValueChange = { fecha = it.take(12) }, singleLine = true, label = { Text("Fecha en la etiqueta") },
+                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                            )
                             ActaButton(
-                                if (imp.printing) "Imprimiendo…" else "Imprimir 2 etiquetas", onClick = { vm.imprimirIntercambio(e) },
+                                if (imp.printing) "Imprimiendo…" else "Imprimir 2 etiquetas", onClick = { vm.imprimirIntercambio(e, fecha) },
                                 filled = true, enabled = !imp.printing, height = 46.dp, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
                             )
                         }

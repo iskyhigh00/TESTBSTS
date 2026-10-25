@@ -10,10 +10,11 @@ class Etq(
     private fun nombre(mda: String, loc: String) = mda.ifBlank { loc.ifBlank { "—" } }
     val a: String get() = nombre(aMda, aLoc)
     val b: String get() = nombre(bMda, bLoc)
-    val detalle: String get() = listOf(fecha, nota).filter { it.isNotBlank() }.joinToString("  ")
 
-    fun etiquetas(): List<List<LabelLine>> = listOf(a to b, b to a).map { (de, a) ->
-        listOfNotNull(LabelLine("$de → $a", true), detalle.takeIf { it.isNotEmpty() }?.let { LabelLine(it, false) })
+    fun detalle(fechaEtiqueta: String): String = listOf(fechaEtiqueta.trim(), nota).filter { it.isNotBlank() }.joinToString("  ")
+
+    fun etiquetas(fechaEtiqueta: String): List<List<LabelLine>> = listOf(a to b, b to a).map { (de, a) ->
+        listOfNotNull(LabelLine("$de → $a", true), detalle(fechaEtiqueta).takeIf { it.isNotEmpty() }?.let { LabelLine(it, false) })
     }
 }
 

@@ -252,8 +252,8 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     private val _etqPend = MutableStateFlow(etqStore.pendientes())
     val etqPendientes: StateFlow<List<Etq>> = _etqPend
 
-    fun imprimirIntercambio(e: Etq) {
-        etiquetas.imprimirIntercambio(e) { salio ->
+    fun imprimirIntercambio(e: Etq, fecha: String) {
+        etiquetas.imprimirIntercambio(e, fecha) { salio ->
             if (salio && etqStore.marcarImpresa(e.id)) {
                 addLog("Intercambio ${e.a} ⇄ ${e.b}: etiquetas impresas.")
                 _etqPend.value = etqStore.pendientes()

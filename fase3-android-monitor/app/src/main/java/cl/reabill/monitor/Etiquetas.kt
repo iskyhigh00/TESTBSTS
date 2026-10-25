@@ -124,12 +124,12 @@ class Etiquetas(
         )
     }
 
-    fun imprimirIntercambio(e: Etq, alTerminar: (Boolean) -> Unit) {
+    fun imprimirIntercambio(e: Etq, fecha: String, alTerminar: (Boolean) -> Unit) {
         val p = _labelPrefs.value
         imprimir(
             descripcion = { "Etiquetas de intercambio ${e.a} ⇄ ${e.b} enviadas a la impresora." },
             copias = 1, okMensaje = "Se imprimieron las 2 etiquetas.", alTerminar = alTerminar,
-            armar = { e.etiquetas().map { LabelRenderer.renderLines(it, p.lengthMm, estilo(p)) } }
+            armar = { e.etiquetas(fecha).map { LabelRenderer.renderLines(it, p.lengthMm, estilo(p)) } }
         )
     }
 

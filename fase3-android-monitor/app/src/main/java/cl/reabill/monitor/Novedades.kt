@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.2.5" to listOf(
+            "Etiquetas de intercambio: la fecha de la etiqueta es la del día que se imprime (dd-mm-aaaa). Si hace falta otra, se cambia en el cuadro «Fecha en la etiqueta» antes de imprimir.",
+        ),
         "2.2.4" to listOf(
             "Etiquetas de intercambio: los intercambios de billeteros que se confirman en REACBILL (Bitácora) llegan por los datos compartidos. En Preferencias → Etiquetas de intercambio aparecen los pendientes con «Imprimir 2 etiquetas» (una por billetero, «100403 → 100500»). Al imprimir quedan marcados como impresos para todos.",
         ),

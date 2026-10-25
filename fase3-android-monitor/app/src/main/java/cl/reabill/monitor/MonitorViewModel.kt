@@ -323,6 +323,17 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    fun cambiarTema(premium: Boolean, clave: String, listo: (String?) -> Unit) {
+        if (nube.email.isEmpty()) { listo("Conecta la cuenta compartida para poder cambiar el tema."); return }
+        desbloquearPreferencias(clave) { err ->
+            if (err == null) {
+                cl.reabill.monitor.ui.theme.Tema.guardar(getApplication(), premium)
+                addLog("Tema ${if (premium) "Premium" else "clásico"} activado.")
+            }
+            listo(err)
+        }
+    }
+
     fun nubeDesconectar() {
         nubeJob?.cancel(); nubeJob = null; pronto?.cancel()
         nube.quitarCuenta()

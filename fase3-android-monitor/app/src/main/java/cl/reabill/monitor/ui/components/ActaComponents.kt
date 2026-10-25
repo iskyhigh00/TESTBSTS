@@ -186,6 +186,10 @@ fun ActaButton(
     filled: Boolean = false, enabled: Boolean = true, danger: Boolean = false, height: Dp = 52.dp,
     textSize: androidx.compose.ui.unit.TextUnit = 14.sp
 ) {
+    if (Acta.premium) {
+        GradientButton(text, onClick, modifier, filled = filled, enabled = enabled, danger = danger, height = height, textSize = textSize)
+        return
+    }
     val edge = if (danger) Acta.Error else Acta.Ink
     Box(
         modifier.heightIn(min = height).alpha(if (enabled) 1f else 0.4f)
@@ -208,15 +212,23 @@ fun ActaButton(
 @Composable
 fun ActaChip(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val shape = RoundedCornerShape(20.dp)
+
+    val fondoSel by androidx.compose.animation.animateColorAsState(
+        if (Acta.premium) (if (selected) Acta.Primary else Acta.Glass) else (if (selected) Acta.Ink else Acta.Paper), label = "fondoChip"
+    )
+    val textoSel by androidx.compose.animation.animateColorAsState(
+        if (Acta.premium) (if (selected) Color.White else Acta.Ink) else (if (selected) Acta.Paper else Acta.Ink), label = "textoChip"
+    )
+    val borde = if (Acta.premium) (if (selected) Acta.Primary else Acta.GlassBorder) else (if (selected) Acta.Ink else Acta.Hairline)
     Box(
         modifier.heightIn(min = 40.dp).clip(shape)
-            .background(if (selected) Acta.Ink else Acta.Paper)
-            .border(1.dp, if (selected) Acta.Ink else Acta.Hairline, shape)
+            .background(fondoSel)
+            .border(1.dp, borde, shape)
             .clickable(role = Role.Checkbox, onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 6.dp),
         contentAlignment = Alignment.Center
     ) {
-        Text(text, style = ActaType.Button.copy(fontSize = 13.sp, color = if (selected) Acta.Paper else Acta.Ink))
+        Text(text, style = ActaType.Button.copy(fontSize = 13.sp, color = textoSel))
     }
 }
 

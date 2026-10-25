@@ -23,21 +23,56 @@ import cl.reabill.monitor.R
 
 object Acta {
     private val darkState = mutableStateOf(false)
+    private val premiumState = mutableStateOf(false)
 
     var dark: Boolean
         get() = darkState.value
         set(v) { darkState.value = v }
 
-    val Paper: Color get() = if (dark) Color(0xFF0D1117) else Color(0xFFFFFFFF)
-    val Ink: Color get() = if (dark) Color(0xFFE8ECEF) else Color(0xFF0D1117)
-    val Ink2: Color get() = if (dark) Color(0xFF9AA3AD) else Color(0xFF5F6872)
-    val Hairline: Color get() = if (dark) Color(0xFF2B323B) else Color(0xFFDDE1E5)
+    var premium: Boolean
+        get() = premiumState.value
+        set(v) { premiumState.value = v }
 
-    val Raised: Color get() = if (dark) Color(0xFF161B22) else Color(0xFFFFFFFF)
+    val Paper: Color get() = when {
+        premium -> if (dark) PremiumColors.BackgroundDark else PremiumColors.BackgroundLight
+        dark -> Color(0xFF0D1117); else -> Color(0xFFFFFFFF)
+    }
+    val Ink: Color get() = when {
+        premium -> if (dark) PremiumColors.InkDark else PremiumColors.InkLight
+        dark -> Color(0xFFE8ECEF); else -> Color(0xFF0D1117)
+    }
+    val Ink2: Color get() = when {
+        premium -> if (dark) PremiumColors.Ink2Dark else PremiumColors.Ink2Light
+        dark -> Color(0xFF9AA3AD); else -> Color(0xFF5F6872)
+    }
+    val Hairline: Color get() = when {
+        premium -> if (dark) PremiumColors.OutlineDark else PremiumColors.OutlineLight
+        dark -> Color(0xFF2B323B); else -> Color(0xFFDDE1E5)
+    }
 
-    val Sistema: Color get() = if (dark) Color(0xFFFFB74D) else Color(0xFFC25E00)
-    val Accent: Color get() = if (dark) Color(0xFF4DB6AC) else Color(0xFF00695C)
-    val Error: Color get() = if (dark) Color(0xFFF28B82) else Color(0xFFB3261E)
+    val Raised: Color get() = when {
+        premium -> if (dark) PremiumColors.SurfaceVariantDark else PremiumColors.SurfaceLight
+        dark -> Color(0xFF161B22); else -> Color(0xFFFFFFFF)
+    }
+
+    val Sistema: Color get() = when {
+        premium -> if (dark) PremiumColors.Tertiary else PremiumColors.TertiaryLight
+        dark -> Color(0xFFFFB74D); else -> Color(0xFFC25E00)
+    }
+    val Accent: Color get() = when {
+        premium -> if (dark) PremiumColors.Secondary else PremiumColors.SecondaryLight
+        dark -> Color(0xFF4DB6AC); else -> Color(0xFF00695C)
+    }
+    val Error: Color get() = when {
+        premium -> if (dark) PremiumColors.ErrorDark else PremiumColors.ErrorLight
+        dark -> Color(0xFFF28B82); else -> Color(0xFFB3261E)
+    }
+
+    val Primary: Color get() = PremiumColors.Primary
+    val Tertiary: Color get() = PremiumColors.Tertiary
+
+    val Glass: Color get() = if (dark) Color.White.copy(alpha = 0.08f) else Color.White.copy(alpha = 0.65f)
+    val GlassBorder: Color get() = if (dark) Color.White.copy(alpha = 0.12f) else PremiumColors.Primary.copy(alpha = 0.14f)
 
     const val RATE_MIN = 80.0
 }
@@ -47,10 +82,12 @@ private fun grotesk(weight: FontWeight) = Font(
     variationSettings = FontVariation.Settings(FontVariation.weight(weight.weight))
 )
 
-val ActaSans = FontFamily(
+private val ActaSansClasico = FontFamily(
     grotesk(FontWeight.Normal), grotesk(FontWeight.Medium),
     grotesk(FontWeight.SemiBold), grotesk(FontWeight.Bold)
 )
+
+val ActaSans: FontFamily get() = if (Acta.premium) SpaceGrotesk else ActaSansClasico
 
 val ActaMono = FontFamily(
     Font(R.font.plex_mono_regular, FontWeight.Normal),
@@ -85,6 +122,10 @@ object ActaType {
 
 @Composable
 fun ActaMaterial(content: @Composable () -> Unit) {
+    if (Acta.premium) {
+        MaterialTheme(colorScheme = premiumColorScheme(Acta.dark), typography = premiumTypography(), shapes = PremiumShapes.material, content = content)
+        return
+    }
     val d = Acta.dark
     val colores = if (d) darkColorScheme(
         primary = Acta.Accent, onPrimary = Acta.Paper, background = Acta.Paper, onBackground = Acta.Ink,

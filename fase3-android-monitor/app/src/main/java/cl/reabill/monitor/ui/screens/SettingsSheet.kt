@@ -107,6 +107,7 @@ import cl.reabill.monitor.ui.splitLog
 import cl.reabill.monitor.ui.theme.Acta
 import cl.reabill.monitor.ui.theme.ActaType
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 internal fun SettingsSheet(
     visible: Boolean, vm: MonitorViewModel, log: List<String>, connected: Boolean, kind: String,
@@ -200,6 +201,49 @@ internal fun SettingsSheet(
                     )
                 }
 
+                PrefGroup("Tema") {
+                    var quiere by remember { mutableStateOf<Boolean?>(null) }
+                    var claveTema by remember { mutableStateOf("") }
+                    var errorTema by remember { mutableStateOf("") }
+                    var verificando by remember { mutableStateOf(false) }
+                    Text(
+                        "Solo el admin puede cambiarlo (pide la clave de la cuenta).",
+                        style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ActaChip("Clásico", !Acta.premium, { if (Acta.premium) { quiere = false; claveTema = ""; errorTema = "" } })
+                        ActaChip("Premium", Acta.premium, { if (!Acta.premium) { quiere = true; claveTema = ""; errorTema = "" } })
+                    }
+                    quiere?.let { destino ->
+                        AlertDialog(
+                            onDismissRequest = { quiere = null },
+                            title = { Text("Clave de admin") },
+                            text = {
+                                Column {
+                                    OutlinedTextField(
+                                        value = claveTema, onValueChange = { claveTema = it.take(120); errorTema = "" }, singleLine = true,
+                                        label = { Text("Clave") }, isError = errorTema.isNotEmpty(),
+                                        visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password), modifier = Modifier.fillMaxWidth()
+                                    )
+                                    if (errorTema.isNotEmpty()) Text(errorTema, style = ActaType.Body.copy(color = Acta.Error), modifier = Modifier.padding(top = 6.dp))
+                                }
+                            },
+                            confirmButton = {
+                                ActaButton(
+                                    if (verificando) "Comprobando…" else "Cambiar", filled = true, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp),
+                                    enabled = claveTema.isNotEmpty() && !verificando,
+                                    onClick = {
+                                        verificando = true
+                                        vm.cambiarTema(destino, claveTema) { err -> verificando = false; if (err == null) quiere = null else errorTema = err }
+                                    }
+                                )
+                            },
+                            dismissButton = { ActaButton("Cancelar", onClick = { quiere = null }, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) }
+                        )
+                    }
+                }
+
                 PrefGroup("Reporte semanal del sistema") {
                     val w by vm.weekly.collectAsStateWithLifecycle()
                     Text(
@@ -267,6 +311,13 @@ internal fun SettingsSheet(
 
 @Composable
 internal fun PrefGroup(title: String, content: @Composable () -> Unit) {
+    if (Acta.premium) {
+        cl.reabill.monitor.ui.components.GlassCard(Modifier.padding(top = 16.dp).fillMaxWidth()) {
+            Text(title, style = ActaType.Section, modifier = Modifier.padding(bottom = 10.dp))
+            content()
+        }
+        return
+    }
     Column(Modifier.padding(top = 18.dp)) {
         Hairline(color = Acta.Ink)
         Text(title, style = ActaType.Section, modifier = Modifier.padding(top = 8.dp, bottom = 8.dp))

@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.2.2" to listOf(
+            "Nuevo tema Premium (púrpura, menta y coral, tarjetas de vidrio, botones con degradado y animaciones). Solo el admin lo activa: Preferencias → Tema, con la clave de la cuenta. El tema clásico sigue igual.",
+        ),
         "2.2.1" to listOf(
             "Se quitó «Reiniciar equipo (experimental)»: podía dejar el billetero sin responder.",
             "La clave de la cuenta compartida ahora se guarda cifrada en el teléfono y ya no va en el respaldo de Google.",

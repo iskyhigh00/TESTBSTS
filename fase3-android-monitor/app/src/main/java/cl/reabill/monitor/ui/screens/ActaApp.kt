@@ -107,7 +107,7 @@ import cl.reabill.monitor.ui.splitLog
 import cl.reabill.monitor.ui.theme.Acta
 import cl.reabill.monitor.ui.theme.ActaType
 
-internal val Gutter = 18.dp
+internal val Gutter: androidx.compose.ui.unit.Dp get() = if (Acta.premium) 20.dp else 18.dp
 
 private tailrec fun Context.findActivity(): Activity? = when (this) {
     is Activity -> this

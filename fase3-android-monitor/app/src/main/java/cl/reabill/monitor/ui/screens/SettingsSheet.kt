@@ -223,6 +223,8 @@ internal fun SettingsSheet(
                         var variant by remember(mda) { mutableStateOf(false) }
                         var pieza by remember(mda) { mutableStateOf(false) }
                         var firmware by remember(mda) { mutableStateOf("") }
+
+                        var modelo by remember(mda) { mutableStateOf(porRevisar.firstOrNull { it.mda == mda }?.modeloLista?.ifEmpty { vm.modeloDetectado(mda) } ?: vm.modeloDetectado(mda)) }
                         var quien by remember(mda) { mutableStateOf(vm.quienRevisa()) }
                         AlertDialog(
                             onDismissRequest = { elegido = null },
@@ -245,8 +247,13 @@ internal fun SettingsSheet(
                                         ActaChip("Actualicé variant", variant, { variant = !variant })
                                         ActaChip("Cambié una pieza", pieza, { pieza = !pieza })
                                     }
+                                    Text("Modelo del billetero", style = ActaType.Body, modifier = Modifier.padding(top = 12.dp))
+                                    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 6.dp)) {
+                                        ActaChip("Cashflow", modelo == "Cashflow", { modelo = if (modelo == "Cashflow") "" else "Cashflow" })
+                                        ActaChip("Advance", modelo == "Advance", { modelo = if (modelo == "Advance") "" else "Advance" })
+                                    }
                                     OutlinedTextField(
-                                        value = firmware, onValueChange = { firmware = it.take(30) }, singleLine = true, label = { Text("Firmware (si lo cambiaste o actualizaste)") },
+                                        value = firmware, onValueChange = { firmware = it.take(30); if (Regex("^\\s*255(\\D|$)").containsMatchIn(it)) modelo = "Cashflow" }, singleLine = true, label = { Text("Firmware (si lo cambiaste o actualizaste)") },
                                         modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
                                     )
                                     OutlinedTextField(
@@ -257,7 +264,7 @@ internal fun SettingsSheet(
                             },
                             confirmButton = {
                                 ActaButton(
-                                    "Guardar", onClick = { vm.revisarBilletero(mda, RevDatos(quien, cambiado, usado, calibraste, limpiaste, variant, pieza, firmware)); elegido = null },
+                                    "Guardar", onClick = { vm.revisarBilletero(mda, RevDatos(quien, cambiado, usado, calibraste, limpiaste, variant, pieza, firmware, modelo)); elegido = null },
                                     filled = true, enabled = quien.isNotBlank(), height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)
                                 )
                             },

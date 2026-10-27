@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.3.2" to listOf(
+            "Billeteros por revisar: ahora se elige el modelo del billetero (Cashflow o Advance). Viene marcado si la lista de REACBILL ya lo traía o si BILLMON ya conoce esa máquina como SC Advance, y si el firmware empieza con 255 queda en Cashflow (un 255 no se carga a un Advance). La Bitácora lo anota como modelo del billetero.",
+        ),
         "2.3.1" to listOf(
             "«Ver máquinas»: en los pendientes sin billetero el AR queda en guión (antes repetía el % del sistema), para ver de un vistazo que falta asociar la máquina a un billetero.",
         ),

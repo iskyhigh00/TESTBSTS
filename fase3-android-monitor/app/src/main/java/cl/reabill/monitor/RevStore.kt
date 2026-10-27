@@ -5,13 +5,17 @@ import org.json.JSONObject
 
 class RevDatos(
     val quien: String, val cambiado: Boolean, val usado: Boolean,
-    val calibraste: Boolean, val limpiaste: Boolean, val variant: Boolean, val pieza: Boolean, val firmware: String
+    val calibraste: Boolean, val limpiaste: Boolean, val variant: Boolean, val pieza: Boolean, val firmware: String,
+
+    val modelo: String = ""
 )
 
 class Rev(
     val mda: String, val estado: String, val isla: String, val modMaq: String, val mod: String, val fw: String,
     val pct: Double?, val etiqueta: String, val fecha: String, val ts: Long
 ) {
+
+    val modeloLista: String get() = if (mod.equals("Cashflow", true)) "Cashflow" else if (mod.equals("Advance", true)) "Advance" else ""
 
     val detalle: String get() = listOfNotNull(
         isla.takeIf { it.isNotBlank() }?.let { "isla $it" },
@@ -60,6 +64,7 @@ class RevStore(context: Context) {
         if (d.cambiado) n.put("tipo_cambio", if (d.usado) "usado" else "nuevo") else n.remove("tipo_cambio")
         n.put("calibraste", d.calibraste).put("limpiaste", d.limpiaste).put("variant", d.variant).put("pieza", d.pieza)
         n.put("firmware", d.firmware.trim().take(30))
+        if (d.modelo == "Cashflow" || d.modelo == "Advance") n.put("modelo", d.modelo) else n.remove("modelo")
         put(mda, n, maxOf(ahora, ts(mda) + 1))
         return true
     }

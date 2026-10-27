@@ -257,10 +257,15 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     val revPendientes: StateFlow<List<Rev>> = _revPend
     fun quienRevisa(): String = revStore.quien()
 
+    fun modeloDetectado(mda: String): String {
+        val serie = mdaStore.all().entries.firstOrNull { it.value == mda }?.key ?: return ""
+        return if (mdaStore.ifaz(serie) != null) "Advance" else ""
+    }
+
     fun revisarBilletero(mda: String, d: RevDatos) {
         if (!revStore.revisar(mda, d)) return
         revStore.setQuien(d.quien)
-        addLog("Billetero MDA $mda revisado (${if (d.cambiado) "cambiado" else "quedó el mismo"}).")
+        addLog("Billetero MDA $mda revisado (${if (d.cambiado) "cambiado" else "quedó el mismo"}${if (d.modelo.isNotEmpty()) ", ${d.modelo}" else ""}).")
         _revPend.value = revStore.pendientes()
         sincronizarPronto()
     }

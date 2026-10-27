@@ -422,11 +422,13 @@ internal fun FilaPendienteSinBilletero(rv: cl.reabill.monitor.Rev, sis: Double?)
         }
         Column(Modifier.weight(1f)) {
             Text("AR", style = ActaType.Label.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Acta.Ink))
-            Text(rv.pct?.let { "${cl.reabill.monitor.ui.fmtRate(it)}\u00A0%" } ?: "—", style = ActaType.Cell, maxLines = 1, softWrap = false)
+
+            Text("—", style = ActaType.Cell, maxLines = 1, softWrap = false)
         }
         Column(Modifier.weight(1f)) {
             Text("AS", style = ActaType.Label.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Acta.Sistema))
-            Text(sis?.let { "${cl.reabill.monitor.ui.fmtRate(it * 100.0)}\u00A0%" } ?: "—", style = ActaType.Cell.copy(color = Acta.Sistema), maxLines = 1, softWrap = false)
+            val as_ = sis?.times(100.0) ?: rv.pct
+            Text(as_?.let { "${cl.reabill.monitor.ui.fmtRate(it)}\u00A0%" } ?: "—", style = ActaType.Cell.copy(color = Acta.Sistema), maxLines = 1, softWrap = false)
         }
     }
 }

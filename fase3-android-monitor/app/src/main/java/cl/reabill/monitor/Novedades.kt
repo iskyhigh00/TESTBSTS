@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.3.1" to listOf(
+            "«Ver máquinas»: en los pendientes sin billetero el AR queda en guión (antes repetía el % del sistema), para ver de un vistazo que falta asociar la máquina a un billetero.",
+        ),
         "2.3.0" to listOf(
             "«Ver máquinas»: arriba va la lista «POR REVISAR» con TODOS los que manda la Bitácora (en orden de isla), tengan o no billetero en este teléfono; cada uno muestra isla, modelo, firmware y % de aceptación. Debajo, las demás máquinas. El botón «Solo por revisar» deja únicamente esa lista.",
         ),

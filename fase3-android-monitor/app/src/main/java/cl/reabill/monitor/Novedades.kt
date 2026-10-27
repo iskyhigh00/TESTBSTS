@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.3.0" to listOf(
+            "«Ver máquinas»: arriba va la lista «POR REVISAR» con TODOS los que manda la Bitácora (en orden de isla), tengan o no billetero en este teléfono; cada uno muestra isla, modelo, firmware y % de aceptación. Debajo, las demás máquinas. El botón «Solo por revisar» deja únicamente esa lista.",
+        ),
         "2.2.9" to listOf(
             "Pendientes al día: si la Bitácora borra una lista (o una etiqueta) de la nube, esos billeteros dejan de salir como «POR REVISAR» al sincronizar. Una revisión hecha aquí que aún no se subió no se pierde.",
         ),

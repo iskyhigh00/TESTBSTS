@@ -392,3 +392,53 @@ internal fun PendingText(text: String, style: TextStyle) {
     )
     Text(text, style = style.copy(color = Acta.Hairline), modifier = Modifier.alpha(a))
 }
+
+@Composable
+internal fun FilaMaquina(r: cl.reabill.monitor.MonitorViewModel.MdaFila, rv: cl.reabill.monitor.Rev?, sis: Double?, onClick: () -> Unit) {
+    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1.3f)) {
+            Text(r.mda, style = ActaType.Serial)
+            Text(r.serie, style = ActaType.Tiny)
+            if (rv != null) MarcaPorRevisar(rv)
+        }
+        Column(Modifier.weight(1f)) {
+            Text("AR", style = ActaType.Label.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Acta.Ink))
+            Text(r.lectura?.let { "${cl.reabill.monitor.ui.fmtRate(it.rate)}\u00A0%" } ?: "—", style = ActaType.Cell, maxLines = 1, softWrap = false)
+        }
+        Column(Modifier.weight(1f)) {
+            Text("AS", style = ActaType.Label.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Acta.Sistema))
+            Text(sis?.let { "${cl.reabill.monitor.ui.fmtRate(it * 100.0)}\u00A0%" } ?: "—", style = ActaType.Cell.copy(color = Acta.Sistema), maxLines = 1, softWrap = false)
+        }
+    }
+}
+
+@Composable
+internal fun FilaPendienteSinBilletero(rv: cl.reabill.monitor.Rev, sis: Double?) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1.3f)) {
+            Text(rv.mda, style = ActaType.Serial)
+            Text("sin billetero en este teléfono", style = ActaType.Tiny)
+            MarcaPorRevisar(rv)
+        }
+        Column(Modifier.weight(1f)) {
+            Text("AR", style = ActaType.Label.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Acta.Ink))
+            Text(rv.pct?.let { "${cl.reabill.monitor.ui.fmtRate(it)}\u00A0%" } ?: "—", style = ActaType.Cell, maxLines = 1, softWrap = false)
+        }
+        Column(Modifier.weight(1f)) {
+            Text("AS", style = ActaType.Label.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Acta.Sistema))
+            Text(sis?.let { "${cl.reabill.monitor.ui.fmtRate(it * 100.0)}\u00A0%" } ?: "—", style = ActaType.Cell.copy(color = Acta.Sistema), maxLines = 1, softWrap = false)
+        }
+    }
+}
+
+@Composable
+private fun MarcaPorRevisar(rv: cl.reabill.monitor.Rev) {
+    Text(
+        "POR REVISAR" + rv.etiqueta.takeIf { it.isNotBlank() }?.let { " · $it" }.orEmpty(),
+        style = ActaType.Tiny.copy(color = Acta.Accent, fontWeight = FontWeight.Bold), modifier = Modifier.padding(top = 2.dp), maxLines = 1
+    )
+    val d = listOfNotNull(
+        rv.isla.takeIf { it.isNotBlank() }?.let { "isla $it" }, rv.mod.takeIf { it.isNotBlank() }, rv.fw.takeIf { it.isNotBlank() }?.let { "fw $it" }
+    ).joinToString(" · ")
+    if (d.isNotEmpty()) Text(d, style = ActaType.Tiny, maxLines = 1)
+}

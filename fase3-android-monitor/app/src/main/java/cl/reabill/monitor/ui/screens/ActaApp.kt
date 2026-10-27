@@ -353,11 +353,14 @@ fun ActaApp(vm: MonitorViewModel) {
 
         LaunchedEffect(showLista) { vm.sincronizarAhora(false) }
         val porMda = revPend.associateBy { it.mda }
-        val nRevisar = filas.count { it.mda in porMda }
         val f = filtroLista.trim()
-        val vistas = (if (f.isEmpty()) filas else filas.filter { it.mda.contains(f) || it.serie.contains(f, ignoreCase = true) })
-            .filter { !soloRevisar || it.mda in porMda }
-            .sortedByDescending { it.mda in porMda }
+        fun coincide(mda: String, serie: String) = f.isEmpty() || mda.contains(f) || serie.contains(f, ignoreCase = true)
+
+        val pendientes = revPend.flatMap { rv ->
+            val propias = filas.filter { it.mda == rv.mda }
+            if (propias.isEmpty()) listOf(rv to null) else propias.map { rv to it }
+        }.filter { (rv, r) -> coincide(rv.mda, r?.serie ?: "") }
+        val resto = if (soloRevisar) emptyList() else filas.filter { it.mda !in porMda && coincide(it.mda, it.serie) }
         AlertDialog(
             onDismissRequest = { showLista = false },
             title = { Text("Máquinas (${filas.size})") },
@@ -368,46 +371,30 @@ fun ActaApp(vm: MonitorViewModel) {
                         label = { Text("Filtrar por MDA o serie") }, modifier = Modifier.fillMaxWidth()
                     )
                     if (revPend.isNotEmpty()) {
-                        Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            ActaChip("Por revisar ($nRevisar)", soloRevisar, { soloRevisar = !soloRevisar })
-                            val sinBilletero = revPend.size - nRevisar
-                            if (sinBilletero > 0) Text("+$sinBilletero sin billetero asociado", style = ActaType.Label)
-                        }
+                        ActaChip("Solo por revisar (${revPend.size})", soloRevisar, { soloRevisar = !soloRevisar }, Modifier.padding(top = 8.dp))
                     }
-                    if (filas.isEmpty()) {
+                    if (filas.isEmpty() && revPend.isEmpty()) {
                         Text("Aún no hay máquinas asociadas a un billetero.", style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(top = 14.dp))
-                    } else if (vistas.isEmpty()) {
+                    } else if (pendientes.isEmpty() && resto.isEmpty()) {
                         Text("Sin resultados.", style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(top = 14.dp))
                     }
                     Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()).padding(top = 8.dp)) {
-                        vistas.forEach { r ->
-                            val sis = weekly?.pct(r.mda)
-                            Hairline()
-                            Row(
-                                Modifier.fillMaxWidth().clickable { buscarTexto = r.mda; showLista = false; showBuscar = true }.padding(vertical = 9.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(Modifier.weight(1.3f)) {
-                                    Text(r.mda, style = ActaType.Serial)
-                                    Text(r.serie, style = ActaType.Tiny)
-                                    porMda[r.mda]?.let { rv ->
-                                        Text(
-                                            "POR REVISAR" + rv.etiqueta.takeIf { it.isNotBlank() }?.let { " · $it" }.orEmpty(),
-                                            style = ActaType.Tiny.copy(color = Acta.Accent, fontWeight = FontWeight.Bold), modifier = Modifier.padding(top = 2.dp), maxLines = 1
-                                        )
-                                    }
-                                }
-                                Column(Modifier.weight(1f)) {
-                                    Text("AR", style = ActaType.Label.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Acta.Ink))
-                                    Text(r.lectura?.let { "${fmtRate(it.rate)}\u00A0%" } ?: "—", style = ActaType.Cell, maxLines = 1, softWrap = false)
-                                }
-                                Column(Modifier.weight(1f)) {
-                                    Text("AS", style = ActaType.Label.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Acta.Sistema))
-                                    Text(sis?.let { "${fmtRate(it * 100.0)}\u00A0%" } ?: "—", style = ActaType.Cell.copy(color = Acta.Sistema), maxLines = 1, softWrap = false)
-                                }
+                        if (pendientes.isNotEmpty()) {
+                            Text("POR REVISAR (${pendientes.map { it.first.mda }.toSet().size})", style = ActaType.Label.copy(color = Acta.Accent, fontWeight = FontWeight.Bold), modifier = Modifier.padding(top = 4.dp, bottom = 2.dp))
+                            pendientes.forEach { (rv, r) ->
+                                Hairline()
+                                if (r != null) FilaMaquina(r, rv, weekly?.pct(r.mda)) { buscarTexto = r.mda; showLista = false; showBuscar = true }
+                                else FilaPendienteSinBilletero(rv, weekly?.pct(rv.mda))
                             }
                         }
-                        if (vistas.isNotEmpty()) Hairline()
+                        if (resto.isNotEmpty()) {
+                            if (pendientes.isNotEmpty()) Text("TODAS LAS DEMÁS", style = ActaType.Label.copy(fontWeight = FontWeight.Bold), modifier = Modifier.padding(top = 14.dp, bottom = 2.dp))
+                            resto.forEach { r ->
+                                Hairline()
+                                FilaMaquina(r, null, weekly?.pct(r.mda)) { buscarTexto = r.mda; showLista = false; showBuscar = true }
+                            }
+                        }
+                        if (pendientes.isNotEmpty() || resto.isNotEmpty()) Hairline()
                     }
                 }
             },

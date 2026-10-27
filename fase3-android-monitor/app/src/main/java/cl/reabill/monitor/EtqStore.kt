@@ -31,6 +31,8 @@ class EtqStore(context: Context) {
         prefs.edit().putString("v:$id", v.toString()).putLong("ts:$id", ts).apply()
     }
 
+    fun quitar(id: String) { prefs.edit().remove("v:$id").remove("ts:$id").apply() }
+
     fun ids(): Set<String> = prefs.all.keys.filter { it.startsWith("v:") }.map { it.removePrefix("v:") }.toSet()
 
     fun leer(id: String): Etq? {

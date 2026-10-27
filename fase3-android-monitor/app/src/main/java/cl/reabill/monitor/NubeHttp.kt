@@ -85,6 +85,21 @@ class NubeHttp(private val base: String, private val apiKey: String) {
         return out to maxAct
     }
 
+    fun claves(prefijo: String, pagina: Int = 1000): Set<String> {
+        val out = HashSet<String>()
+        var offset = 0
+        while (true) {
+            val url = u("/rest/v1/billmon_kv?select=clave&clave=like." + URLEncoder.encode("$prefijo*", "UTF-8") + "&order=clave.asc&limit=$pagina&offset=$offset")
+            val (code, txt) = llamar("GET", url, null)
+            revisar(code, txt)
+            val arr = JSONArray(txt)
+            for (i in 0 until arr.length()) out.add(arr.getJSONObject(i).getString("clave"))
+            if (arr.length() < pagina) break
+            offset += pagina
+        }
+        return out
+    }
+
     fun subir(filas: List<FilaNube>, por: String, sobrescribir: Boolean, lote: Int = 200) {
         var i = 0
         while (i < filas.size) {

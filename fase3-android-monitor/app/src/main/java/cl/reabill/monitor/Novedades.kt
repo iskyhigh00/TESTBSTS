@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.2.9" to listOf(
+            "Pendientes al día: si la Bitácora borra una lista (o una etiqueta) de la nube, esos billeteros dejan de salir como «POR REVISAR» al sincronizar. Una revisión hecha aquí que aún no se subió no se pierde.",
+        ),
         "2.2.8" to listOf(
             "«Ver máquinas»: las que están en la lista de billeteros por revisar de la Bitácora se marcan «POR REVISAR» (con su lista) y salen primero; hay un filtro «Por revisar» y el aviso de las que no tienen billetero asociado.",
             "Lo que manda la Bitácora se baja solo cada vez que se abre la app y al abrir «Ver máquinas».",

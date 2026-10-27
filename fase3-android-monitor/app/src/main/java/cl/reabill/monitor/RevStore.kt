@@ -34,6 +34,8 @@ class RevStore(context: Context) {
         prefs.edit().putString("v:$mda", v.toString()).putLong("ts:$mda", ts).apply()
     }
 
+    fun quitar(id: String) { prefs.edit().remove("v:$id").remove("ts:$id").apply() }
+
     fun ids(): Set<String> = prefs.all.keys.filter { it.startsWith("v:") }.map { it.removePrefix("v:") }.toSet()
 
     fun leer(mda: String): Rev? {

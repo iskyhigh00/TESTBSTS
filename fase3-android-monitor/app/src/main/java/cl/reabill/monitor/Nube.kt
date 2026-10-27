@@ -35,6 +35,7 @@ class Nube(context: Context, private val mda: MdaStore, private val store: Accou
     fun quitarCuenta() { prefs.edit().clear().apply() }
 
     private fun enviado(k: String) = prefs.getString("env:$k", null)
+    private fun olvidarEnviado(k: String) { prefs.edit().remove("env:$k").apply() }
     private fun marcarEnviado(k: String, d: String) { prefs.edit().putString("env:$k", d).apply() }
 
     private class Local(val ts: Long, val valor: JSONObject) {
@@ -155,6 +156,23 @@ class Nube(context: Context, private val mda: MdaStore, private val store: Accou
         }
     }
 
+    private fun quitarBorradas(c: NubeHttp): Boolean {
+        var cambio = false
+        val enNube = HashMap<String, Set<String>>()
+        for (pref in listOf("rev:", "etq:")) enNube[pref] = c.claves(pref)
+        fun revisar(pref: String, ids: Set<String>, quitar: (String) -> Unit) {
+            for (id in ids) {
+                val k = pref + id
+                if (k in enNube.getValue(pref)) continue
+                val l = local(k) ?: continue
+                if (enviado(k) == l.digest) { quitar(id); olvidarEnviado(k); cambio = true }
+            }
+        }
+        revisar("rev:", rev.ids(), rev::quitar)
+        revisar("etq:", etq.ids(), etq::quitar)
+        return cambio
+    }
+
     private fun bajarYSubir(): Resultado {
         val c = cliente()
 
@@ -167,6 +185,8 @@ class Nube(context: Context, private val mda: MdaStore, private val store: Accou
             val nuevas = store.mergeIn(s, lista)
             if (nuevas > 0) { bajados += nuevas; huboCambios = true }
         }
+
+        if (quitarBorradas(c)) huboCambios = true
 
         val por = Build.MODEL ?: "teléfono"
         val claves = LinkedHashSet<String>()

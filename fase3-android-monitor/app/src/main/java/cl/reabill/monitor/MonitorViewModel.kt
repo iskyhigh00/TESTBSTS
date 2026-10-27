@@ -252,6 +252,19 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     private val _etqPend = MutableStateFlow(etqStore.pendientes())
     val etqPendientes: StateFlow<List<Etq>> = _etqPend
 
+    private val revStore = RevStore(app.applicationContext)
+    private val _revPend = MutableStateFlow(revStore.pendientes())
+    val revPendientes: StateFlow<List<Rev>> = _revPend
+    fun quienRevisa(): String = revStore.quien()
+
+    fun revisarBilletero(mda: String, d: RevDatos) {
+        if (!revStore.revisar(mda, d)) return
+        revStore.setQuien(d.quien)
+        addLog("Billetero MDA $mda revisado (${if (d.cambiado) "cambiado" else "quedó el mismo"}).")
+        _revPend.value = revStore.pendientes()
+        sincronizarPronto()
+    }
+
     fun imprimirIntercambio(e: Etq, fecha: String) {
         etiquetas.imprimirIntercambio(e, fecha) { salio ->
             if (salio && etqStore.marcarImpresa(e.id)) {
@@ -268,6 +281,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun refrescarDesdeNube() {
         _etqPend.value = etqStore.pendientes()
+        _revPend.value = revStore.pendientes()
         _mdaMap.value = mdaStore.all()
         if (!weeklySample) _weekly.value = mdaStore.weekly()
         val s = _status.value.serial

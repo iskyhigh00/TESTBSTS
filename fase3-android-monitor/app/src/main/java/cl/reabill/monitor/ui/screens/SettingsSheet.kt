@@ -54,6 +54,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
+import cl.reabill.monitor.RevDatos
 import cl.reabill.monitor.WeeklyData
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -200,6 +201,69 @@ internal fun SettingsSheet(
                         },
                         dismissButton = { ActaButton("Cancelar", onClick = { dlg = false }, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) }
                     )
+                }
+
+                PrefGroup("Billeteros por revisar") {
+                    val porRevisar by vm.revPendientes.collectAsStateWithLifecycle()
+                    var elegido by remember { mutableStateOf<String?>(null) }
+                    if (porRevisar.isEmpty()) Text("No hay billeteros pendientes. Llegan desde REACBILL con «Enviar a Billeteros».", style = ActaType.Body.copy(color = Acta.Ink2))
+                    porRevisar.forEach { r ->
+                        Column(Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
+                            Text("MDA ${r.mda}", style = ActaType.Section)
+                            if (r.detalle.isNotEmpty()) Text(r.detalle, style = ActaType.Body.copy(color = Acta.Ink2))
+                            if (r.etiqueta.isNotEmpty()) Text(r.etiqueta, style = ActaType.Body.copy(color = Acta.Ink2))
+                            ActaButton("Revisar", onClick = { elegido = r.mda }, filled = true, height = 44.dp, modifier = Modifier.fillMaxWidth().padding(top = 6.dp))
+                        }
+                    }
+                    elegido?.let { mda ->
+                        var cambiado by remember(mda) { mutableStateOf(false) }
+                        var usado by remember(mda) { mutableStateOf(false) }
+                        var calibraste by remember(mda) { mutableStateOf(false) }
+                        var limpiaste by remember(mda) { mutableStateOf(false) }
+                        var variant by remember(mda) { mutableStateOf(false) }
+                        var pieza by remember(mda) { mutableStateOf(false) }
+                        var firmware by remember(mda) { mutableStateOf("") }
+                        var quien by remember(mda) { mutableStateOf(vm.quienRevisa()) }
+                        AlertDialog(
+                            onDismissRequest = { elegido = null },
+                            title = { Text("Revisar MDA $mda") },
+                            text = {
+                                Column(Modifier.verticalScroll(rememberScrollState())) {
+                                    Text("¿Quedó el mismo o lo cambiaste?", style = ActaType.Body)
+                                    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 6.dp)) {
+                                        ActaChip("Quedó el mismo", !cambiado, { cambiado = false })
+                                        ActaChip("Lo cambié", cambiado, { cambiado = true })
+                                    }
+                                    if (cambiado) androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
+                                        ActaChip("Nuevo", !usado, { usado = false })
+                                        ActaChip("Usado", usado, { usado = true })
+                                    }
+                                    Text("Qué se hizo", style = ActaType.Body, modifier = Modifier.padding(top = 12.dp))
+                                    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 6.dp)) {
+                                        ActaChip("Calibré", calibraste, { calibraste = !calibraste })
+                                        ActaChip("Limpié", limpiaste, { limpiaste = !limpiaste })
+                                        ActaChip("Actualicé variant", variant, { variant = !variant })
+                                        ActaChip("Cambié una pieza", pieza, { pieza = !pieza })
+                                    }
+                                    OutlinedTextField(
+                                        value = firmware, onValueChange = { firmware = it.take(30) }, singleLine = true, label = { Text("Firmware (si lo cambiaste o actualizaste)") },
+                                        modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
+                                    )
+                                    OutlinedTextField(
+                                        value = quien, onValueChange = { quien = it.take(40) }, singleLine = true, label = { Text("Quién revisó") },
+                                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                                    )
+                                }
+                            },
+                            confirmButton = {
+                                ActaButton(
+                                    "Guardar", onClick = { vm.revisarBilletero(mda, RevDatos(quien, cambiado, usado, calibraste, limpiaste, variant, pieza, firmware)); elegido = null },
+                                    filled = true, enabled = quien.isNotBlank(), height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)
+                                )
+                            },
+                            dismissButton = { ActaButton("Cancelar", onClick = { elegido = null }, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) }
+                        )
+                    }
                 }
 
                 PrefGroup("Etiquetas de intercambio") {

@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.2.7" to listOf(
+            "Billeteros por revisar: las listas A/B/C de REACBILL («Enviar a Billeteros») llegan por los datos compartidos. En Preferencias → Billeteros por revisar aparecen con «Revisar»: ¿quedó el mismo o lo cambiaste (nuevo/usado)?, qué se hizo (calibré, limpié, variant, pieza), firmware y quién revisó. Al guardar, la Bitácora lo agrega al historial del billetero y lo saca de sus pendientes.",
+        ),
         "2.2.6" to listOf(
             "Reporte semanal automático: BILLMON ahora entiende el reporte que REACBILL publica en los datos compartidos (mismo formato del archivo exportado, versiones 1 y 2). Llega solo al sincronizar; ya no hace falta importar el archivo.",
         ),

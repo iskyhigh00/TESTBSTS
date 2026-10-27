@@ -12,6 +12,7 @@ data class NubeUi(
 class Nube(context: Context, private val mda: MdaStore, private val store: AccountingStore) {
     private val prefs = context.getSharedPreferences("nube", Context.MODE_PRIVATE)
     val etq = EtqStore(context)
+    val rev = RevStore(context)
 
     val disponible: Boolean get() = BuildConfig.SUPA_URL.isNotEmpty() && BuildConfig.SUPA_KEY.isNotEmpty()
     val email: String get() = prefs.getString("email", "") ?: ""
@@ -52,9 +53,11 @@ class Nube(context: Context, private val mda: MdaStore, private val store: Accou
     private fun localSemanal(): Local? = mda.weekly()?.let { Local(mda.weeklyTs(), JSONObject().put("w", it.toJson())) }
 
     private fun localEtq(id: String): Local? = etq.valor(id)?.let { Local(etq.ts(id), it) }
+    private fun localRev(m: String): Local? = rev.valor(m)?.let { Local(rev.ts(m), it) }
 
     private fun local(clave: String): Local? = when {
         clave.startsWith("etq:") -> localEtq(clave.removePrefix("etq:"))
+        clave.startsWith("rev:") -> localRev(clave.removePrefix("rev:"))
         clave.startsWith("mda:") -> localMda(clave.removePrefix("mda:"))
         clave.startsWith("info:") -> localInfo(clave.removePrefix("info:"))
         clave.startsWith("ifaz:") -> localIfaz(clave.removePrefix("ifaz:"))
@@ -97,6 +100,11 @@ class Nube(context: Context, private val mda: MdaStore, private val store: Accou
                     val id = k.removePrefix("etq:"); if (id.isBlank()) return false
                     if (f.ts <= etq.ts(id)) return false
                     etq.put(id, f.valor, f.ts)
+                }
+                k.startsWith("rev:") -> {
+                    val m = k.removePrefix("rev:"); if (m.isBlank()) return false
+                    if (f.ts <= rev.ts(m)) return false
+                    rev.put(m, f.valor, f.ts)
                 }
                 k == "semanal" -> {
                     if (f.ts <= mda.weeklyTs()) return false
@@ -167,6 +175,7 @@ class Nube(context: Context, private val mda: MdaStore, private val store: Accou
         mda.ifazSeries().filter { serieOk(it) }.forEach { claves.add("ifaz:$it") }
         claves.add("semanal")
         etq.ids().forEach { claves.add("etq:$it") }
+        rev.ids().forEach { claves.add("rev:$it") }
         val cambiadas = ArrayList<FilaNube>(); val digests = HashMap<String, String>()
         for (k in claves) {
             val l = local(k) ?: continue

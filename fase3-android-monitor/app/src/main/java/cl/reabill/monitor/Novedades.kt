@@ -2,6 +2,10 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.2.8" to listOf(
+            "«Ver máquinas»: las que están en la lista de billeteros por revisar de la Bitácora se marcan «POR REVISAR» (con su lista) y salen primero; hay un filtro «Por revisar» y el aviso de las que no tienen billetero asociado.",
+            "Lo que manda la Bitácora se baja solo cada vez que se abre la app y al abrir «Ver máquinas».",
+        ),
         "2.2.7" to listOf(
             "Billeteros por revisar: las listas A/B/C de REACBILL («Enviar a Billeteros») llegan por los datos compartidos. En Preferencias → Billeteros por revisar aparecen con «Revisar»: ¿quedó el mismo o lo cambiaste (nuevo/usado)?, qué se hizo (calibré, limpié, variant, pieza), firmware y quién revisó. Al guardar, la Bitácora lo agrega al historial del billetero y lo saca de sus pendientes.",
         ),

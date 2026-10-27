@@ -29,7 +29,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cl.reabill.monitor.ui.screens.ActaApp
 import cl.reabill.monitor.ui.theme.Acta
 
-const val APP_VERSION = "2.2.7"
+const val APP_VERSION = "2.2.8"
 
 class MainActivity : ComponentActivity() {
     private val vm: MonitorViewModel by viewModels()
@@ -81,6 +81,8 @@ class MainActivity : ComponentActivity() {
         }, Context.RECEIVER_NOT_EXPORTED)
 
         vm.refreshConnection()
+
+        vm.sincronizarAhora(false)
     }
 
     override fun onStop() {

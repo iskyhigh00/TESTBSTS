@@ -86,6 +86,7 @@ import cl.reabill.monitor.FirmwareFile
 import cl.reabill.monitor.MonitorViewModel
 import cl.reabill.monitor.ui.Phase
 import cl.reabill.monitor.ui.components.ActaButton
+import cl.reabill.monitor.ui.components.ActaChip
 import cl.reabill.monitor.ui.components.ActivityRule
 import cl.reabill.monitor.ui.components.CountText
 import cl.reabill.monitor.ui.components.GearButton
@@ -150,6 +151,8 @@ fun ActaApp(vm: MonitorViewModel) {
     var ifazSel by remember { mutableStateOf<Int?>(null) }
     val ifaz by vm.ifaz.collectAsStateWithLifecycle()
     var filtroLista by remember { mutableStateOf("") }
+    var soloRevisar by remember { mutableStateOf(false) }
+    val revPend by vm.revPendientes.collectAsStateWithLifecycle()
     var buscarTexto by remember { mutableStateOf("") }
     var buscandoFoto by remember { mutableStateOf(false) }
     val ocr by vm.ocr.collectAsStateWithLifecycle()
@@ -347,8 +350,14 @@ fun ActaApp(vm: MonitorViewModel) {
 
     if (showLista) {
         val filas = remember(mdaMap, showLista) { vm.listaMaquinas() }
+
+        LaunchedEffect(showLista) { vm.sincronizarAhora(false) }
+        val porMda = revPend.associateBy { it.mda }
+        val nRevisar = filas.count { it.mda in porMda }
         val f = filtroLista.trim()
-        val vistas = if (f.isEmpty()) filas else filas.filter { it.mda.contains(f) || it.serie.contains(f, ignoreCase = true) }
+        val vistas = (if (f.isEmpty()) filas else filas.filter { it.mda.contains(f) || it.serie.contains(f, ignoreCase = true) })
+            .filter { !soloRevisar || it.mda in porMda }
+            .sortedByDescending { it.mda in porMda }
         AlertDialog(
             onDismissRequest = { showLista = false },
             title = { Text("Máquinas (${filas.size})") },
@@ -358,6 +367,13 @@ fun ActaApp(vm: MonitorViewModel) {
                         value = filtroLista, onValueChange = { filtroLista = it.take(16) }, singleLine = true,
                         label = { Text("Filtrar por MDA o serie") }, modifier = Modifier.fillMaxWidth()
                     )
+                    if (revPend.isNotEmpty()) {
+                        Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            ActaChip("Por revisar ($nRevisar)", soloRevisar, { soloRevisar = !soloRevisar })
+                            val sinBilletero = revPend.size - nRevisar
+                            if (sinBilletero > 0) Text("+$sinBilletero sin billetero asociado", style = ActaType.Label)
+                        }
+                    }
                     if (filas.isEmpty()) {
                         Text("Aún no hay máquinas asociadas a un billetero.", style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(top = 14.dp))
                     } else if (vistas.isEmpty()) {
@@ -374,6 +390,12 @@ fun ActaApp(vm: MonitorViewModel) {
                                 Column(Modifier.weight(1.3f)) {
                                     Text(r.mda, style = ActaType.Serial)
                                     Text(r.serie, style = ActaType.Tiny)
+                                    porMda[r.mda]?.let { rv ->
+                                        Text(
+                                            "POR REVISAR" + rv.etiqueta.takeIf { it.isNotBlank() }?.let { " · $it" }.orEmpty(),
+                                            style = ActaType.Tiny.copy(color = Acta.Accent, fontWeight = FontWeight.Bold), modifier = Modifier.padding(top = 2.dp), maxLines = 1
+                                        )
+                                    }
                                 }
                                 Column(Modifier.weight(1f)) {
                                     Text("AR", style = ActaType.Label.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Acta.Ink))
@@ -658,7 +680,7 @@ fun ActaApp(vm: MonitorViewModel) {
                             modifier = Modifier.weight(1f)
                         )
                         ActaButton(
-                            "Ver máquinas", onClick = { filtroLista = ""; showLista = true },
+                            "Ver máquinas", onClick = { filtroLista = ""; soloRevisar = false; showLista = true },
                             modifier = Modifier.weight(1f)
                         )
                     }

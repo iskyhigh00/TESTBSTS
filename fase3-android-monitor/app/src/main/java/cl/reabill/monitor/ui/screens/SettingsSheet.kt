@@ -244,7 +244,7 @@ internal fun SettingsSheet(
                                     androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 6.dp)) {
                                         ActaChip("Calibré", calibraste, { calibraste = !calibraste })
                                         ActaChip("Limpié", limpiaste, { limpiaste = !limpiaste })
-                                        ActaChip("Actualicé variant", variant, { variant = !variant })
+                                        ActaChip("Actualicé el bill-set (variant)", variant, { variant = !variant })
                                         ActaChip("Cambié una pieza", pieza, { pieza = !pieza })
                                     }
                                     Text("Modelo del billetero", style = ActaType.Body, modifier = Modifier.padding(top = 12.dp))
@@ -253,7 +253,7 @@ internal fun SettingsSheet(
                                         ActaChip("Advance", modelo == "Advance", { modelo = if (modelo == "Advance") "" else "Advance" })
                                     }
                                     OutlinedTextField(
-                                        value = firmware, onValueChange = { firmware = it.take(30); if (Regex("^\\s*255(\\D|$)").containsMatchIn(it)) modelo = "Cashflow" }, singleLine = true, label = { Text("Firmware (si lo cambiaste o actualizaste)") },
+                                        value = firmware, onValueChange = { firmware = it.take(30); if (Regex("^\\s*255(\\D|$)").containsMatchIn(it)) modelo = "Cashflow" }, singleLine = true, label = { Text("Bill-set 255 o 403 (si lo cambiaste o actualizaste)") },
                                         modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
                                     )
                                     OutlinedTextField(

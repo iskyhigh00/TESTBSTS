@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.3.3" to listOf(
+            "Nombres unificados: el archivo que dice qué billetes reconoce el equipo (255 en Cashflow, 403 en Advance) se llama «bill-set (variant)»; «firmware» queda solo para el programa del equipo. Se cambiaron los textos de «Revisar billetero» y de la identidad del equipo.",
+        ),
         "2.3.2" to listOf(
             "Billeteros por revisar: ahora se elige el modelo del billetero (Cashflow o Advance). Viene marcado si la lista de REACBILL ya lo traía o si BILLMON ya conoce esa máquina como SC Advance, y si el firmware empieza con 255 queda en Cashflow (un 255 no se carga a un Advance). La Bitácora lo anota como modelo del billetero.",
         ),

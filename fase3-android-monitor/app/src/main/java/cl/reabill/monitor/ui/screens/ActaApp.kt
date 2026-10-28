@@ -279,8 +279,8 @@ fun ActaApp(vm: MonitorViewModel) {
                         listOfNotNull(
                             "Serie" to status.serial,
                             status.model.takeIf { it.isNotBlank() && it != "—" }?.let { "Modelo" to it },
-                            status.firmwareApp.takeIf { it.isNotBlank() && it != "—" }?.let { "Firmware" to it },
-                            status.billSet.takeIf { it.isNotBlank() && it != "—" }?.let { "Bill-set" to it },
+                            status.firmwareApp.takeIf { it.isNotBlank() && it != "—" }?.let { "Firmware (programa)" to it },
+                            status.billSet.takeIf { it.isNotBlank() && it != "—" }?.let { "Bill-set (variant)" to it },
                             mdaMap[status.serial]?.let { "MDA" to it },
                             "Interfaz actual" to "${cl.reabill.monitor.Interfaz.nombre(actual)}${actual?.let { " (valor $it)" } ?: ""}",
                             reg?.habitual?.let { "Habitual" to cl.reabill.monitor.Interfaz.nombre(it) },
@@ -500,8 +500,8 @@ fun ActaApp(vm: MonitorViewModel) {
                                 listOfNotNull(
                                     "Serie" to h.serie,
                                     h.info?.modelo?.takeIf { it.isNotBlank() }?.let { "Modelo" to it },
-                                    h.info?.firmware?.takeIf { it.isNotBlank() }?.let { "Firmware" to it },
-                                    h.info?.billSet?.takeIf { it.isNotBlank() }?.let { "Bill-set" to it }
+                                    h.info?.firmware?.takeIf { it.isNotBlank() }?.let { "Firmware (programa)" to it },
+                                    h.info?.billSet?.takeIf { it.isNotBlank() }?.let { "Bill-set (variant)" to it }
                                 ),
                                 Modifier.padding(top = 8.dp)
                             )

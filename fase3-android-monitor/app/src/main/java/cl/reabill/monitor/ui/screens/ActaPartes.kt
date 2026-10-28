@@ -356,7 +356,7 @@ internal fun IdentityBlock(
     Hairline(Modifier.padding(horizontal = Gutter), Acta.Ink)
     Row(Modifier.padding(horizontal = Gutter).height(IntrinsicSize.Min)) {
         Column(Modifier.weight(1f).padding(top = 8.dp, bottom = 10.dp)) {
-            Text("Bill-set", style = ActaType.Label.copy(fontSize = 11.sp))
+            Text("Bill-set (variant)", style = ActaType.Label.copy(fontSize = 11.sp))
             if (billSet.isPlaceholder() && phase.isBusy) PendingText("——", ActaType.BillSet)
             else ResolveText(billSet, ActaType.BillSet)
         }

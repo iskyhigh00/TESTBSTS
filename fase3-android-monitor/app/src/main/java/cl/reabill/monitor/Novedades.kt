@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.3.4" to listOf(
+            "«Buscar máquina» abierto desde «Ver máquinas»: al cerrarlo (botón Cerrar, atrás o tocar fuera) se vuelve a la lista, con su filtro, en vez de cerrar todo.",
+        ),
         "2.3.3" to listOf(
             "Nombres unificados: el archivo que dice qué billetes reconoce el equipo (255 en Cashflow, 403 en Advance) se llama «bill-set (variant)»; «firmware» queda solo para el programa del equipo. Se cambiaron los textos de «Revisar billetero» y de la identidad del equipo.",
         ),

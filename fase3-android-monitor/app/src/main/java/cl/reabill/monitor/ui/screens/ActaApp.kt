@@ -145,6 +145,7 @@ fun ActaApp(vm: MonitorViewModel) {
     var showMda by remember { mutableStateOf(false) }
     var mdaTexto by remember { mutableStateOf("") }
     var showBuscar by remember { mutableStateOf(false) }
+    var buscarVieneDeLista by remember { mutableStateOf(false) }
     var showLista by remember { mutableStateOf(false) }
     var showCambios by remember { mutableStateOf(false) }
     var showIfaz by remember { mutableStateOf(false) }
@@ -383,7 +384,7 @@ fun ActaApp(vm: MonitorViewModel) {
                             Text("POR REVISAR (${pendientes.map { it.first.mda }.toSet().size})", style = ActaType.Label.copy(color = Acta.Accent, fontWeight = FontWeight.Bold), modifier = Modifier.padding(top = 4.dp, bottom = 2.dp))
                             pendientes.forEach { (rv, r) ->
                                 Hairline()
-                                if (r != null) FilaMaquina(r, rv, weekly?.pct(r.mda)) { buscarTexto = r.mda; showLista = false; showBuscar = true }
+                                if (r != null) FilaMaquina(r, rv, weekly?.pct(r.mda)) { buscarTexto = r.mda; showLista = false; buscarVieneDeLista = true; showBuscar = true }
                                 else FilaPendienteSinBilletero(rv, weekly?.pct(rv.mda))
                             }
                         }
@@ -391,7 +392,7 @@ fun ActaApp(vm: MonitorViewModel) {
                             if (pendientes.isNotEmpty()) Text("TODAS LAS DEMÁS", style = ActaType.Label.copy(fontWeight = FontWeight.Bold), modifier = Modifier.padding(top = 14.dp, bottom = 2.dp))
                             resto.forEach { r ->
                                 Hairline()
-                                FilaMaquina(r, null, weekly?.pct(r.mda)) { buscarTexto = r.mda; showLista = false; showBuscar = true }
+                                FilaMaquina(r, null, weekly?.pct(r.mda)) { buscarTexto = r.mda; showLista = false; buscarVieneDeLista = true; showBuscar = true }
                             }
                         }
                         if (pendientes.isNotEmpty() || resto.isNotEmpty()) Hairline()
@@ -409,7 +410,7 @@ fun ActaApp(vm: MonitorViewModel) {
         val sistema = if (n != null && buscarTexto.filter { it.isDigit() }.length >= 3) weekly?.pct(n) else null
         val colorAs = Acta.Sistema
         AlertDialog(
-            onDismissRequest = { showBuscar = false; vm.clearOcr() },
+            onDismissRequest = { showBuscar = false; vm.clearOcr(); if (buscarVieneDeLista) { buscarVieneDeLista = false; showLista = true } },
             title = { Text("Buscar máquina") },
             text = {
                 Column(Modifier.verticalScroll(rememberScrollState())) {
@@ -509,7 +510,7 @@ fun ActaApp(vm: MonitorViewModel) {
                     }
                 }
             },
-            confirmButton = { ActaButton("Cerrar", onClick = { showBuscar = false; vm.clearOcr() }, filled = true, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) }
+            confirmButton = { ActaButton("Cerrar", onClick = { showBuscar = false; vm.clearOcr(); if (buscarVieneDeLista) { buscarVieneDeLista = false; showLista = true } }, filled = true, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) }
         )
     }
 
@@ -663,7 +664,7 @@ fun ActaApp(vm: MonitorViewModel) {
                     }
                     Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         ActaButton(
-                            "Buscar máquina", onClick = { buscarTexto = ""; vm.clearOcr(); showBuscar = true },
+                            "Buscar máquina", onClick = { buscarTexto = ""; vm.clearOcr(); buscarVieneDeLista = false; showBuscar = true },
                             modifier = Modifier.weight(1f)
                         )
                         ActaButton(

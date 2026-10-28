@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.3.5" to listOf(
+            "«Ver máquinas»: la lista POR REVISAR se puede ordenar por isla (numérico), por sector (primer dígito de la isla, con un encabezado por sector y su cantidad) o por MDA.",
+        ),
         "2.3.4" to listOf(
             "«Buscar máquina» abierto desde «Ver máquinas»: al cerrarlo (botón Cerrar, atrás o tocar fuera) se vuelve a la lista, con su filtro, en vez de cerrar todo.",
         ),

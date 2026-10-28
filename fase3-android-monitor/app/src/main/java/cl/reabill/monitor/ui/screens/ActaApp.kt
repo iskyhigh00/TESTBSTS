@@ -153,6 +153,7 @@ fun ActaApp(vm: MonitorViewModel) {
     val ifaz by vm.ifaz.collectAsStateWithLifecycle()
     var filtroLista by remember { mutableStateOf("") }
     var soloRevisar by remember { mutableStateOf(false) }
+    var ordenLista by remember { mutableStateOf(0) }
     val revPend by vm.revPendientes.collectAsStateWithLifecycle()
     var buscarTexto by remember { mutableStateOf("") }
     var buscandoFoto by remember { mutableStateOf(false) }
@@ -361,6 +362,15 @@ fun ActaApp(vm: MonitorViewModel) {
             val propias = filas.filter { it.mda == rv.mda }
             if (propias.isEmpty()) listOf(rv to null) else propias.map { rv to it }
         }.filter { (rv, r) -> coincide(rv.mda, r?.serie ?: "") }
+
+        fun sectorDe(rv: cl.reabill.monitor.Rev) = rv.isla.trim().firstOrNull()?.takeIf { it.isDigit() }?.toString() ?: ""
+        fun numIsla(rv: cl.reabill.monitor.Rev) = rv.isla.trim().toLongOrNull() ?: Long.MAX_VALUE
+        val pendOrdenados = when (ordenLista) {
+            2 -> pendientes.sortedBy { it.first.mda }
+            1 -> pendientes.sortedWith(compareBy({ sectorDe(it.first).ifEmpty { "~" } }, { numIsla(it.first) }, { it.first.mda }))
+            else -> pendientes.sortedWith(compareBy({ numIsla(it.first) }, { it.first.isla }, { it.first.mda }))
+        }
+        val porSector = pendOrdenados.groupBy { sectorDe(it.first) }.mapValues { e -> e.value.map { it.first.mda }.toSet().size }
         val resto = if (soloRevisar) emptyList() else filas.filter { it.mda !in porMda && coincide(it.mda, it.serie) }
         AlertDialog(
             onDismissRequest = { showLista = false },
@@ -372,7 +382,14 @@ fun ActaApp(vm: MonitorViewModel) {
                         label = { Text("Filtrar por MDA o serie") }, modifier = Modifier.fillMaxWidth()
                     )
                     if (revPend.isNotEmpty()) {
-                        ActaChip("Solo por revisar (${revPend.size})", soloRevisar, { soloRevisar = !soloRevisar }, Modifier.padding(top = 8.dp))
+                        androidx.compose.foundation.layout.FlowRow(
+                            Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            ActaChip("Solo por revisar (${revPend.size})", soloRevisar, { soloRevisar = !soloRevisar })
+                            ActaChip("Por isla", ordenLista == 0, { ordenLista = 0 })
+                            ActaChip("Por sector", ordenLista == 1, { ordenLista = 1 })
+                            ActaChip("Por MDA", ordenLista == 2, { ordenLista = 2 })
+                        }
                     }
                     if (filas.isEmpty() && revPend.isEmpty()) {
                         Text("Aún no hay máquinas asociadas a un billetero.", style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(top = 14.dp))
@@ -382,7 +399,16 @@ fun ActaApp(vm: MonitorViewModel) {
                     Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()).padding(top = 8.dp)) {
                         if (pendientes.isNotEmpty()) {
                             Text("POR REVISAR (${pendientes.map { it.first.mda }.toSet().size})", style = ActaType.Label.copy(color = Acta.Accent, fontWeight = FontWeight.Bold), modifier = Modifier.padding(top = 4.dp, bottom = 2.dp))
-                            pendientes.forEach { (rv, r) ->
+                            var sectorAnterior: String? = null
+                            pendOrdenados.forEach { (rv, r) ->
+                                if (ordenLista == 1 && sectorDe(rv) != sectorAnterior) {
+                                    sectorAnterior = sectorDe(rv)
+                                    val sec = sectorDe(rv)
+                                    Text(
+                                        (if (sec.isEmpty()) "SIN ISLA" else "SECTOR $sec") + " · ${porSector[sec] ?: 0}",
+                                        style = ActaType.Label.copy(fontWeight = FontWeight.Bold), modifier = Modifier.padding(top = 12.dp, bottom = 2.dp)
+                                    )
+                                }
                                 Hairline()
                                 if (r != null) FilaMaquina(r, rv, weekly?.pct(r.mda)) { buscarTexto = r.mda; showLista = false; buscarVieneDeLista = true; showBuscar = true }
                                 else FilaPendienteSinBilletero(rv, weekly?.pct(rv.mda))

@@ -284,7 +284,22 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         _nube.value = NubeUi(nube.disponible, nube.email, nube.ultima, trabajando, mensaje)
     }
 
+    private val cfgStore = CfgStore(app.applicationContext)
+
+    private fun publicarConfig() {
+        val v = org.json.JSONObject().put("etq", etiquetas.compartida()).put("tema", if (cl.reabill.monitor.ui.theme.Acta.premium) "premium" else "clasico")
+        if (cfgStore.actualizarSiCambio(v)) sincronizarPronto()
+    }
+
+    private fun aplicarConfig() {
+        val v = cfgStore.valor() ?: return
+        v.optJSONObject("etq")?.let { etiquetas.aplicarCompartida(it) }
+        val premium = v.optString("tema") == "premium"
+        if (v.has("tema") && premium != cl.reabill.monitor.ui.theme.Acta.premium) cl.reabill.monitor.ui.theme.Tema.guardar(getApplication(), premium)
+    }
+
     private fun refrescarDesdeNube() {
+        aplicarConfig()
         _etqPend.value = etqStore.pendientes()
         _revPend.value = revStore.pendientes()
         _mdaMap.value = mdaStore.all()
@@ -304,6 +319,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             val r = withContext(Dispatchers.IO) { nube.sincronizar() }
             if (r.huboCambios) refrescarDesdeNube()
+            if (r.ok && cfgStore.ts() == 0L) publicarConfig()
             if (r.ok) { if (manual || r.subidos > 0 || r.bajados > 0) addLog("Datos compartidos: ${r.mensaje}") }
             else addLog("Datos compartidos: ${r.mensaje}")
             nubeEstado(false, r.mensaje)
@@ -363,6 +379,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
             if (err == null) {
                 cl.reabill.monitor.ui.theme.Tema.guardar(getApplication(), premium)
                 addLog("Tema ${if (premium) "Premium" else "clásico"} activado.")
+                publicarConfig()
             }
             listo(err)
         }
@@ -1040,7 +1057,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         try { logWriter.submit {}.get(3, java.util.concurrent.TimeUnit.SECONDS) } catch (e: Exception) { aviso("vaciar registro", e) }
     }
 
-    private val etiquetas = Etiquetas(app.applicationContext, viewModelScope, { addLog(it) }) { labelData() }
+    private val etiquetas = Etiquetas(app.applicationContext, viewModelScope, { addLog(it) }, { publicarConfig() }) { labelData() }
     val print: StateFlow<PrintUi> get() = etiquetas.print
     val labelPrefs: StateFlow<LabelPrefs> get() = etiquetas.labelPrefs
     fun setLabelPrefs(p: LabelPrefs) = etiquetas.setLabelPrefs(p)

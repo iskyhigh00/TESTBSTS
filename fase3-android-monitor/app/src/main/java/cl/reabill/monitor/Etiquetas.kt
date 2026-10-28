@@ -30,6 +30,7 @@ class Etiquetas(
     context: Context,
     private val scope: CoroutineScope,
     private val log: (String) -> Unit,
+    private val alCambiar: () -> Unit,
     private val datos: () -> LabelData?
 ) {
     private val prefs = context.getSharedPreferences("etiquetas", android.content.Context.MODE_PRIVATE)
@@ -49,6 +50,32 @@ class Etiquetas(
     val labelPrefs: StateFlow<LabelPrefs> = _labelPrefs
 
     fun setLabelPrefs(p: LabelPrefs) {
+        guardar(p)
+        alCambiar()
+    }
+
+    fun compartida(): org.json.JSONObject {
+        val p = _labelPrefs.value
+        return org.json.JSONObject().put("mm", p.lengthMm).put("die", p.dieCut).put("rot", p.rotate).put("dens", p.density)
+            .put("copies", p.copies).put("conf", p.confirmed).put("campos", LabelFields.encode(p.fields)).put("align", p.align)
+            .put("compact", p.compact).put("scale", p.scale).put("vpos", p.vpos).put("dos", p.twoLines)
+            .put("nombres", LabelFields.encodeNames(p.names)).put("sal", p.salida)
+    }
+
+    fun aplicarCompartida(j: org.json.JSONObject) {
+        val a = _labelPrefs.value
+        guardar(a.copy(
+            lengthMm = j.optInt("mm", a.lengthMm), dieCut = j.optBoolean("die", a.dieCut), rotate = j.optBoolean("rot", a.rotate),
+            density = j.optInt("dens", a.density), copies = j.optInt("copies", a.copies).coerceIn(1, 10), confirmed = j.optBoolean("conf", a.confirmed),
+            fields = if (j.has("campos")) LabelFields.parse(j.optString("campos")) else a.fields,
+            align = j.optInt("align", a.align), compact = j.optBoolean("compact", a.compact), scale = LabelFit.snap(j.optInt("scale", a.scale)),
+            vpos = j.optInt("vpos", a.vpos), twoLines = j.optBoolean("dos", a.twoLines),
+            names = if (j.has("nombres")) LabelFields.parseNames(j.optString("nombres")) else a.names,
+            salida = j.optInt("sal", a.salida).coerceIn(8, 255)
+        ))
+    }
+
+    private fun guardar(p: LabelPrefs) {
         _labelPrefs.value = p
         prefs.edit().putInt("mm", p.lengthMm).putBoolean("die", p.dieCut).putBoolean("rot", p.rotate)
             .putInt("dens", p.density).putBoolean("conf", p.confirmed).putString("campos", LabelFields.encode(p.fields)).putInt("align", p.align).putBoolean("compact", p.compact)

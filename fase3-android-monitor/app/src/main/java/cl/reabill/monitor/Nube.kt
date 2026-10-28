@@ -13,6 +13,7 @@ class Nube(context: Context, private val mda: MdaStore, private val store: Accou
     private val prefs = context.getSharedPreferences("nube", Context.MODE_PRIVATE)
     val etq = EtqStore(context)
     val rev = RevStore(context)
+    val cfg = CfgStore(context)
 
     val disponible: Boolean get() = BuildConfig.SUPA_URL.isNotEmpty() && BuildConfig.SUPA_KEY.isNotEmpty()
     val email: String get() = prefs.getString("email", "") ?: ""
@@ -54,10 +55,12 @@ class Nube(context: Context, private val mda: MdaStore, private val store: Accou
     private fun localSemanal(): Local? = mda.weekly()?.let { Local(mda.weeklyTs(), JSONObject().put("w", it.toJson())) }
 
     private fun localEtq(id: String): Local? = etq.valor(id)?.let { Local(etq.ts(id), it) }
+    private fun localCfg(): Local? = cfg.valor()?.let { Local(cfg.ts(), it) }
     private fun localRev(m: String): Local? = rev.valor(m)?.let { Local(rev.ts(m), it) }
 
     private fun local(clave: String): Local? = when {
         clave.startsWith("etq:") -> localEtq(clave.removePrefix("etq:"))
+        clave == "cfg" -> localCfg()
         clave.startsWith("rev:") -> localRev(clave.removePrefix("rev:"))
         clave.startsWith("mda:") -> localMda(clave.removePrefix("mda:"))
         clave.startsWith("info:") -> localInfo(clave.removePrefix("info:"))
@@ -101,6 +104,10 @@ class Nube(context: Context, private val mda: MdaStore, private val store: Accou
                     val id = k.removePrefix("etq:"); if (id.isBlank()) return false
                     if (f.ts <= etq.ts(id)) return false
                     etq.put(id, f.valor, f.ts)
+                }
+                k == "cfg" -> {
+                    if (f.ts <= cfg.ts()) return false
+                    cfg.put(f.valor, f.ts)
                 }
                 k.startsWith("rev:") -> {
                     val m = k.removePrefix("rev:"); if (m.isBlank()) return false
@@ -194,6 +201,7 @@ class Nube(context: Context, private val mda: MdaStore, private val store: Accou
         mda.infoSeries().filter { serieOk(it) }.forEach { claves.add("info:$it") }
         mda.ifazSeries().filter { serieOk(it) }.forEach { claves.add("ifaz:$it") }
         claves.add("semanal")
+        claves.add("cfg")
         etq.ids().forEach { claves.add("etq:$it") }
         rev.ids().forEach { claves.add("rev:$it") }
         val cambiadas = ArrayList<FilaNube>(); val digests = HashMap<String, String>()

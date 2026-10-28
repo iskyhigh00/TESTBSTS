@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.3.6" to listOf(
+            "Configuración compartida: los ajustes de la etiqueta (largo, tamaño, datos, textos, posición, salida de cinta…) y el tema se sincronizan entre todos los teléfonos; el último cambio gana. Cada teléfono conserva su propia impresora, su cuenta y quién revisa.",
+        ),
         "2.3.5" to listOf(
             "«Ver máquinas»: la lista POR REVISAR se puede ordenar por isla (numérico), por sector (primer dígito de la isla, con un encabezado por sector y su cantidad) o por MDA.",
         ),

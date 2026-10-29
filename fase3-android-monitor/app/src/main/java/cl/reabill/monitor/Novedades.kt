@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.3.7" to listOf(
+            "«Buscar máquina» muestra el ÚLTIMO TRABAJO del billetero según el historial de la Bitácora: fecha, quién lo hizo y qué se hizo (cambiado, quedó el mismo, calibrado, limpiado…). Si la máquina no tiene revisiones en el historial, no aparece nada. Requiere que la Bitácora publique esos datos (ver docs/BITACORA-ULTIMO-TRABAJO.md).",
+        ),
         "2.3.6" to listOf(
             "Configuración compartida: los ajustes de la etiqueta (largo, tamaño, datos, textos, posición, salida de cinta…) y el tema se sincronizan entre todos los teléfonos; el último cambio gana. Cada teléfono conserva su propia impresora, su cuenta y quién revisa.",
         ),

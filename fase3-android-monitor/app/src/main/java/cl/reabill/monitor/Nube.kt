@@ -13,6 +13,7 @@ class Nube(context: Context, private val mda: MdaStore, private val store: Accou
     private val prefs = context.getSharedPreferences("nube", Context.MODE_PRIVATE)
     val etq = EtqStore(context)
     val rev = RevStore(context)
+    val trab = TrabStore(context)
     val cfg = CfgStore(context)
 
     val disponible: Boolean get() = BuildConfig.SUPA_URL.isNotEmpty() && BuildConfig.SUPA_KEY.isNotEmpty()
@@ -62,6 +63,7 @@ class Nube(context: Context, private val mda: MdaStore, private val store: Accou
         clave.startsWith("etq:") -> localEtq(clave.removePrefix("etq:"))
         clave == "cfg" -> localCfg()
         clave.startsWith("rev:") -> localRev(clave.removePrefix("rev:"))
+        clave.startsWith("trab:") -> trab.valor(clave.removePrefix("trab:"))?.let { Local(trab.ts(clave.removePrefix("trab:")), it) }
         clave.startsWith("mda:") -> localMda(clave.removePrefix("mda:"))
         clave.startsWith("info:") -> localInfo(clave.removePrefix("info:"))
         clave.startsWith("ifaz:") -> localIfaz(clave.removePrefix("ifaz:"))
@@ -113,6 +115,11 @@ class Nube(context: Context, private val mda: MdaStore, private val store: Accou
                     val m = k.removePrefix("rev:"); if (m.isBlank()) return false
                     if (f.ts <= rev.ts(m)) return false
                     rev.put(m, f.valor, f.ts)
+                }
+                k.startsWith("trab:") -> {
+                    val m = k.removePrefix("trab:"); if (m.isBlank()) return false
+                    if (f.ts <= trab.ts(m)) return false
+                    trab.put(m, f.valor, f.ts)
                 }
                 k == "semanal" -> {
                     if (f.ts <= mda.weeklyTs()) return false
@@ -166,7 +173,7 @@ class Nube(context: Context, private val mda: MdaStore, private val store: Accou
     private fun quitarBorradas(c: NubeHttp): Boolean {
         var cambio = false
         val enNube = HashMap<String, Set<String>>()
-        for (pref in listOf("rev:", "etq:")) enNube[pref] = c.claves(pref)
+        for (pref in listOf("rev:", "etq:", "trab:")) enNube[pref] = c.claves(pref)
         fun revisar(pref: String, ids: Set<String>, quitar: (String) -> Unit) {
             for (id in ids) {
                 val k = pref + id
@@ -177,6 +184,7 @@ class Nube(context: Context, private val mda: MdaStore, private val store: Accou
         }
         revisar("rev:", rev.ids(), rev::quitar)
         revisar("etq:", etq.ids(), etq::quitar)
+        revisar("trab:", trab.ids(), trab::quitar)
         return cambio
     }
 

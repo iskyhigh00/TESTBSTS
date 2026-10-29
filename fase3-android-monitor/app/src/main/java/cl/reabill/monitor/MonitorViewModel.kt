@@ -253,6 +253,12 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     val etqPendientes: StateFlow<List<Etq>> = _etqPend
 
     private val revStore = RevStore(app.applicationContext)
+
+    private val trabStore = TrabStore(app.applicationContext)
+    private val _trabVersion = MutableStateFlow(0)
+
+    val trabVersion: StateFlow<Int> = _trabVersion
+    fun ultimoTrabajo(mda: String): Trab? = trabStore.leer(mda)
     private val _revPend = MutableStateFlow(revStore.pendientes())
     val revPendientes: StateFlow<List<Rev>> = _revPend
     fun quienRevisa(): String = revStore.quien()
@@ -300,6 +306,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun refrescarDesdeNube() {
         aplicarConfig()
+        _trabVersion.value++
         _etqPend.value = etqStore.pendientes()
         _revPend.value = revStore.pendientes()
         _mdaMap.value = mdaStore.all()

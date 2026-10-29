@@ -435,6 +435,8 @@ fun ActaApp(vm: MonitorViewModel) {
         val n = nTodo?.takeIf { cl.reabill.monitor.Mda.valido(it) }
         val sistema = if (n != null && buscarTexto.filter { it.isDigit() }.length >= 3) weekly?.pct(n) else null
         val colorAs = Acta.Sistema
+        val trabVersion by vm.trabVersion.collectAsStateWithLifecycle()
+        val trabajo = if (n != null && buscarTexto.filter { it.isDigit() }.length >= 3) remember(n, trabVersion) { vm.ultimoTrabajo(n) } else null
         AlertDialog(
             onDismissRequest = { showBuscar = false; vm.clearOcr(); if (buscarVieneDeLista) { buscarVieneDeLista = false; showLista = true } },
             title = { Text("Buscar máquina") },
@@ -498,6 +500,16 @@ fun ActaApp(vm: MonitorViewModel) {
                                 style = ActaType.Tiny, modifier = Modifier.weight(1f)
                             )
                             Text(weekly?.let { "semana ${it.fecha.ifEmpty { "sin fecha" }}" } ?: "sin reporte", style = ActaType.Tiny, modifier = Modifier.weight(1f))
+                        }
+                        if (trabajo != null) {
+                            Hairline(Modifier.padding(top = 14.dp))
+                            Text("ÚLTIMO TRABAJO (Bitácora)", style = ActaType.Label.copy(fontWeight = FontWeight.Bold), modifier = Modifier.padding(top = 10.dp))
+                            Text(
+                                listOf(trabajo.fechaCorta, trabajo.quien).filter { it.isNotBlank() }.joinToString(" · ").ifEmpty { "sin fecha ni nombre" },
+                                style = ActaType.Cell, modifier = Modifier.padding(top = 2.dp)
+                            )
+                            Text(trabajo.que, style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(top = 2.dp))
+                            if (trabajo.total > 1) Text("${trabajo.total} revisiones en su historial", style = ActaType.Tiny, modifier = Modifier.padding(top = 2.dp))
                         }
                         hits.forEach { h ->
                             val l = h.lectura

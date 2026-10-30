@@ -156,6 +156,9 @@ fun ActaApp(vm: MonitorViewModel) {
     var ordenLista by remember { mutableStateOf(0) }
     val revPend by vm.revPendientes.collectAsStateWithLifecycle()
     var buscarTexto by remember { mutableStateOf("") }
+    var revisando by remember { mutableStateOf<String?>(null) }
+    var showEtq by remember { mutableStateOf(false) }
+    val etqPend by vm.etqPendientes.collectAsStateWithLifecycle()
     var buscandoFoto by remember { mutableStateOf(false) }
     val ocr by vm.ocr.collectAsStateWithLifecycle()
     val testPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -171,8 +174,10 @@ fun ActaApp(vm: MonitorViewModel) {
         if (ocr.id > 0 && !ocr.running && !ocr.test) {
             if (buscandoFoto) {
                 buscandoFoto = false
-                ocr.candidates.firstOrNull()?.let { buscarTexto = it }
-                showBuscar = true
+                val c = ocr.candidates.firstOrNull()
+                filtroLista = c ?: ""
+                showLista = true
+                if (c != null) { buscarTexto = c; showLista = false; buscarVieneDeLista = true; showBuscar = true }
             } else {
                 if (ocr.candidates.isNotEmpty()) mdaTexto = ocr.candidates.first()
                 showMda = true
@@ -310,8 +315,7 @@ fun ActaApp(vm: MonitorViewModel) {
                         }
                     }
                     Text(
-                        "Se escribe solo el valor de la interfaz en la configuración del equipo y se vuelve a leer para verificar. " +
-                            "Stand-alone, Netplex o EBDS pueden dejar de responder por USB al reiniciar el equipo.",
+                        "Stand-alone, Netplex o EBDS pueden dejar de responder por USB al reiniciar el equipo.",
                         style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(top = 14.dp)
                     )
                 }
@@ -374,13 +378,21 @@ fun ActaApp(vm: MonitorViewModel) {
         val resto = if (soloRevisar) emptyList() else filas.filter { it.mda !in porMda && coincide(it.mda, it.serie) }
         AlertDialog(
             onDismissRequest = { showLista = false },
-            title = { Text("Máquinas (${filas.size})") },
+            title = { Text("Máquinas") },
             text = {
                 Column {
-                    OutlinedTextField(
-                        value = filtroLista, onValueChange = { filtroLista = it.take(16) }, singleLine = true,
-                        label = { Text("Filtrar por MDA o serie") }, modifier = Modifier.fillMaxWidth()
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        OutlinedTextField(
+                            value = filtroLista, onValueChange = { filtroLista = it.take(16) }, singleLine = true,
+                            label = { Text("MDA o serie") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.weight(1f)
+                        )
+                        ActaButton(
+                            if (ocr.running) "Leyendo…" else "Foto", onClick = { showLista = false; lanzarFoto(); buscandoFoto = true },
+                            enabled = !ocr.running, height = 52.dp, modifier = Modifier.padding(start = 8.dp).widthIn(min = 84.dp)
+                        )
+                    }
+                    if (ocr.message.isNotEmpty() && !ocr.running && !ocr.test && ocr.candidates.isEmpty()) Text(ocr.message, style = ActaType.Label, modifier = Modifier.padding(top = 6.dp))
                     if (revPend.isNotEmpty()) {
                         androidx.compose.foundation.layout.FlowRow(
                             Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -391,8 +403,13 @@ fun ActaApp(vm: MonitorViewModel) {
                             ActaChip("Por MDA", ordenLista == 2, { ordenLista = 2 })
                         }
                     }
-                    if (filas.isEmpty() && revPend.isEmpty()) {
-                        Text("Aún no hay máquinas asociadas a un billetero.", style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(top = 14.dp))
+
+                    val mdaEscrito = cl.reabill.monitor.Mda.norm(f)?.takeIf { cl.reabill.monitor.Mda.valido(it) && f.length >= 6 }
+                    val abrirEscrito = mdaEscrito != null && pendientes.none { it.first.mda == mdaEscrito } && resto.none { it.mda == mdaEscrito }
+                    if (abrirEscrito) {
+                        ActaButton("Ver MDA $mdaEscrito", onClick = { buscarTexto = mdaEscrito!!; showLista = false; buscarVieneDeLista = true; showBuscar = true }, height = 44.dp, modifier = Modifier.fillMaxWidth().padding(top = 10.dp))
+                    } else if (filas.isEmpty() && revPend.isEmpty()) {
+                        Text("Aún no hay máquinas. Conecta un billetero y anota su MDA.", style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(top = 14.dp))
                     } else if (pendientes.isEmpty() && resto.isEmpty()) {
                         Text("Sin resultados.", style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(top = 14.dp))
                     }
@@ -411,7 +428,7 @@ fun ActaApp(vm: MonitorViewModel) {
                                 }
                                 Hairline()
                                 if (r != null) FilaMaquina(r, rv, weekly?.pct(r.mda)) { buscarTexto = r.mda; showLista = false; buscarVieneDeLista = true; showBuscar = true }
-                                else FilaPendienteSinBilletero(rv, weekly?.pct(rv.mda))
+                                else FilaPendienteSinBilletero(rv, weekly?.pct(rv.mda)) { buscarTexto = rv.mda; showLista = false; buscarVieneDeLista = true; showBuscar = true }
                             }
                         }
                         if (resto.isNotEmpty()) {
@@ -430,7 +447,7 @@ fun ActaApp(vm: MonitorViewModel) {
     }
 
     if (showBuscar) {
-        val hits = if (buscarTexto.filter { it.isDigit() }.length >= 3) vm.buscarMda(buscarTexto) else emptyList()
+        val hits = remember(buscarTexto, mdaMap, history) { if (buscarTexto.filter { it.isDigit() }.length >= 3) vm.buscarMda(buscarTexto) else emptyList() }
         val nTodo = cl.reabill.monitor.Mda.norm(buscarTexto)
         val n = nTodo?.takeIf { cl.reabill.monitor.Mda.valido(it) }
         val sistema = if (n != null && buscarTexto.filter { it.isDigit() }.length >= 3) weekly?.pct(n) else null
@@ -439,36 +456,28 @@ fun ActaApp(vm: MonitorViewModel) {
         val trabajo = if (n != null && buscarTexto.filter { it.isDigit() }.length >= 3) remember(n, trabVersion) { vm.ultimoTrabajo(n) } else null
         AlertDialog(
             onDismissRequest = { showBuscar = false; vm.clearOcr(); if (buscarVieneDeLista) { buscarVieneDeLista = false; showLista = true } },
-            title = { Text("Buscar máquina") },
+            title = { Text("Máquina") },
             text = {
                 Column(Modifier.verticalScroll(rememberScrollState())) {
-                    OutlinedTextField(
-                        value = buscarTexto, onValueChange = { buscarTexto = it.filter { c -> c.isDigit() }.take(12) },
-                        singleLine = true, label = { Text("MDA") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.fillMaxWidth()
-                    )
+
                     if (ocr.candidates.size > 1) {
                         androidx.compose.foundation.layout.FlowRow(
-                            Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) { ocr.candidates.forEach { c -> cl.reabill.monitor.ui.components.ActaChip(c, buscarTexto == c, { buscarTexto = c }) } }
                     }
-                    ActaButton(
-                        "Tomar foto", height = 40.dp, modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                        onClick = { showBuscar = false; lanzarFoto(); buscandoFoto = true }
-                    )
                     if (n == null && buscarTexto.filter { it.isDigit() }.length >= 3) {
                         Text("Número de máquina no válido.", style = ActaType.Body.copy(color = Acta.Error), modifier = Modifier.padding(top = 14.dp))
                     }
                     if (n != null && buscarTexto.filter { it.isDigit() }.length >= 3) {
-                        Text("MDA", style = ActaType.Label.copy(fontWeight = FontWeight.Bold), modifier = Modifier.padding(top = 18.dp))
+                        Text("MDA", style = ActaType.Label.copy(fontWeight = FontWeight.Bold), modifier = Modifier.padding(top = 6.dp))
                         Text(n, style = ActaType.BillSet)
+                        val pend = revPend.firstOrNull { it.mda == n }
+                        if (pend != null) {
+                            Text("POR REVISAR" + pend.etiqueta.takeIf { it.isNotBlank() }?.let { " · $it" }.orEmpty(), style = ActaType.Label.copy(color = Acta.Accent, fontWeight = FontWeight.Bold), modifier = Modifier.padding(top = 4.dp))
+                            ActaButton("Revisar", onClick = { revisando = n }, filled = true, height = 44.dp, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
+                        }
                         if (hits.isEmpty()) {
-                            Text(
-                                "Ningún billetero revisado con esta app está asociado a esa máquina.",
-                                style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(top = 10.dp)
-                            )
+                            Text("Sin billetero leído en esta máquina.", style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(top = 10.dp))
                         }
                         val lecturaMax = hits.firstOrNull()?.lectura
                         Hairline(Modifier.padding(top = 14.dp), Acta.Ink)
@@ -689,10 +698,16 @@ fun ActaApp(vm: MonitorViewModel) {
                 if (history.isNotEmpty()) HistorySection(history, status.serial, onShowAll = { showHistory = true })
 
                 Column(Modifier.padding(horizontal = Gutter).padding(top = 16.dp)) {
+
+                    val pendAqui = mdaActual?.let { cl.reabill.monitor.Mda.norm(it) }?.let { m -> revPend.firstOrNull { it.mda == m } }
+                    if (connected && pendAqui != null) ActaButton(
+                        "Revisar MDA ${pendAqui.mda}", onClick = { revisando = pendAqui.mda }, filled = true,
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp)
+                    )
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         ActaButton(
                             if (printUi.printing) "Imprimiendo…" else "Imprimir etiqueta",
-                            onClick = printNow, filled = true,
+                            onClick = printNow, filled = pendAqui == null || !connected,
                             enabled = accounting != null && !printUi.printing, modifier = Modifier.weight(1f)
                         )
                         ActaButton(
@@ -700,16 +715,16 @@ fun ActaApp(vm: MonitorViewModel) {
                             enabled = connected && !busy, modifier = Modifier.weight(1f)
                         )
                     }
-                    Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        ActaButton(
-                            "Buscar máquina", onClick = { buscarTexto = ""; vm.clearOcr(); buscarVieneDeLista = false; showBuscar = true },
-                            modifier = Modifier.weight(1f)
-                        )
-                        ActaButton(
-                            "Ver máquinas", onClick = { filtroLista = ""; soloRevisar = false; showLista = true },
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
+                    ActaButton(
+                        "Máquinas", onClick = { filtroLista = ""; soloRevisar = false; vm.clearOcr(); showLista = true },
+                        modifier = Modifier.fillMaxWidth().padding(top = 10.dp)
+                    )
+                    TareasStrip(
+                        porRevisar = revPend.size, etiquetas = etqPend.size,
+                        onRevisar = { filtroLista = ""; soloRevisar = true; vm.clearOcr(); showLista = true },
+                        onEtiquetas = { showEtq = true },
+                        modifier = Modifier.padding(top = 10.dp)
+                    )
                     if (printUi.message.isNotEmpty()) {
                         Text(printUi.message, style = ActaType.Label, modifier = Modifier.padding(top = 8.dp))
                     }
@@ -728,6 +743,8 @@ fun ActaApp(vm: MonitorViewModel) {
             )
         }
 
+        revisando?.let { m -> RevisarDialog(vm, m, revPend.firstOrNull { it.mda == m }, onClose = { revisando = null }) }
+        if (showEtq) EtiquetasDialog(vm, onClose = { showEtq = false })
         if (showLabel) LabelSheet(vm, onClose = { showLabel = false })
         SettingsSheet(
             visible = showSettings, vm = vm, log = log, connected = connected, kind = kind,

@@ -2,6 +2,12 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.3.8" to listOf(
+            "Pantalla principal más simple: «Buscar máquina» y «Ver máquinas» ahora son un solo botón, «Máquinas» (lista, búsqueda y foto en el mismo lugar).",
+            "Lo que manda la Bitácora está a la vista sin entrar a Preferencias: «Por revisar (N)» y «Etiquetas (N)» aparecen cuando hay algo pendiente.",
+            "Si el billetero conectado está por revisar, aparece «Revisar MDA …» en la pantalla principal. Cada máquina de la lista también tiene su botón «Revisar».",
+            "Preferencias ordenadas por uso; más rápida la lista de máquinas y la sincronización.",
+        ),
         "2.3.7" to listOf(
             "«Buscar máquina» muestra el ÚLTIMO TRABAJO del billetero según el historial de la Bitácora: fecha, quién lo hizo y qué se hizo (cambiado, quedó el mismo, calibrado, limpiado…). Si la máquina no tiene revisiones en el historial, no aparece nada. Requiere que la Bitácora publique esos datos (ver docs/BITACORA-ULTIMO-TRABAJO.md).",
         ),

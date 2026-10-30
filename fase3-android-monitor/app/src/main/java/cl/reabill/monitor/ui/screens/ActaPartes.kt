@@ -175,7 +175,7 @@ internal fun Hero(
         phase == Phase.ReadingAccounting -> "Leyendo la contabilidad del equipo…"
         phase.isBusy -> "Identificando el equipo…"
         fault -> "El equipo no respondió."
-        else -> "Pulsa Leer para obtener la contabilidad."
+        else -> "Contabilidad sin leer."
     }
     val colorAs = Acta.Sistema
     Column(Modifier.padding(horizontal = Gutter).padding(top = 10.dp, bottom = 14.dp)) {
@@ -413,8 +413,8 @@ internal fun FilaMaquina(r: cl.reabill.monitor.MonitorViewModel.MdaFila, rv: cl.
 }
 
 @Composable
-internal fun FilaPendienteSinBilletero(rv: cl.reabill.monitor.Rev, sis: Double?) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
+internal fun FilaPendienteSinBilletero(rv: cl.reabill.monitor.Rev, sis: Double?, onClick: () -> Unit) {
+    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1.3f)) {
             Text(rv.mda, style = ActaType.Serial)
             Text("sin billetero en este teléfono", style = ActaType.Tiny)

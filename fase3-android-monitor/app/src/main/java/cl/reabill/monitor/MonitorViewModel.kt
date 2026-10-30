@@ -618,7 +618,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
             _status.value = DeviceStatus(state = "Desconectado")
             _accounting.value = null
             _history.value = emptyList()
-            addLog("Cable desconectado. Conecta el siguiente billetero y pulsa Conectar.")
+            addLog("Cable desconectado.")
         }
     }
 

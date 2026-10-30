@@ -54,7 +54,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
-import cl.reabill.monitor.RevDatos
 import cl.reabill.monitor.WeeklyData
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -131,21 +130,12 @@ internal fun SettingsSheet(
                 Text("Preferencias", style = ActaType.Title.copy(fontSize = 34.sp), modifier = Modifier.padding(top = 18.dp))
                 Text("BILLMON v$APP_VERSION", style = ActaType.Tiny, modifier = Modifier.padding(top = 2.dp, bottom = 8.dp))
 
-                PrefGroup("Actualización") {
-                    val msg by vm.updateMsg.collectAsStateWithLifecycle()
-                    val nueva by vm.updateVersion.collectAsStateWithLifecycle()
-                    val prog by vm.updateProgress.collectAsStateWithLifecycle()
-                    Text("Versión instalada: v$APP_VERSION", style = ActaType.Label, modifier = Modifier.padding(bottom = 4.dp))
-                    if (msg.isNotEmpty()) Text(msg, style = ActaType.Body, modifier = Modifier.padding(bottom = 8.dp))
-                    if (nueva != null) {
-                        if (prog == -2) {
-                            ActaButton("Actualizar a v$nueva", onClick = { vm.installUpdate() }, filled = true, height = 46.dp, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp))
-                        } else {
-                            Text(if (prog >= 0) "Descargando… $prog\u00A0%" else "Descargando…", style = ActaType.Label, modifier = Modifier.padding(bottom = 8.dp))
-                        }
-                    }
-                    ActaButton("Buscar actualización", onClick = { vm.checkForUpdate() }, height = 46.dp, modifier = Modifier.fillMaxWidth())
-                    ActaButton("Historial de versiones", onClick = onChangelog, height = 46.dp, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
+                PrefGroup("Impresora de etiquetas") {
+                    Text(
+                        if (prefs.lastName.isNotEmpty()) "Guardada: ${prefs.lastName}" else "Sin impresora guardada",
+                        style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    ActaButton("Configurar impresora y etiqueta", onClick = onLabelConfig, height = 46.dp, modifier = Modifier.fillMaxWidth())
                 }
 
                 PrefGroup("Datos compartidos") {
@@ -203,98 +193,31 @@ internal fun SettingsSheet(
                     )
                 }
 
-                PrefGroup("Billeteros por revisar") {
-                    val porRevisar by vm.revPendientes.collectAsStateWithLifecycle()
-                    var elegido by remember { mutableStateOf<String?>(null) }
-                    if (porRevisar.isEmpty()) Text("No hay billeteros pendientes. Llegan desde REACBILL con «Enviar a Billeteros».", style = ActaType.Body.copy(color = Acta.Ink2))
-                    porRevisar.forEach { r ->
-                        Column(Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
-                            Text("MDA ${r.mda}", style = ActaType.Section)
-                            if (r.detalle.isNotEmpty()) Text(r.detalle, style = ActaType.Body.copy(color = Acta.Ink2))
-                            if (r.etiqueta.isNotEmpty()) Text(r.etiqueta, style = ActaType.Body.copy(color = Acta.Ink2))
-                            ActaButton("Revisar", onClick = { elegido = r.mda }, filled = true, height = 44.dp, modifier = Modifier.fillMaxWidth().padding(top = 6.dp))
-                        }
-                    }
-                    elegido?.let { mda ->
-                        var cambiado by remember(mda) { mutableStateOf(false) }
-                        var usado by remember(mda) { mutableStateOf(false) }
-                        var calibraste by remember(mda) { mutableStateOf(false) }
-                        var limpiaste by remember(mda) { mutableStateOf(false) }
-                        var variant by remember(mda) { mutableStateOf(false) }
-                        var pieza by remember(mda) { mutableStateOf(false) }
-                        var firmware by remember(mda) { mutableStateOf("") }
-
-                        var modelo by remember(mda) { mutableStateOf(porRevisar.firstOrNull { it.mda == mda }?.modeloLista?.ifEmpty { vm.modeloDetectado(mda) } ?: vm.modeloDetectado(mda)) }
-                        var quien by remember(mda) { mutableStateOf(vm.quienRevisa()) }
-                        AlertDialog(
-                            onDismissRequest = { elegido = null },
-                            title = { Text("Revisar MDA $mda") },
-                            text = {
-                                Column(Modifier.verticalScroll(rememberScrollState())) {
-                                    Text("¿Quedó el mismo o lo cambiaste?", style = ActaType.Body)
-                                    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 6.dp)) {
-                                        ActaChip("Quedó el mismo", !cambiado, { cambiado = false })
-                                        ActaChip("Lo cambié", cambiado, { cambiado = true })
-                                    }
-                                    if (cambiado) androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
-                                        ActaChip("Nuevo", !usado, { usado = false })
-                                        ActaChip("Usado", usado, { usado = true })
-                                    }
-                                    Text("Qué se hizo", style = ActaType.Body, modifier = Modifier.padding(top = 12.dp))
-                                    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 6.dp)) {
-                                        ActaChip("Calibré", calibraste, { calibraste = !calibraste })
-                                        ActaChip("Limpié", limpiaste, { limpiaste = !limpiaste })
-                                        ActaChip("Actualicé el bill-set (variant)", variant, { variant = !variant })
-                                        ActaChip("Cambié una pieza", pieza, { pieza = !pieza })
-                                    }
-                                    Text("Modelo del billetero", style = ActaType.Body, modifier = Modifier.padding(top = 12.dp))
-                                    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 6.dp)) {
-                                        ActaChip("Cashflow", modelo == "Cashflow", { modelo = if (modelo == "Cashflow") "" else "Cashflow" })
-                                        ActaChip("Advance", modelo == "Advance", { modelo = if (modelo == "Advance") "" else "Advance" })
-                                    }
-                                    OutlinedTextField(
-                                        value = firmware, onValueChange = { firmware = it.take(30); if (Regex("^\\s*255(\\D|$)").containsMatchIn(it)) modelo = "Cashflow" }, singleLine = true, label = { Text("Bill-set 255 o 403 (si lo cambiaste o actualizaste)") },
-                                        modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
-                                    )
-                                    OutlinedTextField(
-                                        value = quien, onValueChange = { quien = it.take(40) }, singleLine = true, label = { Text("Quién revisó") },
-                                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
-                                    )
-                                }
-                            },
-                            confirmButton = {
-                                ActaButton(
-                                    "Guardar", onClick = { vm.revisarBilletero(mda, RevDatos(quien, cambiado, usado, calibraste, limpiaste, variant, pieza, firmware, modelo)); elegido = null },
-                                    filled = true, enabled = quien.isNotBlank(), height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)
-                                )
-                            },
-                            dismissButton = { ActaButton("Cancelar", onClick = { elegido = null }, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) }
-                        )
-                    }
+                PrefGroup("Reporte semanal del sistema") {
+                    val w by vm.weekly.collectAsStateWithLifecycle()
+                    Text(
+                        w?.let { "Semana ${it.fecha.ifEmpty { "sin fecha" }} · ${it.datos.size} máquinas" }
+                            ?: "Sin reporte importado",
+                        style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    ActaButton("Importar reporte semanal", onClick = onImportWeekly, height = 46.dp, modifier = Modifier.fillMaxWidth())
                 }
 
-                PrefGroup("Etiquetas de intercambio") {
-                    val pend by vm.etqPendientes.collectAsStateWithLifecycle()
-                    val imp by vm.print.collectAsStateWithLifecycle()
-                    if (pend.isEmpty()) Text("No hay etiquetas pendientes.", style = ActaType.Body.copy(color = Acta.Ink2))
-
-                    val hoy = remember { java.text.SimpleDateFormat("dd-MM-yyyy", java.util.Locale.US).format(java.util.Date()) }
-                    pend.forEach { e ->
-                        var fecha by remember(e.id) { mutableStateOf(hoy) }
-                        Column(Modifier.fillMaxWidth().padding(bottom = 14.dp)) {
-                            Text("${e.a} → ${e.b}", style = ActaType.Section)
-                            if (e.nota.isNotEmpty()) Text(e.nota, style = ActaType.Body.copy(color = Acta.Ink2))
-                            OutlinedTextField(
-                                value = fecha, onValueChange = { fecha = it.take(12) }, singleLine = true, label = { Text("Fecha en la etiqueta") },
-                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
-                            )
-                            ActaButton(
-                                if (imp.printing) "Imprimiendo…" else "Imprimir 2 etiquetas", onClick = { vm.imprimirIntercambio(e, fecha) },
-                                filled = true, enabled = !imp.printing, height = 46.dp, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
-                            )
+                PrefGroup("Actualización") {
+                    val msg by vm.updateMsg.collectAsStateWithLifecycle()
+                    val nueva by vm.updateVersion.collectAsStateWithLifecycle()
+                    val prog by vm.updateProgress.collectAsStateWithLifecycle()
+                    Text("Versión instalada: v$APP_VERSION", style = ActaType.Label, modifier = Modifier.padding(bottom = 4.dp))
+                    if (msg.isNotEmpty()) Text(msg, style = ActaType.Body, modifier = Modifier.padding(bottom = 8.dp))
+                    if (nueva != null) {
+                        if (prog == -2) {
+                            ActaButton("Actualizar a v$nueva", onClick = { vm.installUpdate() }, filled = true, height = 46.dp, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp))
+                        } else {
+                            Text(if (prog >= 0) "Descargando… $prog\u00A0%" else "Descargando…", style = ActaType.Label, modifier = Modifier.padding(bottom = 8.dp))
                         }
                     }
-                    if (imp.message.isNotEmpty() && pend.isNotEmpty()) Text(imp.message, style = ActaType.Body.copy(color = Acta.Ink2))
+                    ActaButton("Buscar actualización", onClick = { vm.checkForUpdate() }, height = 46.dp, modifier = Modifier.fillMaxWidth())
+                    ActaButton("Historial de versiones", onClick = onChangelog, height = 46.dp, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
                 }
 
                 PrefGroup("Tema") {
@@ -302,10 +225,6 @@ internal fun SettingsSheet(
                     var claveTema by remember { mutableStateOf("") }
                     var errorTema by remember { mutableStateOf("") }
                     var verificando by remember { mutableStateOf(false) }
-                    Text(
-                        "Solo el admin puede cambiarlo (pide la clave de la cuenta).",
-                        style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(bottom = 8.dp)
-                    )
                     androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         ActaChip("Clásico", !Acta.premium, { if (Acta.premium) { quiere = false; claveTema = ""; errorTema = "" } })
                         ActaChip("Premium", Acta.premium, { if (!Acta.premium) { quiere = true; claveTema = ""; errorTema = "" } })
@@ -340,26 +259,11 @@ internal fun SettingsSheet(
                     }
                 }
 
-                PrefGroup("Reporte semanal del sistema") {
-                    val w by vm.weekly.collectAsStateWithLifecycle()
-                    Text(
-                        w?.let { "Semana ${it.fecha.ifEmpty { "sin fecha" }} · ${it.datos.size} máquinas" }
-                            ?: "Sin reporte importado",
-                        style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(bottom = 8.dp)
-                    )
-                    ActaButton("Importar reporte semanal", onClick = onImportWeekly, height = 46.dp, modifier = Modifier.fillMaxWidth())
-                }
-
-                PrefGroup("Impresora de etiquetas") {
-                    Text(
-                        if (prefs.lastName.isNotEmpty()) "Guardada: ${prefs.lastName}" else "Sin impresora guardada",
-                        style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(bottom = 8.dp)
-                    )
-                    ActaButton("Configurar impresora y etiqueta", onClick = onLabelConfig, height = 46.dp, modifier = Modifier.fillMaxWidth())
-                }
-
-                PrefGroup("Lectura del N° de máquina") {
-                    ActaButton("Probar con una imagen", onClick = onTestOcr, height = 46.dp, modifier = Modifier.fillMaxWidth())
+                PrefGroup("Respaldo") {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        ActaButton("Exportar", onClick = onExport, height = 46.dp, modifier = Modifier.weight(1f))
+                        ActaButton("Importar", onClick = onImport, height = 46.dp, modifier = Modifier.weight(1f))
+                    }
                 }
 
                 PrefGroup("Modo demo") {
@@ -370,11 +274,8 @@ internal fun SettingsSheet(
                     )
                 }
 
-                PrefGroup("Respaldo") {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        ActaButton("Exportar", onClick = onExport, height = 46.dp, modifier = Modifier.weight(1f))
-                        ActaButton("Importar", onClick = onImport, height = 46.dp, modifier = Modifier.weight(1f))
-                    }
+                PrefGroup("Lectura del N° de máquina (foto)") {
+                    ActaButton("Probar con una imagen", onClick = onTestOcr, height = 46.dp, modifier = Modifier.fillMaxWidth())
                 }
 
                 PrefGroup("Registro") {

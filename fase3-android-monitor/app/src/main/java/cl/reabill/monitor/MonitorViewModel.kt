@@ -261,7 +261,9 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     fun ultimoTrabajo(mda: String): Trab? = trabStore.leer(mda)
     private val _revPend = MutableStateFlow(revStore.pendientes())
     val revPendientes: StateFlow<List<Rev>> = _revPend
-    fun quienRevisa(): String = revStore.quien()
+
+    fun nombreUsuario(): String? = nube.nombre
+    fun quienRevisa(): String = nube.nombre ?: revStore.quien()
 
     fun modeloDetectado(mda: String): String {
         val serie = mdaStore.all().entries.firstOrNull { it.value == mda }?.key ?: return ""
@@ -287,7 +289,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun nubeEstado(trabajando: Boolean = false, mensaje: String = _nube.value.mensaje) {
-        _nube.value = NubeUi(nube.disponible, nube.email, nube.ultima, trabajando, mensaje)
+        _nube.value = NubeUi(nube.disponible, nube.email, nube.ultima, trabajando, mensaje, nube.nombre.orEmpty())
     }
 
     private val cfgStore = CfgStore(app.applicationContext)
@@ -306,6 +308,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun refrescarDesdeNube() {
         aplicarConfig()
+        nubeEstado(_nube.value.trabajando)
         _trabVersion.value++
         _etqPend.value = etqStore.pendientes()
         _revPend.value = revStore.pendientes()

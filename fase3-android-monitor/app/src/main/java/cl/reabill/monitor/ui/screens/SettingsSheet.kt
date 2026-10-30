@@ -146,12 +146,13 @@ internal fun SettingsSheet(
                     when {
                         !n.disponible -> Text("Esta versión no trae la conexión a la nube.", style = ActaType.Body.copy(color = Acta.Ink2))
                         n.email.isEmpty() -> {
-                            Text("Sin cuenta conectada.", style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(bottom = 8.dp))
+                            Text("Entra con tu correo y clave de la Bitácora.", style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(bottom = 8.dp))
                             if (n.mensaje.isNotEmpty()) Text(n.mensaje, style = ActaType.Label, modifier = Modifier.padding(bottom = 8.dp))
                             ActaButton("Conectar cuenta", onClick = { correo = ""; clave = ""; dlg = true }, height = 46.dp, modifier = Modifier.fillMaxWidth())
                         }
                         else -> {
-                            Text(n.email, style = ActaType.Cell)
+                            Text(n.nombre.ifEmpty { n.email }, style = ActaType.Cell)
+                            if (n.nombre.isNotEmpty()) Text(n.email, style = ActaType.Label)
                             val cuando = if (n.ultima > 0) "Última sincronización: " +
                                 java.text.SimpleDateFormat("dd-MM HH:mm", java.util.Locale.getDefault()).format(java.util.Date(n.ultima)) else "Aún no sincroniza."
                             Text(cuando, style = ActaType.Label, modifier = Modifier.padding(top = 4.dp))
@@ -161,14 +162,14 @@ internal fun SettingsSheet(
                                 enabled = !n.trabajando, height = 46.dp, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
                             )
                             Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                ActaButton("Cambiar cuenta", onClick = { correo = n.email; clave = ""; dlg = true }, height = 46.dp, modifier = Modifier.weight(1f))
-                                ActaButton("Desconectar", onClick = { vm.nubeDesconectar() }, danger = true, height = 46.dp, modifier = Modifier.weight(1f))
+                                ActaButton("Cambiar usuario", onClick = { correo = n.email; clave = ""; dlg = true }, height = 46.dp, modifier = Modifier.weight(1f))
+                                ActaButton("Salir", onClick = { vm.nubeDesconectar() }, danger = true, height = 46.dp, modifier = Modifier.weight(1f))
                             }
                         }
                     }
                     if (dlg) AlertDialog(
                         onDismissRequest = { dlg = false },
-                        title = { Text("Cuenta compartida") },
+                        title = { Text("Tu usuario de la Bitácora") },
                         text = {
                             Column {
                                 OutlinedTextField(

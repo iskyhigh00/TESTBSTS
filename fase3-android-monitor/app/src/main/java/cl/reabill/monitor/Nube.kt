@@ -6,7 +6,7 @@ import org.json.JSONObject
 
 data class NubeUi(
     val disponible: Boolean = false, val email: String = "", val ultima: Long = 0L,
-    val trabajando: Boolean = false, val mensaje: String = ""
+    val trabajando: Boolean = false, val mensaje: String = "", val nombre: String = ""
 )
 
 class Nube(context: Context, private val mda: MdaStore, private val store: AccountingStore) {
@@ -15,10 +15,13 @@ class Nube(context: Context, private val mda: MdaStore, private val store: Accou
     val rev = RevStore(context)
     val trab = TrabStore(context)
     val cfg = CfgStore(context)
+    val usuarios = UsuariosStore(context)
 
     val disponible: Boolean get() = BuildConfig.SUPA_URL.isNotEmpty() && BuildConfig.SUPA_KEY.isNotEmpty()
     val email: String get() = prefs.getString("email", "") ?: ""
     val ultima: Long get() = prefs.getLong("ultima", 0L)
+
+    val nombre: String? get() = if (email.isEmpty()) null else usuarios.nombreDe(email)
 
     fun guardarCuenta(email: String, clave: String) {
         prefs.edit().clear().putString("email", email.trim()).putString("clave_c", Cifra.cifrar(clave)).apply()
@@ -116,6 +119,10 @@ class Nube(context: Context, private val mda: MdaStore, private val store: Accou
                     if (f.ts <= rev.ts(m)) return false
                     rev.put(m, f.valor, f.ts)
                 }
+                k == "usuarios" -> {
+                    if (f.ts <= usuarios.ts()) return false
+                    usuarios.put(f.valor, f.ts)
+                }
                 k.startsWith("trab:") -> {
                     val m = k.removePrefix("trab:"); if (m.isBlank()) return false
                     if (f.ts <= trab.ts(m)) return false
@@ -203,7 +210,7 @@ class Nube(context: Context, private val mda: MdaStore, private val store: Accou
 
         if (quitarBorradas(c)) huboCambios = true
 
-        val por = Build.MODEL ?: "teléfono"
+        val por = nombre ?: Build.MODEL ?: "teléfono"
         val claves = LinkedHashSet<String>()
         mda.mdaSeries().filter { serieOk(it) }.forEach { claves.add("mda:$it") }
         mda.infoSeries().filter { serieOk(it) }.forEach { claves.add("info:$it") }

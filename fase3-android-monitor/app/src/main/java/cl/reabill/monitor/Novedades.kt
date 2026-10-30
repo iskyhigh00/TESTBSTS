@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.3.9" to listOf(
+            "Cada técnico entra con su propio usuario de la Bitácora (mismo correo y clave). Preferencias → Datos compartidos muestra tu nombre; «Quién revisó» y los registros salen con tu nombre automáticamente.",
+        ),
         "2.3.8" to listOf(
             "Pantalla principal más simple: «Buscar máquina» y «Ver máquinas» ahora son un solo botón, «Máquinas» (lista, búsqueda y foto en el mismo lugar).",
             "Lo que manda la Bitácora está a la vista sin entrar a Preferencias: «Por revisar (N)» y «Etiquetas (N)» aparecen cuando hay algo pendiente.",

@@ -82,10 +82,11 @@ internal fun RevisarDialog(vm: MonitorViewModel, mda: String, rev: Rev?, onClose
                     value = firmware, onValueChange = { firmware = it.take(30); if (Regex("^\\s*255(\\D|$)").containsMatchIn(it)) modelo = "Cashflow" },
                     singleLine = true, label = { Text("Bill-set (255 / 403)") }, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
                 )
-                OutlinedTextField(
+
+                if (vm.nombreUsuario() == null) OutlinedTextField(
                     value = quien, onValueChange = { quien = it.take(40) }, singleLine = true, label = { Text("Quién revisó") },
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
-                )
+                ) else Text("Revisa: $quien", style = ActaType.Label, modifier = Modifier.padding(top = 12.dp))
             }
         },
         confirmButton = {

@@ -110,7 +110,7 @@ import cl.reabill.monitor.ui.theme.ActaType
 @Composable
 internal fun AccountingSection(
     acc: AccountingData?, history: List<AccountingData>, phase: Phase, connected: Boolean,
-    sistema: SisCols?, onRead: () -> Unit, onReset: () -> Unit
+    sistema: SisCols?, onRead: () -> Unit, onReset: () -> Unit, puedeBorrar: Boolean = true
 ) {
     val prev = acc?.let { previousSnapshot(it, history) }
     SectionHeader("Contabilidad") {
@@ -148,11 +148,13 @@ internal fun AccountingSection(
             if (sistema != null) {
                 Text("Sistema: semana ${sistema.fecha.ifEmpty { "sin fecha" }}", style = ActaType.Label.copy(color = Acta.Sistema), modifier = Modifier.padding(top = 4.dp))
             }
-            Spacer(Modifier.height(10.dp))
-            ActaButton(
-                "Borrar contabilidad", onClick = onReset, danger = true, height = 44.dp,
-                enabled = connected && !phase.isBusy, modifier = Modifier.fillMaxWidth()
-            )
+            if (puedeBorrar) {
+                Spacer(Modifier.height(10.dp))
+                ActaButton(
+                    "Borrar contabilidad", onClick = onReset, danger = true, height = 44.dp,
+                    enabled = connected && !phase.isBusy, modifier = Modifier.fillMaxWidth()
+                )
+            }
         }
     }
 }

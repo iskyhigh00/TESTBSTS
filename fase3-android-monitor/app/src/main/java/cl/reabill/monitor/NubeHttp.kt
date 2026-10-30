@@ -62,7 +62,7 @@ class NubeHttp(private val base: String, private val apiKey: String) {
         }
     }
 
-    fun traer(desde: String?, pagina: Int = 1000): Pair<List<FilaNube>, String?> {
+    fun traer(desde: String?, pagina: Int = 200): Pair<List<FilaNube>, String?> {
         val out = ArrayList<FilaNube>()
         var maxAct = desde
         var offset = 0

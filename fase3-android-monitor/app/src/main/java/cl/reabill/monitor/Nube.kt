@@ -16,10 +16,16 @@ class Nube(context: Context, private val mda: MdaStore, private val store: Accou
     val trab = TrabStore(context)
     val cfg = CfgStore(context)
     val usuarios = UsuariosStore(context)
+    val permisos = PermisosStore(context)
+    val bs = BsStore(context)
 
     val disponible: Boolean get() = BuildConfig.SUPA_URL.isNotEmpty() && BuildConfig.SUPA_KEY.isNotEmpty()
     val email: String get() = prefs.getString("email", "") ?: ""
     val ultima: Long get() = prefs.getLong("ultima", 0L)
+
+    val esAdmin: Boolean get() = email.isNotEmpty() && Permisos.esAdmin(email, usuarios.rolDe(email))
+
+    fun acceso(): Acceso = if (email.isEmpty()) Acceso.NINGUNO else Acceso(esAdmin, permisos.permitidos(email))
 
     val nombre: String? get() = if (email.isEmpty()) null else usuarios.nombreDe(email)
 
@@ -72,6 +78,9 @@ class Nube(context: Context, private val mda: MdaStore, private val store: Accou
         clave.startsWith("etq:") -> localEtq(clave.removePrefix("etq:"))
         clave == "cfg" -> localCfg()
         clave.startsWith("rev:") -> localRev(clave.removePrefix("rev:"))
+        clave == "permisos" -> permisos.valor()?.let { Local(permisos.ts(), it) }
+        clave.startsWith("bs:") -> clave.removePrefix("bs:").let { n -> bs.valorBs(n)?.let { Local(bs.ts(n), it) } }
+        clave.startsWith("bsok:") -> clave.removePrefix("bsok:").let { n -> bs.okValor(n)?.let { Local(bs.okTs(n), it) } }
         clave.startsWith("trab:") -> trab.valor(clave.removePrefix("trab:"))?.let { Local(trab.ts(clave.removePrefix("trab:")), it) }
         clave.startsWith("mda:") -> localMda(clave.removePrefix("mda:"))
         clave.startsWith("info:") -> localInfo(clave.removePrefix("info:"))
@@ -125,6 +134,12 @@ class Nube(context: Context, private val mda: MdaStore, private val store: Accou
                     if (f.ts <= rev.ts(m)) return false
                     rev.put(m, f.valor, f.ts)
                 }
+                k == "permisos" -> {
+                    if (f.ts <= permisos.ts()) return false
+                    permisos.put(f.valor, f.ts)
+                }
+                k.startsWith("bs:") -> { if (!bs.aplicarBs(k.removePrefix("bs:"), f.valor, f.ts)) return false }
+                k.startsWith("bsok:") -> { if (!bs.aplicarOk(k.removePrefix("bsok:"), f.valor, f.ts)) return false }
                 k == "usuarios" -> {
                     if (f.ts <= usuarios.ts()) return false
                     usuarios.put(f.valor, f.ts)
@@ -225,10 +240,18 @@ class Nube(context: Context, private val mda: MdaStore, private val store: Accou
         claves.add("cfg")
         etq.ids().forEach { claves.add("etq:$it") }
         rev.ids().forEach { claves.add("rev:$it") }
+
+        if (esAdmin) {
+            bs.asegurarHoras()
+            claves.add("permisos")
+            bs.nombresBs().forEach { claves.add("bs:$it") }
+            bs.okNombres().forEach { claves.add("bsok:$it") }
+        }
         val cambiadas = ArrayList<FilaNube>(); val digests = HashMap<String, String>()
         for (k in claves) {
             val l = local(k) ?: continue
             if (enviado(k) == l.digest) continue
+            if (k.startsWith("bs:") && l.valor.toString().length > 4_000_000) continue
             cambiadas.add(FilaNube(k, l.valor, l.ts)); digests[k] = l.digest
         }
         val lecFilas = ArrayList<FilaNube>(); val lecDigest = HashMap<String, String>()
@@ -239,7 +262,12 @@ class Nube(context: Context, private val mda: MdaStore, private val store: Accou
             h.forEach { lecFilas.add(FilaNube("lec:$s:${it.timestamp}", it.toJson(), it.timestamp)) }
             lecDigest["lec:$s"] = d
         }
-        if (cambiadas.isNotEmpty()) { c.subir(cambiadas, por, sobrescribir = true); digests.forEach { (k, d) -> marcarEnviado(k, d) } }
+        if (cambiadas.isNotEmpty()) {
+            val (archivos, otras) = cambiadas.partition { it.clave.startsWith("bs:") }
+            if (otras.isNotEmpty()) c.subir(otras, por, sobrescribir = true)
+            if (archivos.isNotEmpty()) c.subir(archivos, por, sobrescribir = true, lote = 1)
+            digests.forEach { (k, d) -> marcarEnviado(k, d) }
+        }
         if (lecFilas.isNotEmpty()) { c.subir(lecFilas, por, sobrescribir = false); lecDigest.forEach { (k, d) -> marcarEnviado(k, d) } }
 
         if (cursor != null) prefs.edit().putString("cursor", cursor).apply()

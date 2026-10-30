@@ -108,7 +108,9 @@ import cl.reabill.monitor.ui.theme.Acta
 import cl.reabill.monitor.ui.theme.ActaType
 
 @Composable
-internal fun BottomBar(connected: Boolean, enabled: Boolean, onConnect: () -> Unit, onCalibrate: () -> Unit) {
+internal fun BottomBar(connected: Boolean, enabled: Boolean, onConnect: () -> Unit, onCalibrate: () -> Unit, puedeCalibrar: Boolean = true) {
+
+    if (connected && !puedeCalibrar) return
     Column {
         Hairline(color = Acta.Ink)
         Row(Modifier.fillMaxWidth().padding(horizontal = Gutter, vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

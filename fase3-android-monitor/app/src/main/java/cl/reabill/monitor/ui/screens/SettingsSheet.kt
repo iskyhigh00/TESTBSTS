@@ -123,6 +123,7 @@ internal fun SettingsSheet(
         exit = fadeOut(tween(180)) + slideOutVertically(tween(220)) { it / 14 }
     ) {
         val demo by vm.demo.collectAsStateWithLifecycle()
+        val acceso by vm.acceso.collectAsStateWithLifecycle()
         val prefs by vm.labelPrefs.collectAsStateWithLifecycle()
         val busy by vm.busy.collectAsStateWithLifecycle()
         Column(Modifier.fillMaxSize().background(Acta.Paper)) {
@@ -194,7 +195,27 @@ internal fun SettingsSheet(
                     )
                 }
 
-                PrefGroup("Reporte semanal del sistema") {
+                if (acceso.admin) PrefGroup("Permisos de técnicos") {
+                    val tecnicos = vm.tecnicos()
+                    if (tecnicos.isEmpty()) Text("Los técnicos aparecen cuando la Bitácora los publica.", style = ActaType.Body.copy(color = Acta.Ink2))
+                    tecnicos.forEachIndexed { i, u ->
+                        if (i > 0) Hairline(Modifier.padding(vertical = 10.dp))
+                        Text(u.nombre, style = ActaType.Section)
+                        androidx.compose.foundation.layout.FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 6.dp)
+                        ) {
+                            cl.reabill.monitor.Proc.values().forEach { p ->
+                                val hecho = vm.procHecho(p)
+                                val sel = vm.procAutorizado(u.correo, p)
+                                ActaChip(p.etiqueta, sel, { if (hecho || sel) vm.autorizar(u.correo, p, !sel) }, Modifier.alpha(if (hecho || sel) 1f else 0.4f))
+                            }
+                        }
+                    }
+                    if (tecnicos.isNotEmpty() && cl.reabill.monitor.Proc.values().any { !vm.procHecho(it) })
+                        Text("Lo atenuado aún no lo has hecho tú.", style = ActaType.Label, modifier = Modifier.padding(top = 10.dp))
+                }
+
+                if (acceso.admin) PrefGroup("Reporte semanal del sistema") {
                     val w by vm.weekly.collectAsStateWithLifecycle()
                     Text(
                         w?.let { "Semana ${it.fecha.ifEmpty { "sin fecha" }} · ${it.datos.size} máquinas" }
@@ -221,7 +242,7 @@ internal fun SettingsSheet(
                     ActaButton("Historial de versiones", onClick = onChangelog, height = 46.dp, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
                 }
 
-                PrefGroup("Tema") {
+                if (acceso.admin) PrefGroup("Tema") {
                     var quiere by remember { mutableStateOf<Boolean?>(null) }
                     var claveTema by remember { mutableStateOf("") }
                     var errorTema by remember { mutableStateOf("") }
@@ -260,7 +281,7 @@ internal fun SettingsSheet(
                     }
                 }
 
-                PrefGroup("Respaldo") {
+                if (acceso.admin) PrefGroup("Respaldo") {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         ActaButton("Exportar", onClick = onExport, height = 46.dp, modifier = Modifier.weight(1f))
                         ActaButton("Importar", onClick = onImport, height = 46.dp, modifier = Modifier.weight(1f))
@@ -275,7 +296,7 @@ internal fun SettingsSheet(
                     )
                 }
 
-                PrefGroup("Lectura del N° de máquina (foto)") {
+                if (acceso.admin) PrefGroup("Lectura del N° de máquina (foto)") {
                     ActaButton("Probar con una imagen", onClick = onTestOcr, height = 46.dp, modifier = Modifier.fillMaxWidth())
                 }
 

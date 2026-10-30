@@ -155,6 +155,7 @@ fun ActaApp(vm: MonitorViewModel) {
     var soloRevisar by remember { mutableStateOf(false) }
     var ordenLista by remember { mutableStateOf(0) }
     val revPend by vm.revPendientes.collectAsStateWithLifecycle()
+    val acceso by vm.acceso.collectAsStateWithLifecycle()
     var buscarTexto by remember { mutableStateOf("") }
     var revisando by remember { mutableStateOf<String?>(null) }
     var showEtq by remember { mutableStateOf(false) }
@@ -701,14 +702,15 @@ fun ActaApp(vm: MonitorViewModel) {
                         val v = ifaz.valor
                         ifazSel = if (v == cl.reabill.monitor.Interfaz.STAND_ALONE) ifaz.registro?.habitual else null
                         showIfaz = true
-                    }
+                    },
+                    puedeCambiar = acceso.puede(cl.reabill.monitor.Proc.INTERFAZ)
                 )
 
                 val mdaActual = mdaMap[status.serial]
                 AccountingSection(
                     acc = accounting, history = history, phase = phase, connected = connected,
                     sistema = if (connected) mdaActual?.let { m -> weekly?.conteo(m)?.let { SisCols(it.first, it.second, weekly?.pct(m), weekly?.fecha.orEmpty()) } } else null,
-                    onRead = { vm.readAccounting() }, onReset = { showReset = true }
+                    onRead = { vm.readAccounting() }, onReset = { showReset = true }, puedeBorrar = acceso.puede(cl.reabill.monitor.Proc.BORRAR)
                 )
 
                 if (history.isNotEmpty()) HistorySection(history, status.serial, onShowAll = { showHistory = true })
@@ -755,7 +757,8 @@ fun ActaApp(vm: MonitorViewModel) {
                     calMarker = log.firstOrNull()
                     showCal = true
                     vm.startCalibration()
-                }
+                },
+                puedeCalibrar = acceso.puede(cl.reabill.monitor.Proc.CALIBRAR)
             )
         }
 

@@ -238,9 +238,9 @@ internal fun Hero(
 }
 
 @Composable
-internal fun InterfazSection(u: MonitorViewModel.IfazUi, onChange: () -> Unit) {
+internal fun InterfazSection(u: MonitorViewModel.IfazUi, onChange: () -> Unit, puedeCambiar: Boolean = true) {
     SectionHeader("Interfaz") {
-        ActaButton(
+        if (puedeCambiar) ActaButton(
             if (u.trabajando) "Cambiando…" else "Cambiar", onClick = onChange,
             enabled = !u.trabajando && u.valor != null, height = 36.dp,
             modifier = Modifier.padding(vertical = 5.dp).width(96.dp)

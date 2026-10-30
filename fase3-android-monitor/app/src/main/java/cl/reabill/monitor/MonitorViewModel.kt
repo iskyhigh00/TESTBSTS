@@ -101,8 +101,10 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun removeFromLibrary(f: FirmwareFile) {
+        if (!puede(Proc.BILLSET)) return
         viewModelScope.launch(Dispatchers.IO) {
-            java.io.File(libDir, f.name).delete()
+            if (nube.esAdmin) { nube.bs.quitar(f.name); sincronizarPronto() }
+            else java.io.File(libDir, f.name).delete()
             refreshLibrary()
             addLog("Bill-set quitado de la biblioteca: ${f.name}")
         }
@@ -209,6 +211,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun cambiarInterfaz(valor: Int) {
+        if (!puede(Proc.INTERFAZ)) { addLog("Cambiar la interfaz es del admin."); return }
         val client = mei ?: run { addLog("Conecta el equipo primero."); return }
         if (!client.supportsInterface) { addLog("Este equipo no permite cambiar la interfaz."); return }
         if (valor !in Interfaz.VALORES) return
@@ -227,6 +230,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
                     val reg = IfazRegistro.registrar(mdaStore.ifaz(serie), valor, System.currentTimeMillis(), "app")
                     mdaStore.setIfaz(serie, reg)
                     addLog("Interfaz cambiada y verificada: ${Interfaz.nombre(valor)} (valor $valor).")
+                    hecho(Proc.INTERFAZ)
                     _ifaz.value = IfazUi(soportada = true, valor = valor, registro = reg, mensaje = "Interfaz cambiada a ${Interfaz.nombre(valor)}.")
                 } else {
                     addLog("No se cambió la interfaz: $det")
@@ -261,6 +265,25 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     fun ultimoTrabajo(mda: String): Trab? = trabStore.leer(mda)
     private val _revPend = MutableStateFlow(revStore.pendientes())
     val revPendientes: StateFlow<List<Rev>> = _revPend
+
+    private val _acceso = MutableStateFlow(nube.acceso())
+    val acceso: StateFlow<Acceso> = _acceso
+    private fun refrescarAcceso() { _acceso.value = nube.acceso() }
+    fun puede(p: Proc): Boolean = _acceso.value.puede(p) || _demo.value
+
+    private fun hecho(p: Proc) {
+        if (nube.esAdmin && nube.permisos.marcarHecho(p)) { refrescarAcceso(); sincronizarPronto() }
+    }
+    fun tecnicos(): List<UsuariosStore.Usu> = nube.usuarios.lista().filter { !Permisos.esAdmin(it.correo, it.rol) }
+    fun procHecho(p: Proc): Boolean = p in nube.permisos.hechos()
+    fun procAutorizado(correo: String, p: Proc): Boolean = nube.permisos.estaAutorizado(correo, p)
+    fun autorizar(correo: String, p: Proc, si: Boolean) {
+        if (!nube.esAdmin) return
+        nube.permisos.autorizar(correo, p, si); refrescarAcceso(); sincronizarPronto()
+        addLog("Permisos: ${if (si) "autorizó" else "quitó"} «${p.etiqueta}» a ${nube.usuarios.nombreDe(correo) ?: correo}.")
+    }
+
+    fun billsetProbado(nombre: String): Boolean = nube.bs.probado(nombre, _status.value.model)
 
     fun nombreUsuario(): String? = nube.nombre
     fun quienRevisa(): String = nube.nombre ?: revStore.quien()
@@ -308,6 +331,8 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun refrescarDesdeNube() {
         aplicarConfig()
+        refrescarAcceso()
+        refreshLibrary()
         nubeEstado(_nube.value.trabajando)
         _trabVersion.value++
         _etqPend.value = etqStore.pendientes()
@@ -358,6 +383,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
             val err = withContext(Dispatchers.IO) { nube.probarCuenta(email, clave) }
             if (err != null) { addLog("Datos compartidos: $err"); nubeEstado(false, err); return@launch }
             nube.guardarCuenta(email, clave)
+            refrescarAcceso()
             preferenciasAbiertas = false
             addLog("Datos compartidos: cuenta ${email.trim()} conectada.")
             nubeJob?.cancel(); nubeJob = null
@@ -381,6 +407,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
             val err = withContext(Dispatchers.IO) { nube.probarCuenta(correo, clave) }
             if (err != null) { listo(if (err.startsWith("Sin conexión")) err else "Clave incorrecta."); return@launch }
             nube.cambiarUsuario(correo, clave)
+            refrescarAcceso()
             preferenciasAbiertas = true
             addLog("Datos compartidos: entró ${nube.nombre ?: correo.trim()}.")
             nubeJob?.cancel(); nubeJob = null
@@ -419,6 +446,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     fun nubeDesconectar() {
         nubeJob?.cancel(); nubeJob = null; pronto?.cancel()
         nube.quitarCuenta()
+        refrescarAcceso()
         addLog("Datos compartidos: cuenta desconectada (los datos del teléfono se conservan).")
         nubeEstado(false, "Sin cuenta conectada.")
     }
@@ -755,6 +783,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun resetAccounting() {
+        if (!puede(Proc.BORRAR)) { addLog("Borrar la contabilidad es del admin."); return }
         val client = mei ?: run { addLog("Conecta el equipo primero."); return }
         if (!client.supportsReset) {
             addLog("Borrar contabilidad no está disponible para este equipo.")
@@ -789,6 +818,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
             val ok = withContext(Dispatchers.IO) { client.resetAccounting() }
             if (client is AdvanceClient && client.lastResetNote.isNotEmpty()) addLog("Detalle del borrado: ${client.lastResetNote}")
             addLog(if (ok) "Contabilidad borrada." else "Reset: sin confirmación.")
+            if (ok) hecho(Proc.BORRAR)
             _busy.value = true
             try { fetchAccounting(client, true) } finally { _busy.value = false }
           } catch (e: Exception) {
@@ -800,6 +830,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     @Volatile private var calibrating = false
 
     fun startCalibration() {
+        if (!puede(Proc.CALIBRAR)) { addLog("Calibrar es del admin."); return }
         val client = mei ?: run { addLog("Conecta el equipo primero."); return }
         if (!beginOp()) { ocupado(); return }
         viewModelScope.launch {
@@ -808,6 +839,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
             val (ok, raw) = withContext(Dispatchers.IO) { client.initiateCalibration() }
             addLog(if (ok) "Modo calibración iniciado." + client.calibrationNote
                    else "Calibración: sin confirmación. Crudo: $raw")
+            if (ok) hecho(Proc.CALIBRAR)
 
             if (ok && client is AdvanceClient) {
                 calibrating = true
@@ -831,6 +863,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
 
     fun pickFirmware(uri: android.net.Uri) {
         if (flashing) return
+        if (!puede(Proc.BILLSET)) { addLog("Solo el admin puede agregar archivos de bill-set."); return }
         viewModelScope.launch {
             val (file, err) = withContext(Dispatchers.IO) {
                 try {
@@ -846,8 +879,10 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
             _flash.value = FlashUi(file = file, error = err)
             if (file != null) {
                 withContext(Dispatchers.IO) {
-                    try { java.io.File(libDir, file.name).writeBytes(file.data) }
-                    catch (e: Exception) { addLog("No se pudo guardar ${file.name} en la biblioteca (${e.message ?: e.javaClass.simpleName}).") }
+                    try {
+                        if (nube.esAdmin) { nube.bs.agregar(file.name, file.data); sincronizarPronto() }
+                        else java.io.File(libDir, file.name).writeBytes(file.data)
+                    } catch (e: Exception) { addLog("No se pudo guardar ${file.name} en la biblioteca (${e.message ?: e.javaClass.simpleName}).") }
                 }
                 refreshLibrary()
                 addLog("Bill-set elegido y guardado: ${file.name} (#${file.label}, ${file.data.size} B)")
@@ -1025,6 +1060,11 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         if (_busy.value) { addLog("Espera a que termine la lectura en curso antes de escribir."); return }
         if (_demo.value) { runFlashDemo(f); return }
 
+        if (!puede(Proc.BILLSET) && !billsetProbado(f.name)) {
+            val m = "Este bill-set aún no lo ha probado el admin en un ${_status.value.model.takeIf { it != "—" } ?: "billetero de este modelo"}; solo el admin puede escribirlo primero."
+            addLog(m); _flash.update { it.copy(error = m) }; return
+        }
+
         if (!usb.deviceFound()) { addLog("Escritura: conecta el equipo primero."); return }
         val kind = deviceKind()
 
@@ -1075,6 +1115,12 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
             val ahora = _status.value.billSet
             val coincide = ahora.contains(f.label)
             addLog("Bill-set tras escribir: $ahora (esperado #${f.label})")
+
+            if (coincide && nube.esAdmin) {
+                val modelo = _status.value.model
+                if (nube.bs.marcarProbado(f.name, modelo, nube.nombre ?: nube.email)) { addLog("Bill-set ${f.name} probado en $modelo: los técnicos ya pueden escribirlo."); sincronizarPronto() }
+                hecho(Proc.BILLSET)
+            }
             _flash.update {
                 it.copy(running = false, done = true, progress = 100, ok = true,
                     message = if (ahora == "—") "Escritura terminada, pero no pude leer el bill-set. Reconecta el equipo."

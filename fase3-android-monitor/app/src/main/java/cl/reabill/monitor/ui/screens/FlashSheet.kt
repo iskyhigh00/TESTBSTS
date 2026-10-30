@@ -43,7 +43,11 @@ fun FlashSheet(
     visible: Boolean, vm: MonitorViewModel, serial: String, billSet: String, onClose: () -> Unit
 ) {
     val ui by vm.flash.collectAsStateWithLifecycle()
-    val library by vm.library.collectAsStateWithLifecycle()
+    val libraryTodos by vm.library.collectAsStateWithLifecycle()
+    val acceso by vm.acceso.collectAsStateWithLifecycle()
+    val libre = acceso.puede(cl.reabill.monitor.Proc.BILLSET)
+
+    val library = if (libre) libraryTodos else libraryTodos.filter { vm.billsetProbado(it.name) }
     val close = { if (!ui.running) { vm.resetFlash(); onClose() } }
     BackHandler(enabled = visible, onBack = { close() })
 
@@ -73,19 +77,21 @@ fun FlashSheet(
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
                 Row(Modifier.fillMaxWidth().padding(vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text(ui.file?.name ?: "Ningún archivo elegido", style = ActaType.Body)
+                        Text(ui.file?.name ?: (if (libre) "Ningún archivo elegido" else "Elige un bill-set"), style = ActaType.Body)
                         ui.file?.let {
                             Text("Bill-set #${it.label} · ${it.blocks} bloques · ${it.data.size} B", style = ActaType.Label)
                         }
                         if (ui.error.isNotEmpty())
                             Text(ui.error, style = ActaType.Body.copy(color = Acta.Error), modifier = Modifier.padding(top = 4.dp))
                     }
-                    ActaButton("Agregar archivo", onClick = { picker.launch(arrayOf("*/*")) }, enabled = !ui.running, height = 40.dp, modifier = Modifier.padding(start = 8.dp))
+                    if (libre) ActaButton("Agregar archivo", onClick = { picker.launch(arrayOf("*/*")) }, enabled = !ui.running, height = 40.dp, modifier = Modifier.padding(start = 8.dp))
                 }
                 Hairline()
+                if (!libre && library.isEmpty() && !ui.done)
+                    Text("Ningún bill-set disponible para este equipo todavía.", style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(top = 14.dp))
 
                 if (library.isNotEmpty() && !ui.done) {
-                    Text("GUARDADOS", style = ActaType.Label, modifier = Modifier.padding(top = 14.dp, bottom = 4.dp))
+                    Text("DISPONIBLES", style = ActaType.Label, modifier = Modifier.padding(top = 14.dp, bottom = 4.dp))
                     library.forEach { f ->
                         val sel = ui.file?.name == f.name
                         Row(
@@ -97,7 +103,7 @@ fun FlashSheet(
                                 Text(f.name, style = ActaType.Body.copy(color = if (sel) Acta.Accent else Acta.Ink))
                                 Text("Bill-set #${f.label}", style = ActaType.Label)
                             }
-                            ActaButton("Quitar", onClick = { vm.removeFromLibrary(f) }, danger = true, enabled = !ui.running, height = 36.dp, modifier = Modifier.padding(start = 8.dp))
+                            if (libre) ActaButton("Quitar", onClick = { vm.removeFromLibrary(f) }, danger = true, enabled = !ui.running, height = 36.dp, modifier = Modifier.padding(start = 8.dp))
                         }
                         Hairline()
                     }

@@ -2,6 +2,11 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.5.0" to listOf(
+            "Roles: el técnico solo lee la contabilidad, imprime etiquetas y agrega números de máquina. Calibrar, borrar contabilidad, cambiar interfaz y cargar bill-sets son del admin.",
+            "Bill-sets compartidos: los archivos que el admin agrega los ven todos. Un técnico solo puede escribir un bill-set en un modelo de billetero si el admin ya lo escribió con éxito en ese modelo.",
+            "Preferencias → Permisos de técnicos (solo admin): autoriza a un técnico en particular un procedimiento que tú ya hayas hecho una vez.",
+        ),
         "2.4.0" to listOf(
             "Al tocar la rueda de Preferencias aparece «¿Quién eres?» con los nombres de los técnicos: eliges el tuyo, escribes tu clave y entras. Cada teléfono recuerda a quién entró por última vez; «Otro» sirve para un usuario que aún no aparece.",
         ),

@@ -832,7 +832,10 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
                         -2 -> "Calibración: se perdió la comunicación con el equipo. Reinícialo para salir del modo calibración."
                         else -> "Calibración terminada (resultado $res). Reinicia el equipo (sácalo y vuelve a instalarlo en el cashbox) para salir del modo calibración."
                     })
-                } finally { calibrating = false }
+                } finally {
+                    calibrating = false
+                    if (client.lastCalibrationTrace.isNotEmpty()) addLog("Calibración, tramas del sondeo: ${client.lastCalibrationTrace}")
+                }
             }
           } catch (e: Exception) {
             calibrating = false

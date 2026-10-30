@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.5.2" to listOf(
+            "Calibración (SC Advance): el Registro ahora anota las tramas que llegan durante el sondeo con su tiempo, para poder ver cuándo termina de verdad el equipo.",
+        ),
         "2.5.1" to listOf(
             "«Cambiar usuario» y «Conectar cuenta» en Preferencias ahora muestran los nombres de los técnicos para elegir, igual que al entrar a Preferencias.",
         ),

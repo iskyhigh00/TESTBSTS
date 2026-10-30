@@ -247,18 +247,32 @@ class AdvanceClient(private val usb: UsbSerialManager) : ValidatorClient {
         } finally { medirFin() }
     }
 
+    var lastCalibrationTrace: String = ""
+        private set
+
     fun awaitCalibration(timeoutMs: Long = 120_000): Int {
-        val end = System.currentTimeMillis() + timeoutMs
+        val t0 = System.currentTimeMillis()
+        val end = t0 + timeoutMs
         var perdidos = 0
-        while (System.currentTimeMillis() < end) {
-            Thread.sleep(96)
-            val r = try { exchangeOnce(0x01, ByteArray(0), 3000) { it.size == 10 || it.size == 11 } }
-                    catch (e: Exception) { return -2 }
-            if (r == null) { if (++perdidos >= 5) return -2; continue }
-            perdidos = 0
-            if (r.size == 11 && (r[2].toInt() and 0x7F) == 0x17 && (r[3].toInt() and 0x80) == 0) return r[8].toInt() and 0xFF
+        var ultima = ""
+        val traza = StringBuilder()
+        fun anotar(h: String) {
+            if (h == ultima || traza.length > 600) return
+            ultima = h
+            traza.append(" | +").append("%.1f".format((System.currentTimeMillis() - t0) / 1000.0)).append("s ").append(h)
         }
-        return -1
+        try {
+            while (System.currentTimeMillis() < end) {
+                Thread.sleep(96)
+                val r = try { exchangeOnce(0x01, ByteArray(0), 3000) { it.size == 10 || it.size == 11 } }
+                        catch (e: Exception) { anotar("error"); return -2 }
+                if (r == null) { anotar("sin respuesta"); if (++perdidos >= 5) return -2; continue }
+                perdidos = 0
+                anotar(hex(r))
+                if (r.size == 11 && (r[2].toInt() and 0x7F) == 0x17 && (r[3].toInt() and 0x80) == 0) return r[8].toInt() and 0xFF
+            }
+            return -1
+        } finally { lastCalibrationTrace = traza.toString().trim() }
     }
 
     override fun initiateCalibration(): Pair<Boolean, String> {

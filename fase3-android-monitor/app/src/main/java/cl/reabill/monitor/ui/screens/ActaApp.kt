@@ -200,10 +200,6 @@ fun ActaApp(vm: MonitorViewModel) {
     var showLabel by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
     var pidiendoClave by remember { mutableStateOf(false) }
-    var claveAjustes by remember { mutableStateOf("") }
-    var claveMala by remember { mutableStateOf(false) }
-    var motivoClave by remember { mutableStateOf("") }
-    var comprobando by remember { mutableStateOf(false) }
     val printUi by vm.print.collectAsStateWithLifecycle()
     val labelPrefs by vm.labelPrefs.collectAsStateWithLifecycle()
     val ctx = LocalContext.current
@@ -631,53 +627,12 @@ fun ActaApp(vm: MonitorViewModel) {
         )
     }
 
-    if (pidiendoClave) {
-
-        val usuarios = remember(pidiendoClave) { vm.usuariosLista() }
-        var otro by remember(pidiendoClave) { mutableStateOf(usuarios.isEmpty()) }
-        var correoSel by remember(pidiendoClave) { mutableStateOf(vm.correoActual().takeIf { c -> usuarios.any { it.correo.equals(c, true) } } ?: "") }
-        var correoOtro by remember(pidiendoClave) { mutableStateOf(if (usuarios.isEmpty()) vm.correoActual() else "") }
-        val correo = if (otro) correoOtro.trim() else correoSel
-        val entrar = {
-            comprobando = true
-            vm.entrarComo(correo, claveAjustes) { err ->
-                comprobando = false
-                if (err == null) { pidiendoClave = false; showSettings = true } else { claveMala = true; motivoClave = err }
-            }
-        }
-        AlertDialog(
-            onDismissRequest = { pidiendoClave = false },
-            title = { Text("¿Quién eres?") },
-            text = {
-                Column(Modifier.verticalScroll(rememberScrollState())) {
-                    if (usuarios.isNotEmpty()) androidx.compose.foundation.layout.FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        usuarios.forEach { u -> ActaChip(u.corto, !otro && correoSel.equals(u.correo, true), { otro = false; correoSel = u.correo; claveMala = false }) }
-                        ActaChip("Otro", otro, { otro = true; claveMala = false })
-                    }
-                    if (otro) OutlinedTextField(
-                        value = correoOtro, onValueChange = { correoOtro = it.take(120); claveMala = false }, singleLine = true, label = { Text("Correo de la Bitácora") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), modifier = Modifier.fillMaxWidth().padding(top = if (usuarios.isNotEmpty()) 12.dp else 0.dp)
-                    )
-                    OutlinedTextField(
-                        value = claveAjustes, onValueChange = { claveAjustes = it.take(120); claveMala = false }, singleLine = true, label = { Text("Clave") },
-                        isError = claveMala,
-                        visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password), modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
-                    )
-                    if (claveMala) Text(motivoClave, style = ActaType.Body.copy(color = Acta.Error), modifier = Modifier.padding(top = 6.dp))
-                }
-            },
-            confirmButton = { ActaButton(if (comprobando) "Comprobando…" else "Entrar", onClick = entrar, filled = true, enabled = correo.isNotEmpty() && claveAjustes.isNotEmpty() && !comprobando, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) },
-            dismissButton = { ActaButton("Cancelar", onClick = { pidiendoClave = false }, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) }
-        )
-    }
+    if (pidiendoClave) UsuarioDialog(vm, onClose = { pidiendoClave = false }, onListo = { pidiendoClave = false; showSettings = true })
 
     Box(Modifier.fillMaxSize().background(Acta.Paper).safeDrawingPadding()) {
         Column(Modifier.fillMaxSize()) {
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
-                TopRow(phase, onSettings = { if (vm.preferenciasBloqueadas()) { claveAjustes = ""; claveMala = false; pidiendoClave = true } else showSettings = true })
+                TopRow(phase, onSettings = { if (vm.preferenciasBloqueadas()) { pidiendoClave = true } else showSettings = true })
                 ActivityRule(
                     busy = phase.isBusy, fault = phase == Phase.NoResponse,
                     modifier = Modifier.padding(horizontal = Gutter)

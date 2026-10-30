@@ -142,14 +142,12 @@ internal fun SettingsSheet(
                 PrefGroup("Datos compartidos") {
                     val n by vm.nubeUi.collectAsStateWithLifecycle()
                     var dlg by remember { mutableStateOf(false) }
-                    var correo by remember { mutableStateOf("") }
-                    var clave by remember { mutableStateOf("") }
                     when {
                         !n.disponible -> Text("Esta versión no trae la conexión a la nube.", style = ActaType.Body.copy(color = Acta.Ink2))
                         n.email.isEmpty() -> {
                             Text("Entra con tu correo y clave de la Bitácora.", style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(bottom = 8.dp))
                             if (n.mensaje.isNotEmpty()) Text(n.mensaje, style = ActaType.Label, modifier = Modifier.padding(bottom = 8.dp))
-                            ActaButton("Conectar cuenta", onClick = { correo = ""; clave = ""; dlg = true }, height = 46.dp, modifier = Modifier.fillMaxWidth())
+                            ActaButton("Conectar cuenta", onClick = { dlg = true }, height = 46.dp, modifier = Modifier.fillMaxWidth())
                         }
                         else -> {
                             Text(n.nombre.ifEmpty { n.email }, style = ActaType.Cell)
@@ -163,36 +161,12 @@ internal fun SettingsSheet(
                                 enabled = !n.trabajando, height = 46.dp, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
                             )
                             Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                ActaButton("Cambiar usuario", onClick = { correo = n.email; clave = ""; dlg = true }, height = 46.dp, modifier = Modifier.weight(1f))
+                                ActaButton("Cambiar usuario", onClick = { dlg = true }, height = 46.dp, modifier = Modifier.weight(1f))
                                 ActaButton("Salir", onClick = { vm.nubeDesconectar() }, danger = true, height = 46.dp, modifier = Modifier.weight(1f))
                             }
                         }
                     }
-                    if (dlg) AlertDialog(
-                        onDismissRequest = { dlg = false },
-                        title = { Text("Tu usuario de la Bitácora") },
-                        text = {
-                            Column {
-                                OutlinedTextField(
-                                    value = correo, onValueChange = { correo = it.take(120) }, singleLine = true, label = { Text("Correo") },
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), modifier = Modifier.fillMaxWidth()
-                                )
-                                OutlinedTextField(
-                                    value = clave, onValueChange = { clave = it.take(120) }, singleLine = true, label = { Text("Clave") },
-                                    visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
-                                )
-                            }
-                        },
-                        confirmButton = {
-                            ActaButton(
-                                "Conectar", onClick = { dlg = false; vm.nubeConectar(correo, clave) }, filled = true,
-                                enabled = correo.isNotBlank() && clave.isNotEmpty(), height = 44.dp, modifier = Modifier.width(110.dp)
-                            )
-                        },
-                        dismissButton = { ActaButton("Cancelar", onClick = { dlg = false }, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) }
-                    )
+                    if (dlg) UsuarioDialog(vm, onClose = { dlg = false }, onListo = { dlg = false })
                 }
 
                 if (acceso.admin) PrefGroup("Permisos de técnicos") {

@@ -368,7 +368,28 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private var preferenciasAbiertas = false
-    fun preferenciasBloqueadas(): Boolean = nube.email.isNotEmpty() && !preferenciasAbiertas
+    fun preferenciasBloqueadas(): Boolean = nube.disponible && !preferenciasAbiertas
+
+    fun usuariosLista(): List<UsuariosStore.Usu> = nube.usuarios.lista()
+    fun correoActual(): String = nube.email
+
+    fun entrarComo(correo: String, clave: String, listo: (String?) -> Unit) {
+        if (!nube.disponible) { listo("Esta versión no trae la conexión a la nube."); return }
+        if (correo.isBlank() || clave.isEmpty()) { listo("Elige quién eres y escribe la clave."); return }
+        if (correo.trim().equals(nube.email, true)) { desbloquearPreferencias(clave, listo); return }
+        viewModelScope.launch {
+            val err = withContext(Dispatchers.IO) { nube.probarCuenta(correo, clave) }
+            if (err != null) { listo(if (err.startsWith("Sin conexión")) err else "Clave incorrecta."); return@launch }
+            nube.cambiarUsuario(correo, clave)
+            preferenciasAbiertas = true
+            addLog("Datos compartidos: entró ${nube.nombre ?: correo.trim()}.")
+            nubeJob?.cancel(); nubeJob = null
+            nubeEstado(false, "Cuenta conectada.")
+            sincronizarAhora(true)
+            iniciarNube()
+            listo(null)
+        }
+    }
 
     fun desbloquearPreferencias(clave: String, listo: (String?) -> Unit) {
         if (nube.claveCoincide(clave)) { preferenciasAbiertas = true; listo(null); return }

@@ -25,6 +25,12 @@ class Nube(context: Context, private val mda: MdaStore, private val store: Accou
 
     fun guardarCuenta(email: String, clave: String) {
         prefs.edit().clear().putString("email", email.trim()).putString("clave_c", Cifra.cifrar(clave)).apply()
+        http = null
+    }
+
+    fun cambiarUsuario(email: String, clave: String) {
+        prefs.edit().remove("clave").putString("email", email.trim()).putString("clave_c", Cifra.cifrar(clave)).apply()
+        http = null
     }
 
     private fun clave(): String {

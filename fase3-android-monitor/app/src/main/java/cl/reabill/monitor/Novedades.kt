@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.4.0" to listOf(
+            "Al tocar la rueda de Preferencias aparece «¿Quién eres?» con los nombres de los técnicos: eliges el tuyo, escribes tu clave y entras. Cada teléfono recuerda a quién entró por última vez; «Otro» sirve para un usuario que aún no aparece.",
+        ),
         "2.3.9" to listOf(
             "Cada técnico entra con su propio usuario de la Bitácora (mismo correo y clave). Preferencias → Datos compartidos muestra tu nombre; «Quién revisó» y los registros salen con tu nombre automáticamente.",
         ),

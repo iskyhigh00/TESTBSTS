@@ -24,6 +24,22 @@ class UsuariosStore(context: Context) {
         return null
     }
 
+    class Usu(val correo: String, val nombre: String, val corto: String, val rol: String)
+
+    fun lista(): List<Usu> {
+        val arr = valor()?.optJSONArray("lista") ?: return emptyList()
+        val base = (0 until arr.length()).mapNotNull { arr.optJSONObject(it) }
+            .filter { it.optString("correo").isNotBlank() && it.optString("nombre").isNotBlank() }
+            .distinctBy { it.optString("correo").trim().lowercase() }
+        val primeros = base.map { it.optString("nombre").trim().split(Regex("\\s+")).first() }
+        return base.mapIndexed { i, o ->
+            val partes = o.optString("nombre").trim().split(Regex("\\s+"))
+            val dup = primeros.count { it.equals(primeros[i], true) } > 1
+            val corto = if (dup && partes.size > 1) "${partes.first()} ${partes.last().first()}." else partes.first()
+            Usu(o.optString("correo").trim(), o.optString("nombre").trim(), corto, o.optString("rol"))
+        }.sortedBy { it.corto.lowercase() }
+    }
+
     fun nombreDe(correo: String): String? = fila(correo)?.optString("nombre")?.trim()?.takeIf { it.isNotEmpty() }
 
     fun rolDe(correo: String): String = fila(correo)?.optString("rol").orEmpty()

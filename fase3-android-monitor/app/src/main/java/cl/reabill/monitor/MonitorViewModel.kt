@@ -319,12 +319,15 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
 
     private val cfgStore = CfgStore(app.applicationContext)
 
-    private fun publicarConfig() {
+    private fun publicarConfig(oficial: Boolean = false) {
+        if (!nube.esAdmin) return
         val v = org.json.JSONObject().put("etq", etiquetas.compartida()).put("tema", if (cl.reabill.monitor.ui.theme.Acta.premium) "premium" else "clasico")
-        if (cfgStore.actualizarSiCambio(v)) sincronizarPronto()
+        if (oficial) { cfgStore.put(v, maxOf(System.currentTimeMillis(), cfgStore.ts() + 1)); cfgStore.marcarSembrado(); sincronizarPronto() }
+        else if (cfgStore.actualizarSiCambio(v)) sincronizarPronto()
     }
 
     private fun aplicarConfig() {
+        if (nube.esAdmin && !cfgStore.sembrado()) return
         val v = cfgStore.valor() ?: return
         v.optJSONObject("etq")?.let { etiquetas.aplicarCompartida(it) }
         val premium = v.optString("tema") == "premium"
@@ -356,7 +359,9 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             val r = withContext(Dispatchers.IO) { nube.sincronizar() }
             if (r.huboCambios) refrescarDesdeNube()
-            if (r.ok && cfgStore.ts() == 0L) publicarConfig()
+
+            if (r.ok && nube.esAdmin && !cfgStore.sembrado()) publicarConfig(oficial = true)
+            if (r.ok) aplicarConfig()
             if (r.ok) { if (manual || r.subidos > 0 || r.bajados > 0) addLog("Datos compartidos: ${r.mensaje}") }
             else addLog("Datos compartidos: ${r.mensaje}")
             nubeEstado(false, r.mensaje)

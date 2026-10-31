@@ -133,10 +133,11 @@ internal fun SettingsSheet(
 
                 PrefGroup("Impresora de etiquetas") {
                     Text(
-                        if (prefs.lastName.isNotEmpty()) "Guardada: ${prefs.lastName}" else "Sin impresora guardada",
-                        style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(bottom = 8.dp)
+                        (if (prefs.lastName.isNotEmpty()) "Guardada: ${prefs.lastName}" else "Sin impresora guardada") + if (acceso.admin) "" else " (la define el admin)",
+                        style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(bottom = if (acceso.admin) 8.dp else 0.dp)
                     )
-                    ActaButton("Configurar impresora y etiqueta", onClick = onLabelConfig, height = 46.dp, modifier = Modifier.fillMaxWidth())
+
+                    if (acceso.admin) ActaButton("Configurar impresora y etiqueta", onClick = onLabelConfig, height = 46.dp, modifier = Modifier.fillMaxWidth())
                 }
 
                 PrefGroup("Datos compartidos") {

@@ -221,7 +221,8 @@ fun ActaApp(vm: MonitorViewModel) {
         val sinPermiso = Build.VERSION.SDK_INT >= 31 &&
             ContextCompat.checkSelfPermission(ctx, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED
         if (labelPrefs.lastAddress.isEmpty()) {
-            showLabel = true
+            if (acceso.admin) showLabel = true
+            else vm.labelNote("Falta la impresora: la define el admin.")
         } else if (sinPermiso) {
             askBt.launch(Manifest.permission.BLUETOOTH_CONNECT)
         } else {

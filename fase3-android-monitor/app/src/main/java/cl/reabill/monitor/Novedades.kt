@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.7.0" to listOf(
+            "La configuración de la app (impresora, etiqueta y tema) la define el admin: cuando cambia algo, todos los teléfonos lo replican. Los técnicos ya no la modifican; la impresora que elige el admin queda en todos.",
+        ),
         "2.6.0" to listOf(
             "La app exige un usuario propio para usarse: al abrirla pide quién eres (correo y clave de la Bitácora). Ya no sirve la cuenta compartida de antes, ni una clave guardada que dejó de funcionar.",
         ),

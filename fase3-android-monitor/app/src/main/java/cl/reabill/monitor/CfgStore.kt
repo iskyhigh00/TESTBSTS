@@ -13,6 +13,9 @@ class CfgStore(context: Context) {
         prefs.getString("v", null)?.let { JSONObject(it) }
     } catch (e: Exception) { aviso("leer configuración compartida", e); null }
 
+    fun sembrado(): Boolean = prefs.getString("adm", null) != null
+    fun marcarSembrado() { prefs.edit().putString("adm", "1").apply() }
+
     fun put(v: JSONObject, ts: Long) { prefs.edit().putString("v", v.toString()).putLong("ts", ts).apply() }
 
     fun actualizarSiCambio(v: JSONObject, ahora: Long = System.currentTimeMillis()): Boolean {

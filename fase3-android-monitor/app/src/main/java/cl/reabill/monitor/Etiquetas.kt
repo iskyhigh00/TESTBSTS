@@ -60,6 +60,7 @@ class Etiquetas(
             .put("copies", p.copies).put("conf", p.confirmed).put("campos", LabelFields.encode(p.fields)).put("align", p.align)
             .put("compact", p.compact).put("scale", p.scale).put("vpos", p.vpos).put("dos", p.twoLines)
             .put("nombres", LabelFields.encodeNames(p.names)).put("sal", p.salida)
+            .put("imp", org.json.JSONObject().put("addr", p.lastAddress).put("name", p.lastName))
     }
 
     fun aplicarCompartida(j: org.json.JSONObject) {
@@ -71,7 +72,9 @@ class Etiquetas(
             align = j.optInt("align", a.align), compact = j.optBoolean("compact", a.compact), scale = LabelFit.snap(j.optInt("scale", a.scale)),
             vpos = j.optInt("vpos", a.vpos), twoLines = j.optBoolean("dos", a.twoLines),
             names = if (j.has("nombres")) LabelFields.parseNames(j.optString("nombres")) else a.names,
-            salida = j.optInt("sal", a.salida).coerceIn(8, 255)
+            salida = j.optInt("sal", a.salida).coerceIn(8, 255),
+            lastAddress = j.optJSONObject("imp")?.optString("addr") ?: a.lastAddress,
+            lastName = j.optJSONObject("imp")?.optString("name") ?: a.lastName
         ))
     }
 

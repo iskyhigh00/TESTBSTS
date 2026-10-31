@@ -128,7 +128,8 @@ class Nube(context: Context, private val mda: MdaStore, private val store: Accou
                     etq.put(id, f.valor, f.ts)
                 }
                 k == "cfg" -> {
-                    if (f.ts <= cfg.ts()) return false
+
+                    if (if (esAdmin) f.ts <= cfg.ts() else f.ts == cfg.ts()) return false
                     cfg.put(f.valor, f.ts)
                 }
                 k.startsWith("rev:") -> {
@@ -240,13 +241,13 @@ class Nube(context: Context, private val mda: MdaStore, private val store: Accou
         mda.infoSeries().filter { serieOk(it) }.forEach { claves.add("info:$it") }
         mda.ifazSeries().filter { serieOk(it) }.forEach { claves.add("ifaz:$it") }
         claves.add("semanal")
-        claves.add("cfg")
         etq.ids().forEach { claves.add("etq:$it") }
         rev.ids().forEach { claves.add("rev:$it") }
 
         if (esAdmin) {
             bs.asegurarHoras()
             claves.add("permisos")
+            claves.add("cfg")
             bs.nombresBs().forEach { claves.add("bs:$it") }
             bs.okNombres().forEach { claves.add("bsok:$it") }
         }

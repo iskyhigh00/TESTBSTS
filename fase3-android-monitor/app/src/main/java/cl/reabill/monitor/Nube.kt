@@ -23,6 +23,8 @@ class Nube(context: Context, private val mda: MdaStore, private val store: Accou
     val email: String get() = prefs.getString("email", "") ?: ""
     val ultima: Long get() = prefs.getLong("ultima", 0L)
 
+    val requiereUsuario: Boolean get() = disponible && (email.isEmpty() || email.equals(Permisos.CUENTA_COMPARTIDA, true) || prefs.getString("invalida", null) != null)
+
     val esAdmin: Boolean get() = email.isNotEmpty() && Permisos.esAdmin(email, usuarios.rolDe(email))
 
     fun acceso(): Acceso = if (email.isEmpty()) Acceso.NINGUNO else Acceso(esAdmin, permisos.permitidos(email))
@@ -35,7 +37,7 @@ class Nube(context: Context, private val mda: MdaStore, private val store: Accou
     }
 
     fun cambiarUsuario(email: String, clave: String) {
-        prefs.edit().remove("clave").putString("email", email.trim()).putString("clave_c", Cifra.cifrar(clave)).apply()
+        prefs.edit().remove("clave").remove("invalida").putString("email", email.trim()).putString("clave_c", Cifra.cifrar(clave)).apply()
         http = null
     }
 
@@ -173,7 +175,8 @@ class Nube(context: Context, private val mda: MdaStore, private val store: Accou
         if (c.sesion && !forzar) return
         val e = email; val p = clave()
         if (e.isEmpty() || p.isEmpty()) throw NubeError("Falta la cuenta: toca «Conectar».")
-        c.login(e, p)
+        try { c.login(e, p); if (prefs.getString("invalida", null) != null) prefs.edit().remove("invalida").apply() }
+        catch (x: NubeError) { if (x.http == 400 || x.http == 401 || x.http == 422) prefs.edit().putString("invalida", "1").apply(); throw x }
     }
 
     fun probarCuenta(email: String, clave: String): String? = try {

@@ -29,7 +29,7 @@ import cl.reabill.monitor.ui.theme.ActaType
 
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-internal fun UsuarioDialog(vm: MonitorViewModel, onClose: () -> Unit, onListo: () -> Unit) {
+internal fun UsuarioDialog(vm: MonitorViewModel, onClose: () -> Unit, onListo: () -> Unit, cancelable: Boolean = true) {
     val usuarios = remember { vm.usuariosLista() }
     var otro by remember { mutableStateOf(usuarios.isEmpty()) }
     var correoSel by remember { mutableStateOf(vm.correoActual().takeIf { c -> usuarios.any { it.correo.equals(c, true) } } ?: "") }
@@ -47,7 +47,8 @@ internal fun UsuarioDialog(vm: MonitorViewModel, onClose: () -> Unit, onListo: (
         }
     }
     AlertDialog(
-        onDismissRequest = onClose,
+        onDismissRequest = { if (cancelable) onClose() },
+        properties = androidx.compose.ui.window.DialogProperties(dismissOnBackPress = cancelable, dismissOnClickOutside = cancelable),
         title = { Text("¿Quién eres?") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
@@ -68,6 +69,6 @@ internal fun UsuarioDialog(vm: MonitorViewModel, onClose: () -> Unit, onListo: (
             }
         },
         confirmButton = { ActaButton(if (comprobando) "Comprobando…" else "Entrar", onClick = entrar, filled = true, enabled = correo.isNotEmpty() && clave.isNotEmpty() && !comprobando, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) },
-        dismissButton = { ActaButton("Cancelar", onClick = onClose, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) }
+        dismissButton = if (cancelable) ({ ActaButton("Cancelar", onClick = onClose, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) }) else null
     )
 }

@@ -11,6 +11,8 @@ enum class Proc(val clave: String, val etiqueta: String) {
 
 object Permisos {
     const val ADMIN_EMAIL = "admin@robrist.app"
+
+    const val CUENTA_COMPARTIDA = "billmon@robrist.app"
     fun esAdmin(email: String, rol: String): Boolean = email.trim().equals(ADMIN_EMAIL, true) || rol.equals("admin", true)
 }
 

@@ -156,6 +156,8 @@ fun ActaApp(vm: MonitorViewModel) {
     var ordenLista by remember { mutableStateOf(0) }
     val revPend by vm.revPendientes.collectAsStateWithLifecycle()
     val acceso by vm.acceso.collectAsStateWithLifecycle()
+    val nubeUi by vm.nubeUi.collectAsStateWithLifecycle()
+    val sinUsuario = remember(nubeUi) { vm.requiereUsuario() }
     var buscarTexto by remember { mutableStateOf("") }
     var revisando by remember { mutableStateOf<String?>(null) }
     var showEtq by remember { mutableStateOf(false) }
@@ -254,7 +256,7 @@ fun ActaApp(vm: MonitorViewModel) {
     }
 
     val novedades by vm.novedades.collectAsStateWithLifecycle()
-    if (novedades.isNotEmpty() && !showSettings) {
+    if (novedades.isNotEmpty() && !showSettings && !sinUsuario) {
         AlertDialog(
             onDismissRequest = { vm.novedadesVistas() },
             title = { Text("Novedades · v$APP_VERSION") },
@@ -720,6 +722,13 @@ fun ActaApp(vm: MonitorViewModel) {
         revisando?.let { m -> RevisarDialog(vm, m, revPend.firstOrNull { it.mda == m }, onClose = { revisando = null }) }
         if (showEtq) EtiquetasDialog(vm, onClose = { showEtq = false })
         if (showLabel) LabelSheet(vm, onClose = { showLabel = false })
+
+        if (sinUsuario) {
+            Box(Modifier.fillMaxSize().background(Acta.Paper).clickable(enabled = true, onClick = {}), contentAlignment = Alignment.Center) {
+                Text("BILLMON", style = ActaType.Title)
+            }
+            UsuarioDialog(vm, onClose = {}, onListo = {}, cancelable = false)
+        }
         SettingsSheet(
             visible = showSettings, vm = vm, log = log, connected = connected, kind = kind,
             onClose = { showSettings = false },

@@ -178,7 +178,9 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
 
     private var connectRetries = 0
 
-    fun connect() { if (_demo.value) return; connectRetries = 0; doConnect() }
+    fun connect() { if (_demo.value) return; if (requiereUsuario()) { addLog("Entra con tu usuario para usar la app."); return }; connectRetries = 0; doConnect() }
+
+    fun requiereUsuario(): Boolean = nube.requiereUsuario
 
     private val mdaStore = MdaStore(app.applicationContext)
     private val _novedades = MutableStateFlow(Novedades.pendientes(mdaStore.versionVista(), APP_VERSION))
@@ -379,11 +381,12 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     fun preferenciasBloqueadas(): Boolean = nube.disponible && !preferenciasAbiertas
 
     fun usuariosLista(): List<UsuariosStore.Usu> = nube.usuarios.lista()
-    fun correoActual(): String = nube.email
+    fun correoActual(): String = nube.email.takeIf { !it.equals(Permisos.CUENTA_COMPARTIDA, true) }.orEmpty()
 
     fun entrarComo(correo: String, clave: String, listo: (String?) -> Unit) {
         if (!nube.disponible) { listo("Esta versión no trae la conexión a la nube."); return }
         if (correo.isBlank() || clave.isEmpty()) { listo("Elige quién eres y escribe la clave."); return }
+        if (correo.trim().equals(Permisos.CUENTA_COMPARTIDA, true)) { listo("Esa cuenta ya no se usa: entra con tu propio usuario."); return }
         if (correo.trim().equals(nube.email, true)) { desbloquearPreferencias(clave, listo); return }
         viewModelScope.launch {
             val err = withContext(Dispatchers.IO) { nube.probarCuenta(correo, clave) }
@@ -606,6 +609,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun doConnect() {
+        if (requiereUsuario()) return
         usb.requestPermission { granted ->
             if (!granted) {
                 addLog("Permiso USB denegado o sin billetero MEI.")

@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.6.0" to listOf(
+            "La app exige un usuario propio para usarse: al abrirla pide quién eres (correo y clave de la Bitácora). Ya no sirve la cuenta compartida de antes, ni una clave guardada que dejó de funcionar.",
+        ),
         "2.5.2" to listOf(
             "Calibración (SC Advance): el Registro ahora anota las tramas que llegan durante el sondeo con su tiempo, para poder ver cuándo termina de verdad el equipo.",
         ),

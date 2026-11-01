@@ -57,6 +57,16 @@ fun LabelSheet(vm: MonitorViewModel, onClose: () -> Unit) {
     val prefs by vm.labelPrefs.collectAsStateWithLifecycle()
     val accounting by vm.accounting.collectAsStateWithLifecycle()
     val status by vm.status.collectAsStateWithLifecycle()
+    val acceso by vm.acceso.collectAsStateWithLifecycle()
+    if (!acceso.admin) {
+        AlertDialog(
+            onDismissRequest = onClose,
+            title = { Text("Configuración administrada") },
+            text = { Text("El admin configura la impresora y las etiquetas. Se actualizan al sincronizar.") },
+            confirmButton = { ActaButton("Cerrar", onClick = onClose) }
+        )
+        return
+    }
 
     val perms = remember {
         if (Build.VERSION.SDK_INT >= 31) arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT)

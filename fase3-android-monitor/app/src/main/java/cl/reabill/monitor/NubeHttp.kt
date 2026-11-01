@@ -7,24 +7,31 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
 
-class FilaNube(val clave: String, val valor: JSONObject, val ts: Long)
+class FilaNube(val clave: String, val valor: JSONObject, val ts: Long, val por: String? = null)
+
+data class PeticionNube(val method: String, val url: URL, val body: String?, val headers: Map<String, String>)
+fun interface TransporteNube {
+    fun ejecutar(peticion: PeticionNube): Pair<Int, String>
+}
 
 class NubeError(val usuario: String, val http: Int = 0) : IOException(usuario)
 
-class NubeHttp(private val base: String, private val apiKey: String) {
+class NubeHttp(private val base: String, private val apiKey: String, private val transporte: TransporteNube? = null) {
     private var token: String? = null
 
     private fun u(path: String) = URL(base.trimEnd('/') + path)
 
     private fun llamar(method: String, url: URL, body: String?, extra: Map<String, String> = emptyMap(), auth: Boolean = true): Pair<Int, String> {
+        val headers = mutableMapOf("apikey" to apiKey, "Accept" to "application/json")
+        if (auth) headers["Authorization"] = "Bearer ${token ?: apiKey}"
+        if (body != null) headers["Content-Type"] = "application/json"
+        headers.putAll(extra)
+        transporte?.let { return it.ejecutar(PeticionNube(method, url, body, headers)) }
         val c = url.openConnection() as HttpURLConnection
         try {
             c.requestMethod = method
             c.connectTimeout = 15_000; c.readTimeout = 30_000
-            c.setRequestProperty("apikey", apiKey)
-            if (auth) c.setRequestProperty("Authorization", "Bearer ${token ?: apiKey}")
-            c.setRequestProperty("Accept", "application/json")
-            extra.forEach { (k, v) -> c.setRequestProperty(k, v) }
+            headers.forEach { (k, v) -> c.setRequestProperty(k, v) }
             if (body != null) {
                 c.doOutput = true
                 c.setRequestProperty("Content-Type", "application/json")
@@ -63,26 +70,50 @@ class NubeHttp(private val base: String, private val apiKey: String) {
     }
 
     fun traer(desde: String?, pagina: Int = 200): Pair<List<FilaNube>, String?> {
+        require(pagina > 0)
         val out = ArrayList<FilaNube>()
         var maxAct = desde
-        var offset = 0
+        var ultimoTiempo: String? = null
+        var ultimaClave: String? = null
+        fun literal(s: String) = "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
         while (true) {
-            val filtro = if (desde == null) "" else "&actualizado=gt." + URLEncoder.encode(desde, "UTF-8")
-            val url = u("/rest/v1/billmon_kv?select=clave,valor,ts,actualizado$filtro&order=actualizado.asc,clave.asc&limit=$pagina&offset=$offset")
+
+            val desdeFiltro = if (desde == null) "" else "&actualizado=gte." + URLEncoder.encode(desde, "UTF-8")
+            val siguiente = if (ultimoTiempo == null) "" else "&or=" + URLEncoder.encode(
+                "(actualizado.gt.${literal(ultimoTiempo)},and(actualizado.eq.${literal(ultimoTiempo)},clave.gt.${literal(ultimaClave!!)}))", "UTF-8")
+
+            val url = u("/rest/v1/billmon_kv?select=clave,valor,ts,por,actualizado$desdeFiltro$siguiente&order=actualizado.asc,clave.asc&limit=$pagina")
             val (code, txt) = llamar("GET", url, null)
             revisar(code, txt)
             val arr = JSONArray(txt)
             for (i in 0 until arr.length()) {
                 val o = arr.getJSONObject(i)
                 val v = o.optJSONObject("valor") ?: continue
-                out.add(FilaNube(o.getString("clave"), v, o.optLong("ts")))
+                out.add(FilaNube(o.getString("clave"), v, o.optLong("ts"), o.optString("por").takeIf { it.isNotBlank() }))
                 val a = o.optString("actualizado")
                 if (a.isNotEmpty() && (maxAct == null || a > maxAct)) maxAct = a
             }
             if (arr.length() < pagina) break
-            offset += pagina
+            val ultimo = arr.getJSONObject(arr.length() - 1)
+            val tiempo = ultimo.getString("actualizado")
+            val clave = ultimo.getString("clave")
+            if (tiempo == ultimoTiempo && clave == ultimaClave) throw NubeError("La paginación de la nube no avanzó.")
+            ultimoTiempo = tiempo
+            ultimaClave = clave
         }
         return out to maxAct
+    }
+
+    fun controlesCompartidos(): Map<String, FilaNube> {
+        val (code, txt) = llamar("GET", u("/rest/v1/billmon_kv?select=clave,valor,ts,por&clave=in.(cfg,permisos,usuarios)&limit=3"), null)
+        revisar(code, txt)
+        val arr = JSONArray(txt)
+        return (0 until arr.length()).mapNotNull { i ->
+            val o = arr.optJSONObject(i) ?: return@mapNotNull null
+            val v = o.optJSONObject("valor") ?: return@mapNotNull null
+            val k = o.optString("clave")
+            k to FilaNube(k, v, o.optLong("ts"), o.optString("por").takeIf { it.isNotBlank() })
+        }.toMap()
     }
 
     fun claves(prefijo: String, pagina: Int = 1000): Set<String> {
@@ -105,7 +136,7 @@ class NubeHttp(private val base: String, private val apiKey: String) {
         while (i < filas.size) {
             val parte = filas.subList(i, minOf(i + lote, filas.size))
             val arr = JSONArray()
-            parte.forEach { arr.put(JSONObject().put("clave", it.clave).put("valor", it.valor).put("ts", it.ts).put("por", por)) }
+            parte.forEach { arr.put(JSONObject().put("clave", it.clave).put("valor", it.valor).put("ts", it.ts).put("por", it.por ?: por)) }
             val pref = if (sobrescribir) "resolution=merge-duplicates,return=minimal" else "resolution=ignore-duplicates,return=minimal"
             val (code, txt) = llamar("POST", u("/rest/v1/billmon_kv?on_conflict=clave"), arr.toString(), mapOf("Prefer" to pref))
             revisar(code, txt)

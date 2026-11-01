@@ -157,7 +157,29 @@ fun ActaApp(vm: MonitorViewModel) {
     val revPend by vm.revPendientes.collectAsStateWithLifecycle()
     val acceso by vm.acceso.collectAsStateWithLifecycle()
     val nubeUi by vm.nubeUi.collectAsStateWithLifecycle()
+
     val sinUsuario = remember(nubeUi) { vm.requiereUsuario() }
+    val sesionLista by vm.sesionLista.collectAsStateWithLifecycle()
+    if (sinUsuario) {
+        Box(Modifier.fillMaxSize().background(Acta.Paper), contentAlignment = Alignment.Center) {
+            Text("BILLMON", style = ActaType.Title)
+        }
+        UsuarioDialog(vm, onClose = {}, onListo = {}, cancelable = false)
+        return
+    }
+    if (!sesionLista) {
+        Column(Modifier.fillMaxSize().background(Acta.Paper).safeDrawingPadding().padding(24.dp), verticalArrangement = Arrangement.Center) {
+            Text("Preparando BILLMON", style = ActaType.Title)
+            Text(nubeUi.nombre.ifEmpty { nubeUi.email }, style = ActaType.Body, modifier = Modifier.padding(top = 12.dp))
+            Text(if (!nubeUi.disponible) "Esta compilación no incluye la conexión a la nube. Solicita la versión configurada al administrador."
+                else nubeUi.mensaje.ifEmpty { "Sincronizando información, permisos y configuración del administrador…" }, style = ActaType.Body, modifier = Modifier.padding(top = 12.dp))
+            ActaButton(if (nubeUi.trabajando) "Sincronizando…" else "Reintentar sincronización", onClick = { vm.sincronizarAhora() },
+                enabled = nubeUi.disponible && !nubeUi.trabajando, modifier = Modifier.fillMaxWidth().padding(top = 16.dp))
+            ActaButton("Salir de la cuenta", onClick = { vm.nubeDesconectar() }, enabled = !nubeUi.trabajando,
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
+        }
+        return
+    }
     var buscarTexto by remember { mutableStateOf("") }
     var revisando by remember { mutableStateOf<String?>(null) }
     var showEtq by remember { mutableStateOf(false) }
@@ -668,7 +690,8 @@ fun ActaApp(vm: MonitorViewModel) {
                 AccountingSection(
                     acc = accounting, history = history, phase = phase, connected = connected,
                     sistema = if (connected) mdaActual?.let { m -> weekly?.conteo(m)?.let { SisCols(it.first, it.second, weekly?.pct(m), weekly?.fecha.orEmpty()) } } else null,
-                    onRead = { vm.readAccounting() }, onReset = { showReset = true }, puedeBorrar = acceso.puede(cl.reabill.monitor.Proc.BORRAR)
+                    onRead = { vm.readAccounting() }, onReset = { showReset = true }, puedeBorrar = acceso.puede(cl.reabill.monitor.Proc.BORRAR),
+                    puedeLeer = acceso.puede(cl.reabill.monitor.Proc.LEER)
                 )
 
                 if (history.isNotEmpty()) HistorySection(history, status.serial, onShowAll = { showHistory = true })
@@ -684,7 +707,7 @@ fun ActaApp(vm: MonitorViewModel) {
                         ActaButton(
                             if (printUi.printing) "Imprimiendo…" else "Imprimir etiqueta",
                             onClick = printNow, filled = pendAqui == null || !connected,
-                            enabled = accounting != null && !printUi.printing, modifier = Modifier.weight(1f)
+                            enabled = acceso.puede(cl.reabill.monitor.Proc.IMPRIMIR) && accounting != null && !printUi.printing, modifier = Modifier.weight(1f)
                         )
                         ActaButton(
                             "Cargar bill-set", onClick = { showFlash = true },
@@ -709,7 +732,7 @@ fun ActaApp(vm: MonitorViewModel) {
             }
 
             BottomBar(
-                connected = connected, enabled = !busy,
+                connected = connected, enabled = !busy && acceso.puede(cl.reabill.monitor.Proc.LEER),
                 onConnect = { vm.connect() },
                 onCalibrate = {
                     calMarker = log.firstOrNull()
@@ -723,13 +746,6 @@ fun ActaApp(vm: MonitorViewModel) {
         revisando?.let { m -> RevisarDialog(vm, m, revPend.firstOrNull { it.mda == m }, onClose = { revisando = null }) }
         if (showEtq) EtiquetasDialog(vm, onClose = { showEtq = false })
         if (showLabel) LabelSheet(vm, onClose = { showLabel = false })
-
-        if (sinUsuario) {
-            Box(Modifier.fillMaxSize().background(Acta.Paper).clickable(enabled = true, onClick = {}), contentAlignment = Alignment.Center) {
-                Text("BILLMON", style = ActaType.Title)
-            }
-            UsuarioDialog(vm, onClose = {}, onListo = {}, cancelable = false)
-        }
         SettingsSheet(
             visible = showSettings, vm = vm, log = log, connected = connected, kind = kind,
             onClose = { showSettings = false },

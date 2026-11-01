@@ -162,8 +162,8 @@ internal fun SettingsSheet(
                                 enabled = !n.trabajando, height = 46.dp, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
                             )
                             Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                ActaButton("Cambiar usuario", onClick = { dlg = true }, height = 46.dp, modifier = Modifier.weight(1f))
-                                ActaButton("Salir", onClick = { vm.nubeDesconectar() }, danger = true, height = 46.dp, modifier = Modifier.weight(1f))
+                                ActaButton("Cambiar usuario", onClick = { dlg = true }, enabled = !n.trabajando && !busy, height = 46.dp, modifier = Modifier.weight(1f))
+                                ActaButton("Salir", onClick = { vm.nubeDesconectar() }, enabled = !n.trabajando && !busy, danger = true, height = 46.dp, modifier = Modifier.weight(1f))
                             }
                         }
                     }
@@ -180,13 +180,14 @@ internal fun SettingsSheet(
                             horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 6.dp)
                         ) {
                             cl.reabill.monitor.Proc.values().forEach { p ->
-                                val hecho = vm.procHecho(p)
+                                val hecho = p.porDefecto || vm.procHecho(p)
                                 val sel = vm.procAutorizado(u.correo, p)
                                 ActaChip(p.etiqueta, sel, { if (hecho || sel) vm.autorizar(u.correo, p, !sel) }, Modifier.alpha(if (hecho || sel) 1f else 0.4f))
                             }
                         }
                     }
-                    if (tecnicos.isNotEmpty() && cl.reabill.monitor.Proc.values().any { !vm.procHecho(it) })
+                    Text("Lectura e impresión se permiten por defecto. Puedes desactivarlas para cada trabajador.", style = ActaType.Label, modifier = Modifier.padding(top = 10.dp))
+                    if (tecnicos.isNotEmpty() && cl.reabill.monitor.Proc.values().any { !it.porDefecto && !vm.procHecho(it) })
                         Text("Lo atenuado aún no lo has hecho tú.", style = ActaType.Label, modifier = Modifier.padding(top = 10.dp))
                 }
 
@@ -263,7 +264,7 @@ internal fun SettingsSheet(
                     }
                 }
 
-                PrefGroup("Modo demo") {
+                if (acceso.admin) PrefGroup("Modo demo") {
                     if (demo) ActaButton("Salir del demo", onClick = { vm.stopDemo() }, enabled = !busy, height = 46.dp, modifier = Modifier.fillMaxWidth())
                     else ActaButton(
                         "Ver billetero demo", onClick = { vm.startDemo(); onClose() },
@@ -279,7 +280,7 @@ internal fun SettingsSheet(
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         ActaButton("Copiar", onClick = onCopy, height = 42.dp, textSize = 13.sp, modifier = Modifier.weight(1f))
                         ActaButton("Copiar todo", onClick = onCopyAll, height = 42.dp, textSize = 13.sp, modifier = Modifier.weight(1f))
-                        ActaButton("Limpiar", onClick = { vm.clearLog() }, danger = true, height = 42.dp, textSize = 13.sp, modifier = Modifier.weight(1f))
+                        if (acceso.admin) ActaButton("Limpiar", onClick = { vm.clearLog() }, danger = true, height = 42.dp, textSize = 13.sp, modifier = Modifier.weight(1f))
                     }
                     SelectionContainer {
                         Column(Modifier.fillMaxWidth().padding(top = 8.dp)) {

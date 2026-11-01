@@ -2,6 +2,14 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.8.0" to listOf(
+            "Más seguridad al cambiar de cuenta: no se puede entrar con otro usuario ni salir mientras hay una lectura, calibración, carga de bill-set o impresión en curso; al cambiar se desconectan el billetero y la impresora.",
+            "Cada cambio queda a nombre de quien lo hizo, aunque se suba después de que entre otro usuario en el mismo teléfono.",
+            "Leer billeteros e imprimir etiquetas son permisos de cada técnico (vienen activados; el admin los puede quitar en Preferencias → Permisos de técnicos).",
+            "Sincronización más confiable: los roles y permisos se consultan directo de la nube, y la lectura por páginas ya no se salta ni repite filas.",
+            "Impresora: se evita imprimir en una impresora distinta a la configurada si cambia mientras se conecta; si el admin cambia la impresora, los teléfonos se reconectan a la nueva.",
+            "Al abrir la app por primera vez con un usuario, espera a recibir la configuración del admin; después se recuerda y funciona sin internet.",
+        ),
         "2.7.0" to listOf(
             "La configuración de la app (impresora, etiqueta y tema) la define el admin: cuando cambia algo, todos los teléfonos lo replican. Los técnicos ya no la modifican; la impresora que elige el admin queda en todos.",
         ),

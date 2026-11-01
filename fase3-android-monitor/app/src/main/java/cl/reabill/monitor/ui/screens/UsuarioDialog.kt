@@ -39,29 +39,32 @@ internal fun UsuarioDialog(vm: MonitorViewModel, onClose: () -> Unit, onListo: (
     var motivo by remember { mutableStateOf("") }
     var comprobando by remember { mutableStateOf(false) }
     val correo = if (otro) correoOtro.trim() else correoSel
+    val puedeCerrar = cancelable && !comprobando
     val entrar = {
-        comprobando = true
-        vm.entrarComo(correo, clave) { err ->
-            comprobando = false
-            if (err == null) onListo() else { mala = true; motivo = err }
+        if (!comprobando) {
+            comprobando = true
+            vm.entrarComo(correo, clave) { err ->
+                comprobando = false
+                if (err == null) onListo() else { mala = true; motivo = err }
+            }
         }
     }
     AlertDialog(
-        onDismissRequest = { if (cancelable) onClose() },
-        properties = androidx.compose.ui.window.DialogProperties(dismissOnBackPress = cancelable, dismissOnClickOutside = cancelable),
+        onDismissRequest = { if (cancelable && !comprobando) onClose() },
+        properties = androidx.compose.ui.window.DialogProperties(dismissOnBackPress = puedeCerrar, dismissOnClickOutside = puedeCerrar),
         title = { Text("¿Quién eres?") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 if (usuarios.isNotEmpty()) FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    usuarios.forEach { u -> ActaChip(u.corto, !otro && correoSel.equals(u.correo, true), { otro = false; correoSel = u.correo; mala = false }) }
-                    ActaChip("Otro", otro, { otro = true; mala = false })
+                    usuarios.forEach { u -> ActaChip(u.corto, !otro && correoSel.equals(u.correo, true), { if (!comprobando) { otro = false; correoSel = u.correo; mala = false } }) }
+                    ActaChip("Otro", otro, { if (!comprobando) { otro = true; mala = false } })
                 }
                 if (otro) OutlinedTextField(
-                    value = correoOtro, onValueChange = { correoOtro = it.take(120); mala = false }, singleLine = true, label = { Text("Correo de la Bitácora") },
+                    value = correoOtro, onValueChange = { correoOtro = it.take(120); mala = false }, enabled = !comprobando, singleLine = true, label = { Text("Correo de la Bitácora") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), modifier = Modifier.fillMaxWidth().padding(top = if (usuarios.isNotEmpty()) 12.dp else 0.dp)
                 )
                 OutlinedTextField(
-                    value = clave, onValueChange = { clave = it.take(120); mala = false }, singleLine = true, label = { Text("Clave") }, isError = mala,
+                    value = clave, onValueChange = { clave = it.take(120); mala = false }, enabled = !comprobando, singleLine = true, label = { Text("Clave") }, isError = mala,
                     visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
                 )
@@ -69,6 +72,6 @@ internal fun UsuarioDialog(vm: MonitorViewModel, onClose: () -> Unit, onListo: (
             }
         },
         confirmButton = { ActaButton(if (comprobando) "Comprobando…" else "Entrar", onClick = entrar, filled = true, enabled = correo.isNotEmpty() && clave.isNotEmpty() && !comprobando, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) },
-        dismissButton = if (cancelable) ({ ActaButton("Cancelar", onClick = onClose, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) }) else null
+        dismissButton = if (cancelable) ({ ActaButton("Cancelar", onClick = { if (!comprobando) onClose() }, enabled = puedeCerrar, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) }) else null
     )
 }

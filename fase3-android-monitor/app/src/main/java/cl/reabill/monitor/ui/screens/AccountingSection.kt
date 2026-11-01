@@ -110,13 +110,14 @@ import cl.reabill.monitor.ui.theme.ActaType
 @Composable
 internal fun AccountingSection(
     acc: AccountingData?, history: List<AccountingData>, phase: Phase, connected: Boolean,
-    sistema: SisCols?, onRead: () -> Unit, onReset: () -> Unit, puedeBorrar: Boolean = true
+    sistema: SisCols?, onRead: () -> Unit, onReset: () -> Unit, puedeBorrar: Boolean = true,
+    puedeLeer: Boolean = true
 ) {
     val prev = acc?.let { previousSnapshot(it, history) }
     SectionHeader("Contabilidad") {
         ActaButton(
             if (phase == Phase.ReadingAccounting) "Leyendo…" else "Leer",
-            onClick = onRead, enabled = connected && !phase.isBusy,
+            onClick = onRead, enabled = puedeLeer && connected && !phase.isBusy,
             height = 36.dp, modifier = Modifier.padding(vertical = 5.dp).width(96.dp)
         )
     }

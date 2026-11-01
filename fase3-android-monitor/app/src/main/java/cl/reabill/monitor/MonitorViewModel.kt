@@ -3,6 +3,7 @@ package cl.reabill.monitor
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,8 +25,27 @@ data class FlashUi(
     val message: String = ""
 )
 
+internal class CambioCuenta {
+    var enCurso: Boolean = false
+        private set
+
+    fun iniciar(ocupado: Boolean): Boolean {
+        if (enCurso || ocupado) return false
+        enCurso = true
+        return true
+    }
+
+    fun permiteOperacion(sesionLista: Boolean, requiereUsuario: Boolean): Boolean =
+        !enCurso && sesionLista && !requiereUsuario
+
+    fun puedeCompletar(ocupado: Boolean): Boolean = enCurso && !ocupado
+    fun finalizar() { enCurso = false }
+}
+
 class MonitorViewModel(app: Application) : AndroidViewModel(app) {
 
+    private val cambioCuenta = CambioCuenta()
+    private val cambiandoCuenta: Boolean get() = cambioCuenta.enCurso
     private val usb = UsbSerialManager(app.applicationContext)
     private val store = AccountingStore(app.applicationContext)
     private val nube by lazy { Nube(app.applicationContext, mdaStore, store) }
@@ -73,7 +93,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
 
     @Volatile private var opRunning = false
     private fun beginOp(): Boolean = synchronized(this) {
-        if (opRunning || calibrating || flashing) false else { opRunning = true; true }
+        if (cambiandoCuenta || opRunning || calibrating || flashing) false else { opRunning = true; true }
     }
     private fun endOp() { opRunning = false }
     private fun ocupado() = addLog("Hay otra operación en curso: espera a que termine.")
@@ -97,7 +117,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun selectFromLibrary(f: FirmwareFile) {
-        if (!flashing) _flash.value = FlashUi(file = f)
+        if (!cambiandoCuenta && !flashing && !_flash.value.running) _flash.value = FlashUi(file = f)
     }
 
     fun removeFromLibrary(f: FirmwareFile) {
@@ -111,6 +131,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun checkForUpdate() {
+        if (cambiandoCuenta) return
         _updateMsg.value = "Buscando actualización…"
         viewModelScope.launch {
             val res = withContext(Dispatchers.IO) { Updater.checkLatest() }
@@ -134,6 +155,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun installUpdate() {
+        if (cambiandoCuenta) return
         val version = _updateVersion.value ?: return
         viewModelScope.launch {
             _updateProgress.value = -1
@@ -157,7 +179,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun onUsbAttached() {
-        if (flashing) return
+        if (cambiandoCuenta || flashing) return
         if (_demo.value) stopDemo()
         usb.close(); mei = null
         _connected.value = false
@@ -178,7 +200,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
 
     private var connectRetries = 0
 
-    fun connect() { if (_demo.value) return; if (requiereUsuario()) { addLog("Entra con tu usuario para usar la app."); return }; connectRetries = 0; doConnect() }
+    fun connect() { if (_demo.value) return; if (!exigir(Proc.LEER)) return; connectRetries = 0; doConnect() }
 
     fun requiereUsuario(): Boolean = nube.requiereUsuario
 
@@ -268,10 +290,25 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     private val _revPend = MutableStateFlow(revStore.pendientes())
     val revPendientes: StateFlow<List<Rev>> = _revPend
 
-    private val _acceso = MutableStateFlow(nube.acceso())
+    private val _sesionLista = MutableStateFlow(nube.sesionLista)
+    val sesionLista: StateFlow<Boolean> = _sesionLista
+    private val _acceso = MutableStateFlow(if (nube.sesionLista) nube.acceso() else Acceso.NINGUNO)
     val acceso: StateFlow<Acceso> = _acceso
-    private fun refrescarAcceso() { _acceso.value = nube.acceso() }
-    fun puede(p: Proc): Boolean = _acceso.value.puede(p) || _demo.value
+    private fun refrescarAcceso() {
+        _acceso.value = if (_sesionLista.value && !cambiandoCuenta) nube.acceso() else Acceso.NINGUNO
+    }
+    private fun sesionOperativa(): Boolean = cambioCuenta.permiteOperacion(_sesionLista.value, requiereUsuario())
+    fun puede(p: Proc): Boolean = sesionOperativa() && _acceso.value.puede(p)
+    private fun exigir(p: Proc): Boolean {
+        if (puede(p)) return true
+        addLog("Sin permiso para ${p.etiqueta.lowercase()}. Inicia sesión y sincroniza con el administrador.")
+        return false
+    }
+    private fun exigirAdmin(): Boolean {
+        if (sesionOperativa() && _acceso.value.admin) return true
+        addLog("Solo el administrador puede hacer esto.")
+        return false
+    }
 
     private fun hecho(p: Proc) {
         if (nube.esAdmin && nube.permisos.marcarHecho(p)) { refrescarAcceso(); sincronizarPronto() }
@@ -280,7 +317,8 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     fun procHecho(p: Proc): Boolean = p in nube.permisos.hechos()
     fun procAutorizado(correo: String, p: Proc): Boolean = nube.permisos.estaAutorizado(correo, p)
     fun autorizar(correo: String, p: Proc, si: Boolean) {
-        if (!nube.esAdmin) return
+        if (!exigirAdmin()) return
+        if (!p.porDefecto && si && !procHecho(p)) return
         nube.permisos.autorizar(correo, p, si); refrescarAcceso(); sincronizarPronto()
         addLog("Permisos: ${if (si) "autorizó" else "quitó"} «${p.etiqueta}» a ${nube.usuarios.nombreDe(correo) ?: correo}.")
     }
@@ -288,7 +326,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     fun billsetProbado(nombre: String): Boolean = nube.bs.probado(nombre, _status.value.model)
 
     fun nombreUsuario(): String? = nube.nombre
-    fun quienRevisa(): String = nube.nombre ?: revStore.quien()
+    fun quienRevisa(): String = nube.nombre ?: nube.email.takeIf { it.isNotEmpty() } ?: revStore.quien()
 
     fun modeloDetectado(mda: String): String {
         val serie = mdaStore.all().entries.firstOrNull { it.value == mda }?.key ?: return ""
@@ -296,14 +334,19 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun revisarBilletero(mda: String, d: RevDatos) {
-        if (!revStore.revisar(mda, d)) return
-        revStore.setQuien(d.quien)
+        if (!sesionOperativa()) return
+        val quien = nube.nombre ?: nube.email
+        val datos = RevDatos(quien, d.cambiado, d.usado, d.calibraste, d.limpiaste, d.variant, d.pieza, d.firmware, d.modelo)
+        if (!revStore.revisar(mda, datos)) return
+        revStore.setQuien(quien)
         addLog("Billetero MDA $mda revisado (${if (d.cambiado) "cambiado" else "quedó el mismo"}${if (d.modelo.isNotEmpty()) ", ${d.modelo}" else ""}).")
         _revPend.value = revStore.pendientes()
         sincronizarPronto()
     }
 
     fun imprimirIntercambio(e: Etq, fecha: String) {
+        if (!exigir(Proc.IMPRIMIR)) return
+        if (!impresoraCompartidaLista()) return
         etiquetas.imprimirIntercambio(e, fecha) { salio ->
             if (salio && etqStore.marcarImpresa(e.id)) {
                 addLog("Intercambio ${e.a} ⇄ ${e.b}: etiquetas impresas.")
@@ -320,7 +363,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     private val cfgStore = CfgStore(app.applicationContext)
 
     private fun publicarConfig(oficial: Boolean = false) {
-        if (!nube.esAdmin) return
+        if (!nube.esAdmin || !sesionOperativa()) return
         val v = org.json.JSONObject().put("etq", etiquetas.compartida()).put("tema", if (cl.reabill.monitor.ui.theme.Acta.premium) "premium" else "clasico")
         if (oficial) { cfgStore.put(v, maxOf(System.currentTimeMillis(), cfgStore.ts() + 1)); cfgStore.marcarSembrado(); sincronizarPronto() }
         else if (cfgStore.actualizarSiCambio(v)) sincronizarPronto()
@@ -353,18 +396,25 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun sincronizarAhora(manual: Boolean = true) {
+        if (cambiandoCuenta) return
         if (!nube.disponible || nube.email.isEmpty()) { if (manual) nubeEstado(false, "Conecta una cuenta primero."); return }
         if (_nube.value.trabajando) return
         nubeEstado(true, "Sincronizando…")
         viewModelScope.launch {
             val r = withContext(Dispatchers.IO) { nube.sincronizar() }
-            if (r.huboCambios) refrescarDesdeNube()
+            if (requiereUsuario()) _sesionLista.value = false
+            if (r.ok) _sesionLista.value = nube.sesionLista
+            if (r.ok || r.huboCambios) refrescarDesdeNube() else refrescarAcceso()
+            if (r.ok && nube.esAdmin) {
 
-            if (r.ok && nube.esAdmin && !cfgStore.sembrado()) publicarConfig(oficial = true)
+                if (!cfgStore.sembrado()) publicarConfig(oficial = true)
+                else if (cfgStore.valor()?.optJSONObject("etq")?.has("addr") != true) publicarConfig()
+            }
             if (r.ok) aplicarConfig()
             if (r.ok) { if (manual || r.subidos > 0 || r.bajados > 0) addLog("Datos compartidos: ${r.mensaje}") }
             else addLog("Datos compartidos: ${r.mensaje}")
-            nubeEstado(false, r.mensaje)
+            nubeEstado(false, if (r.ok && !_sesionLista.value) "El administrador debe publicar la configuración compartida." else r.mensaje)
+            if (_sesionLista.value && !puede(Proc.LEER) && _connected.value && !opRunning && !calibrating && !flashing) disconnect()
         }
     }
 
@@ -388,32 +438,67 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     fun usuariosLista(): List<UsuariosStore.Usu> = nube.usuarios.lista()
     fun correoActual(): String = nube.email.takeIf { !it.equals(Permisos.CUENTA_COMPARTIDA, true) }.orEmpty()
 
+    private fun operacionCuentaEnCurso(): Boolean = _nube.value.trabajando || opRunning || calibrating ||
+        flashing || _flash.value.running || etiquetas.print.value.printing
+
     fun entrarComo(correo: String, clave: String, listo: (String?) -> Unit) {
+        if (cambiandoCuenta || operacionCuentaEnCurso()) {
+            listo("Espera a que termine la operación en curso."); return
+        }
         if (!nube.disponible) { listo("Esta versión no trae la conexión a la nube."); return }
         if (correo.isBlank() || clave.isEmpty()) { listo("Elige quién eres y escribe la clave."); return }
         if (correo.trim().equals(Permisos.CUENTA_COMPARTIDA, true)) { listo("Esa cuenta ya no se usa: entra con tu propio usuario."); return }
-        if (correo.trim().equals(nube.email, true)) { desbloquearPreferencias(clave, listo); return }
+
+        if (correo.trim().equals(nube.email, true) && !requiereUsuario()) { desbloquearPreferencias(clave, listo); return }
+        val correoAnterior = nube.email
+        if (!cambioCuenta.iniciar(operacionCuentaEnCurso())) {
+            listo("Espera a que termine la operación en curso."); return
+        }
+        refrescarAcceso()
         viewModelScope.launch {
-            val err = withContext(Dispatchers.IO) { nube.probarCuenta(correo, clave) }
-            if (err != null) { listo(if (err.startsWith("Sin conexión")) err else "Clave incorrecta."); return@launch }
-            nube.cambiarUsuario(correo, clave)
-            refrescarAcceso()
-            preferenciasAbiertas = true
-            addLog("Datos compartidos: entró ${nube.nombre ?: correo.trim()}.")
-            nubeJob?.cancel(); nubeJob = null
-            nubeEstado(false, "Cuenta conectada.")
-            sincronizarAhora(true)
-            iniciarNube()
-            listo(null)
+            try {
+                val err = try {
+                    withContext(Dispatchers.IO) { nube.probarCuenta(correo, clave) }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    "No se pudo comprobar la cuenta. Inténtalo nuevamente."
+                }
+                if (err != null) { listo(err); return@launch }
+
+                if (!cambioCuenta.puedeCompletar(operacionCuentaEnCurso()) || !correoAnterior.equals(nube.email, true)) {
+                    listo("La sesión o la operación en curso cambió. Espera a que termine y vuelve a ingresar.")
+                    return@launch
+                }
+                if (_demo.value) stopDemo()
+                disconnect()
+                etiquetas.labelStopScan()
+                etiquetas.labelDisconnect()
+                nubeJob?.cancel(); nubeJob = null; pronto?.cancel()
+                _sesionLista.value = false
+                nube.cambiarUsuario(correo, clave)
+                preferenciasAbiertas = true
+                nubeEstado(false, "Cuenta conectada. Preparando datos y configuración…")
+                addLog("Datos compartidos: entró ${nube.nombre ?: correo.trim()}.")
+                cambioCuenta.finalizar()
+                sincronizarAhora(true)
+                iniciarNube()
+                listo(null)
+            } finally {
+                cambioCuenta.finalizar()
+                refrescarAcceso()
+            }
         }
     }
 
     fun desbloquearPreferencias(clave: String, listo: (String?) -> Unit) {
         if (nube.claveCoincide(clave)) { preferenciasAbiertas = true; listo(null); return }
+        val correo = nube.email
         viewModelScope.launch {
-            val err = withContext(Dispatchers.IO) { nube.probarCuenta(nube.email, clave) }
+            val err = withContext(Dispatchers.IO) { nube.probarCuenta(correo, clave) }
+            if (!correo.equals(nube.email, true)) { listo("La sesión cambió. Vuelve a intentarlo."); return@launch }
             if (err == null) {
-                nube.guardarCuenta(nube.email, clave)
+                nube.guardarCuenta(correo, clave)
                 addLog("Datos compartidos: la clave de la cuenta cambió; se guardó la nueva.")
                 preferenciasAbiertas = true
             }
@@ -422,9 +507,11 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun cambiarTema(premium: Boolean, clave: String, listo: (String?) -> Unit) {
+        if (!exigirAdmin()) { listo("Solo el administrador puede cambiar el tema."); return }
         if (nube.email.isEmpty()) { listo("Conecta la cuenta compartida para poder cambiar el tema."); return }
         desbloquearPreferencias(clave) { err ->
             if (err == null) {
+                if (!exigirAdmin()) { listo("La sesión de administrador cambió."); return@desbloquearPreferencias }
                 cl.reabill.monitor.ui.theme.Tema.guardar(getApplication(), premium)
                 addLog("Tema ${if (premium) "Premium" else "clásico"} activado.")
                 publicarConfig()
@@ -434,6 +521,14 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun nubeDesconectar() {
+        if (cambiandoCuenta || operacionCuentaEnCurso()) {
+            addLog("Espera a que termine la operación antes de salir."); return
+        }
+        if (_demo.value) stopDemo()
+        disconnect()
+        etiquetas.labelStopScan()
+        etiquetas.labelDisconnect()
+        _sesionLista.value = false
         nubeJob?.cancel(); nubeJob = null; pronto?.cancel()
         nube.quitarCuenta()
         refrescarAcceso()
@@ -466,6 +561,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     private var weeklySample = false
 
     fun setMda(texto: String) {
+        if (!exigir(Proc.LEER)) return
         val serie = _status.value.serial
         if (serie.isBlank() || serie == "—") { addLog("Sin serie del equipo: no se puede guardar el N° de máquina."); return }
         val n = Mda.norm(texto)
@@ -477,6 +573,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun importWeekly(uri: android.net.Uri) {
+        if (!exigirAdmin()) return
         viewModelScope.launch {
             try {
                 val w = withContext(Dispatchers.IO) {
@@ -534,6 +631,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     fun clearOcr() { _ocr.update { OcrUi(id = it.id) } }
 
     fun recognizeMda(uri: android.net.Uri, test: Boolean = false) {
+        if (cambiandoCuenta) return
         _ocr.update { OcrUi(running = true, message = "Leyendo la foto…", id = it.id, test = test) }
         viewModelScope.launch {
             val res = try {
@@ -578,6 +676,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     val demo: StateFlow<Boolean> = _demo
 
     fun startDemo() {
+        if (!exigirAdmin()) return
         if (_demo.value || _connected.value || flashing || opRunning) {
             addLog("Para usar el demo, desconecta el billetero real."); return
         }
@@ -614,8 +713,9 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun doConnect() {
-        if (requiereUsuario()) return
+        if (!puede(Proc.LEER)) return
         usb.requestPermission { granted ->
+            if (!puede(Proc.LEER)) return@requestPermission
             if (!granted) {
                 addLog("Permiso USB denegado o sin billetero MEI.")
 
@@ -709,6 +809,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun readFirmware() {
+        if (!exigir(Proc.LEER)) return
         val client = mei ?: run { addLog("Conecta el equipo primero."); return }
         if (!beginOp()) { ocupado(); return }
         viewModelScope.launch {
@@ -725,6 +826,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun readAccounting(saveSnapshot: Boolean = true) {
+        if (!exigir(Proc.LEER)) return
         val client = mei ?: run { addLog("Conecta el equipo primero."); return }
         if (!beginOp()) { ocupado(); return }
         viewModelScope.launch {
@@ -853,7 +955,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun resetFlash() { if (!flashing) _flash.value = FlashUi() }
+    fun resetFlash() { if (!cambiandoCuenta && !flashing && !_flash.value.running) _flash.value = FlashUi() }
 
     fun pickFirmware(uri: android.net.Uri) {
         if (flashing) return
@@ -1048,6 +1150,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun startFlash() {
+        if (!sesionOperativa()) return
         val f = _flash.value.file ?: return
         if (flashing || _flash.value.running) return
         if (calibrating || opRunning) { ocupado(); return }
@@ -1131,15 +1234,27 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     private val etiquetas = Etiquetas(app.applicationContext, viewModelScope, { addLog(it) }, { publicarConfig() }) { labelData() }
     val print: StateFlow<PrintUi> get() = etiquetas.print
     val labelPrefs: StateFlow<LabelPrefs> get() = etiquetas.labelPrefs
-    fun setLabelPrefs(p: LabelPrefs) = etiquetas.setLabelPrefs(p)
+    fun setLabelPrefs(p: LabelPrefs) { if (exigirAdmin()) etiquetas.setLabelPrefs(p) }
     fun labelStyle(p: LabelPrefs) = etiquetas.estilo(p)
-    fun labelScan() = etiquetas.labelScan()
+    fun labelScan() { if (exigirAdmin()) etiquetas.labelScan() }
     fun labelNote(m: String) = etiquetas.labelNote(m)
     fun labelStopScan() = etiquetas.labelStopScan()
-    fun labelConnect(f: P12Printer.Found) = etiquetas.labelConnect(f)
-    fun labelConnectLast() = etiquetas.labelConnectLast()
-    fun labelForget() = etiquetas.labelForget()
-    fun labelPrint() = etiquetas.labelPrint()
+    fun labelConnect(f: P12Printer.Found) { if (exigirAdmin()) etiquetas.labelConnect(f) }
+    fun labelConnectLast() { if (exigir(Proc.IMPRIMIR)) etiquetas.labelConnectLast() }
+    fun labelForget() { if (exigirAdmin()) etiquetas.labelForget() }
+    fun labelPrint() {
+        if (!exigir(Proc.IMPRIMIR)) return
+        if (!impresoraCompartidaLista()) return
+        etiquetas.labelPrint()
+    }
+    private fun impresoraCompartidaLista(): Boolean {
+        val etq = cfgStore.valor()?.optJSONObject("etq")
+        val hayImpresora = etq?.has("addr") == true || etq?.optJSONObject("imp") != null
+        if (!nube.esAdmin && !hayImpresora) {
+            etiquetas.labelNote("El administrador debe compartir la impresora. Sincroniza después."); return false
+        }
+        return true
+    }
     fun labelDisconnect() = etiquetas.labelDisconnect()
 
     fun labelData(): LabelData? {
@@ -1152,6 +1267,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun exportBackup(uri: android.net.Uri) {
+        if (!exigirAdmin()) return
         viewModelScope.launch {
             try {
                 val (texto, resumen) = withContext(Dispatchers.IO) {
@@ -1174,6 +1290,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun importBackup(uri: android.net.Uri) {
+        if (!exigirAdmin()) return
         viewModelScope.launch {
             try {
                 val texto = withContext(Dispatchers.IO) {
@@ -1225,6 +1342,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun clearLog() {
+        if (!exigirAdmin()) return
         synchronized(sessionLines) { sessionLines.clear() }
         try { logWriter.execute { try { logFile.writeText("") } catch (e: Exception) { aviso("borrar registro", e) } } } catch (e: Exception) { aviso("borrar registro", e) }
         _log.value = listOf("${android.text.format.DateFormat.format("HH:mm:ss", System.currentTimeMillis())}  Registro limpiado.")

@@ -26,15 +26,21 @@ data class LabelPrefs(
     val salida: Int = LabelProtocol.FEED_DEFAULT
 )
 
-class Etiquetas(
+class Etiquetas internal constructor(
     context: Context,
     private val scope: CoroutineScope,
     private val log: (String) -> Unit,
     private val alCambiar: () -> Unit,
+    private val printer: LabelPrinter,
+    private val renderDispatcher: kotlinx.coroutines.CoroutineDispatcher,
     private val datos: () -> LabelData?
 ) {
+    constructor(
+        context: Context, scope: CoroutineScope, log: (String) -> Unit,
+        alCambiar: () -> Unit, datos: () -> LabelData?
+    ) : this(context, scope, log, alCambiar, P12Printer(context, log), Dispatchers.Default, datos)
+
     private val prefs = context.getSharedPreferences("etiquetas", android.content.Context.MODE_PRIVATE)
-    private val printer = P12Printer(context) { log(it) }
     private val _print = MutableStateFlow(PrintUi())
     val print: StateFlow<PrintUi> = _print
 
@@ -60,11 +66,13 @@ class Etiquetas(
             .put("copies", p.copies).put("conf", p.confirmed).put("campos", LabelFields.encode(p.fields)).put("align", p.align)
             .put("compact", p.compact).put("scale", p.scale).put("vpos", p.vpos).put("dos", p.twoLines)
             .put("nombres", LabelFields.encodeNames(p.names)).put("sal", p.salida)
-            .put("imp", org.json.JSONObject().put("addr", p.lastAddress).put("name", p.lastName))
+            .put("addr", p.lastAddress).put("pname", p.lastName)
     }
 
     fun aplicarCompartida(j: org.json.JSONObject) {
         val a = _labelPrefs.value
+        val nuevaDir = if (j.has("addr")) j.optString("addr") else j.optJSONObject("imp")?.optString("addr")
+        if (nuevaDir != null && nuevaDir != a.lastAddress && !_print.value.printing) labelDisconnect()
         guardar(a.copy(
             lengthMm = j.optInt("mm", a.lengthMm), dieCut = j.optBoolean("die", a.dieCut), rotate = j.optBoolean("rot", a.rotate),
             density = j.optInt("dens", a.density), copies = j.optInt("copies", a.copies).coerceIn(1, 10), confirmed = j.optBoolean("conf", a.confirmed),
@@ -73,8 +81,8 @@ class Etiquetas(
             vpos = j.optInt("vpos", a.vpos), twoLines = j.optBoolean("dos", a.twoLines),
             names = if (j.has("nombres")) LabelFields.parseNames(j.optString("nombres")) else a.names,
             salida = j.optInt("sal", a.salida).coerceIn(8, 255),
-            lastAddress = j.optJSONObject("imp")?.optString("addr") ?: a.lastAddress,
-            lastName = j.optJSONObject("imp")?.optString("name") ?: a.lastName
+            lastAddress = if (j.has("addr")) j.optString("addr") else j.optJSONObject("imp")?.optString("addr") ?: a.lastAddress,
+            lastName = if (j.has("pname")) LabelProtocol.cleanName(j.optString("pname")) else j.optJSONObject("imp")?.optString("name") ?: a.lastName
         ))
     }
 
@@ -89,6 +97,12 @@ class Etiquetas(
     fun estilo(p: LabelPrefs) = LabelStyle(p.align, p.vpos, p.compact, p.scale, p.rotate, p.twoLines)
 
     private var scanJob: kotlinx.coroutines.Job? = null
+    private var connectJob: kotlinx.coroutines.Job? = null
+
+    private var connectionGeneration = 0L
+
+    private fun conectadaA(address: String): Boolean =
+        printer.isConnected && printer.connectedAddress?.equals(address, ignoreCase = true) == true
 
     fun labelScan() {
         if (!printer.available || !printer.bluetoothOn) {
@@ -116,14 +130,16 @@ class Etiquetas(
 
     fun labelStopScan() { scanJob?.cancel(); printer.stopScan(); _print.update { it.copy(scanning = false) } }
 
-    fun labelConnect(f: P12Printer.Found) {
+    fun labelConnect(f: P12Printer.Found, configurar: Boolean = true) {
         if (_print.value.printing) return
+        connectionGeneration++
+        connectJob?.cancel()
         printer.stopScan()
         _print.update { it.copy(scanning = false, message = "Conectando a ${f.name}…") }
-        scope.launch {
+        connectJob = scope.launch {
             val err = printer.connect(f.address)
             if (err == null) {
-                setLabelPrefs(_labelPrefs.value.copy(lastAddress = f.address, lastName = f.name))
+                if (configurar) setLabelPrefs(_labelPrefs.value.copy(lastAddress = f.address, lastName = f.name))
                 _print.update { it.copy(connectedName = f.name, message = "Conectada: ${f.name}") }
             } else {
                 log("Impresora ${f.name}: $err")
@@ -135,11 +151,11 @@ class Etiquetas(
     fun labelConnectLast() {
         val p = _labelPrefs.value
         if (p.lastAddress.isEmpty()) return
-        labelConnect(P12Printer.Found(p.lastName, p.lastAddress, true))
+        labelConnect(P12Printer.Found(p.lastName, p.lastAddress, true), configurar = false)
     }
 
     fun labelForget() {
-        printer.close()
+        labelDisconnect()
         setLabelPrefs(_labelPrefs.value.copy(lastAddress = "", lastName = ""))
         _print.update { it.copy(connectedName = null, message = "Impresora olvidada.") }
     }
@@ -149,7 +165,7 @@ class Etiquetas(
         val p = _labelPrefs.value
         imprimir(
             descripcion = { "Etiqueta enviada a la impresora: " + LabelRenderer.lines(d, p.fields, p.names, p.twoLines).joinToString(" / ") },
-            copias = p.copies, okMensaje = "Etiqueta enviada.",
+            p = p, copias = p.copies, okMensaje = "Etiqueta enviada.",
             armar = { listOf(LabelRenderer.render(d, p.lengthMm, p.fields, p.names, estilo(p))) }
         )
     }
@@ -158,31 +174,37 @@ class Etiquetas(
         val p = _labelPrefs.value
         imprimir(
             descripcion = { "Etiquetas de intercambio ${e.a} ⇄ ${e.b} enviadas a la impresora." },
-            copias = 1, okMensaje = "Se imprimieron las 2 etiquetas.", alTerminar = alTerminar,
+            p = p, copias = 1, okMensaje = "Se imprimieron las 2 etiquetas.", alTerminar = alTerminar,
             armar = { e.etiquetas(fecha).map { LabelRenderer.renderLines(it, p.lengthMm, estilo(p)) } }
         )
     }
 
     private fun imprimir(
-        descripcion: () -> String, copias: Int, okMensaje: String,
+        descripcion: () -> String, p: LabelPrefs, copias: Int, okMensaje: String,
         alTerminar: (Boolean) -> Unit = {}, armar: () -> List<android.graphics.Bitmap>
     ) {
-        val p = _labelPrefs.value
+        if (p.lastAddress.isEmpty()) { labelNote("El administrador debe configurar y compartir la impresora."); return }
         if (_print.value.printing) return
+        val generation = ++connectionGeneration
+        connectJob?.cancel(); connectJob = null
+        _print.update { it.copy(printing = true, message = "") }
         scope.launch {
-            _print.update { it.copy(printing = true, message = "") }
             var salio = false
             try {
 
-                if (!printer.isConnected && p.lastAddress.isNotEmpty()) {
+                if (!conectadaA(p.lastAddress)) {
                     _print.update { it.copy(message = "Conectando a ${p.lastName}…") }
                     val e = printer.connect(p.lastAddress)
                     if (e != null) { log("Impresora: $e"); _print.update { it.copy(connectedName = null, message = e) }; return@launch }
                     _print.update { it.copy(connectedName = p.lastName) }
                 }
-                val err = withContext(Dispatchers.Default) {
+                val err = withContext(renderDispatcher) {
                     var fallo: String? = null
                     for (bmp in armar()) {
+                        if (!conectadaA(p.lastAddress)) {
+                            fallo = "La impresora conectada no corresponde a este trabajo."
+                            break
+                        }
                         val job = LabelProtocol.buildJob(LabelRenderer.toBlack(bmp), p.dieCut, p.density.takeIf { it in 1..15 }, p.salida)
                         fallo = printer.send(job, copias, p.confirmed)
                         if (fallo != null) break
@@ -200,16 +222,20 @@ class Etiquetas(
                 alTerminar(salio)
 
                 delay(1500)
-                if (!_print.value.printing) { printer.close(); _print.update { it.copy(connectedName = null) } }
+                if (generation == connectionGeneration && !_print.value.printing) {
+                    printer.close(); _print.update { it.copy(connectedName = null) }
+                }
             }
         }
     }
 
     fun labelDisconnect() {
         if (_print.value.printing) return
+        connectionGeneration++
+        connectJob?.cancel(); connectJob = null
         printer.close()
         _print.update { it.copy(connectedName = null, scanning = false) }
     }
 
-    fun cerrar() = printer.close()
+    fun cerrar() { connectionGeneration++; connectJob?.cancel(); labelStopScan(); printer.close() }
 }

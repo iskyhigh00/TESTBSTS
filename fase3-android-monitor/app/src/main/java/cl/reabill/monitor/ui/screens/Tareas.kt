@@ -106,6 +106,17 @@ internal fun RevisarDialog(vm: MonitorViewModel, mda: String, rev: Rev?, onClose
 internal fun EtiquetasDialog(vm: MonitorViewModel, onClose: () -> Unit) {
     val pend by vm.etqPendientes.collectAsStateWithLifecycle()
     val imp by vm.print.collectAsStateWithLifecycle()
+    val acceso by vm.acceso.collectAsStateWithLifecycle()
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var pendiente by remember { mutableStateOf<Pair<cl.reabill.monitor.Etq, String>?>(null) }
+    val permisoBt = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+    ) { ok ->
+        val p = pendiente
+        pendiente = null
+        if (ok && p != null) vm.imprimirIntercambio(p.first, p.second)
+        else if (!ok) vm.labelNote("Falta el permiso de Bluetooth para imprimir.")
+    }
     val hoy = remember { java.text.SimpleDateFormat("dd-MM-yyyy", java.util.Locale.US).format(java.util.Date()) }
     AlertDialog(
         onDismissRequest = onClose,
@@ -123,8 +134,14 @@ internal fun EtiquetasDialog(vm: MonitorViewModel, onClose: () -> Unit) {
                         modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
                     )
                     ActaButton(
-                        if (imp.printing) "Imprimiendo…" else "Imprimir 2 etiquetas", onClick = { vm.imprimirIntercambio(e, fecha) },
-                        filled = true, enabled = !imp.printing, height = 46.dp, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                        if (imp.printing) "Imprimiendo…" else "Imprimir 2 etiquetas", onClick = {
+                            if (android.os.Build.VERSION.SDK_INT >= 31 && androidx.core.content.ContextCompat.checkSelfPermission(
+                                    context, android.Manifest.permission.BLUETOOTH_CONNECT) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                                pendiente = e to fecha
+                                permisoBt.launch(android.Manifest.permission.BLUETOOTH_CONNECT)
+                            } else vm.imprimirIntercambio(e, fecha)
+                        },
+                        filled = true, enabled = acceso.puede(cl.reabill.monitor.Proc.IMPRIMIR) && !imp.printing, height = 46.dp, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
                     )
                 }
                 if (imp.message.isNotEmpty()) Text(imp.message, style = ActaType.Label, modifier = Modifier.padding(top = 8.dp))

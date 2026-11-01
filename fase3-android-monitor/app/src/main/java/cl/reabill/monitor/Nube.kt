@@ -1,7 +1,6 @@
 package cl.reabill.monitor
 
 import android.content.Context
-import android.os.Build
 import org.json.JSONObject
 
 data class NubeUi(
@@ -9,8 +8,18 @@ data class NubeUi(
     val trabajando: Boolean = false, val mensaje: String = "", val nombre: String = ""
 )
 
-class Nube(context: Context, private val mda: MdaStore, private val store: AccountingStore) {
+class Nube(
+    context: Context, private val mda: MdaStore, private val store: AccountingStore,
+    private val supaUrl: String = BuildConfig.SUPA_URL,
+    private val supaKey: String = BuildConfig.SUPA_KEY,
+    private val crearCliente: (String, String) -> NubeHttp = { u, k -> NubeHttp(u, k) }
+) {
     private val prefs = context.getSharedPreferences("nube", Context.MODE_PRIVATE)
+    init {
+
+        if (!prefs.getBoolean("admin_cfg_v2", false))
+            prefs.edit().remove("cursor").putBoolean("admin_cfg_v2", true).apply()
+    }
     val etq = EtqStore(context)
     val rev = RevStore(context)
     val trab = TrabStore(context)
@@ -18,26 +27,41 @@ class Nube(context: Context, private val mda: MdaStore, private val store: Accou
     val usuarios = UsuariosStore(context)
     val permisos = PermisosStore(context)
     val bs = BsStore(context)
+    private val autores = AutoresPendientesStore(context)
+    private var descargasAplicadas = 0
 
-    val disponible: Boolean get() = BuildConfig.SUPA_URL.isNotEmpty() && BuildConfig.SUPA_KEY.isNotEmpty()
+    val disponible: Boolean get() = supaUrl.isNotEmpty() && supaKey.isNotEmpty()
     val email: String get() = prefs.getString("email", "") ?: ""
     val ultima: Long get() = prefs.getLong("ultima", 0L)
+
+    var configuracionVerificada: Boolean = prefs.getString("verif", null).let { it != null && it.equals(prefs.getString("email", ""), true) }
+        private set(v) {
+            field = v
+            prefs.edit().apply { if (v) putString("verif", email) else remove("verif") }.apply()
+        }
 
     val requiereUsuario: Boolean get() = disponible && (email.isEmpty() || email.equals(Permisos.CUENTA_COMPARTIDA, true) || prefs.getString("invalida", null) != null)
 
     val esAdmin: Boolean get() = email.isNotEmpty() && Permisos.esAdmin(email, usuarios.rolDe(email))
 
-    fun acceso(): Acceso = if (email.isEmpty()) Acceso.NINGUNO else Acceso(esAdmin, permisos.permitidos(email))
+    val sesionLista: Boolean get() = email.isNotEmpty() && !requiereUsuario && (esAdmin || configuracionVerificada)
+
+    fun acceso(): Acceso = if (!sesionLista) Acceso.NINGUNO else Acceso(esAdmin, permisos.permitidos(email))
 
     val nombre: String? get() = if (email.isEmpty()) null else usuarios.nombreDe(email)
 
     fun guardarCuenta(email: String, clave: String) {
+        conservarAutoresPendientes()
+        val mantener = configuracionVerificada && this.email.equals(email.trim(), true)
         prefs.edit().clear().putString("email", email.trim()).putString("clave_c", Cifra.cifrar(clave)).apply()
+        configuracionVerificada = mantener
         http = null
     }
 
     fun cambiarUsuario(email: String, clave: String) {
-        prefs.edit().remove("clave").remove("invalida").putString("email", email.trim()).putString("clave_c", Cifra.cifrar(clave)).apply()
+        conservarAutoresPendientes()
+        configuracionVerificada = false
+        prefs.edit().remove("clave").remove("invalida").remove("cursor").putString("email", email.trim()).putString("clave_c", Cifra.cifrar(clave)).apply()
         http = null
     }
 
@@ -51,7 +75,7 @@ class Nube(context: Context, private val mda: MdaStore, private val store: Accou
 
     fun claveCoincide(c: String): Boolean = c.isNotEmpty() && c == clave()
 
-    fun quitarCuenta() { prefs.edit().clear().apply() }
+    fun quitarCuenta() { conservarAutoresPendientes(); configuracionVerificada = false; prefs.edit().clear().apply() }
 
     private fun enviado(k: String) = prefs.getString("env:$k", null)
     private fun olvidarEnviado(k: String) { prefs.edit().remove("env:$k").apply() }
@@ -93,9 +117,36 @@ class Nube(context: Context, private val mda: MdaStore, private val store: Accou
 
     private fun serieOk(s: String) = s.isNotBlank() && s != "—" && !DemoClient.isDemoSerial(s)
 
-    private fun aplicar(f: FilaNube, lecturas: MutableMap<String, MutableList<AccountingData>>): Boolean {
+    private fun clavesLocales(): Set<String> = linkedSetOf("semanal", "cfg", "permisos").apply {
+        mda.mdaSeries().filter { serieOk(it) }.forEach { add("mda:$it") }
+        mda.infoSeries().filter { serieOk(it) }.forEach { add("info:$it") }
+        mda.ifazSeries().filter { serieOk(it) }.forEach { add("ifaz:$it") }
+        etq.ids().forEach { add("etq:$it") }
+        rev.ids().forEach { add("rev:$it") }
+        bs.nombresBs().forEach { add("bs:$it") }
+        bs.okNombres().forEach { add("bsok:$it") }
+    }
+
+    private fun conservarAutoresPendientes() {
+        for (k in clavesLocales()) {
+            val l = local(k) ?: continue
+            if (enviado(k) != l.digest) autores.conservar(k, l.digest, email)
+        }
+        for (s in store.serials()) for (lectura in store.history(s)) {
+            val l = Local(lectura.timestamp, lectura.toJson())
+            autores.conservar("lec:$s:${lectura.timestamp}", l.digest, email)
+        }
+    }
+
+    private fun aplicar(f: FilaNube, lecturas: MutableMap<String, MutableList<AccountingData>>, autoritativo: Boolean = false): Boolean {
         val k = f.clave
         try {
+            val remoto = Local(f.ts, f.valor)
+            if (local(k)?.digest == remoto.digest) {
+                autores.recibido(k, remoto.digest, f.por)
+                if (!k.startsWith("ifaz:")) marcarEnviado(k, remoto.digest)
+                if (k == "permisos") permisos.confirmarVersion(f.valor, f.ts)
+            }
             when {
                 k.startsWith("mda:") -> {
                     val s = k.removePrefix("mda:"); if (!serieOk(s)) return false
@@ -120,6 +171,7 @@ class Nube(context: Context, private val mda: MdaStore, private val store: Accou
                 k.startsWith("lec:") -> {
                     val s = k.removePrefix("lec:").substringBeforeLast(':'); if (!serieOk(s)) return false
                     lecturas.getOrPut(s) { ArrayList() }.add(AccountingData.fromJson(f.valor))
+                    autores.recibido(k, Local(f.ts, f.valor).digest, f.por)
                     return false
                 }
                 k.startsWith("etq:") -> {
@@ -129,7 +181,8 @@ class Nube(context: Context, private val mda: MdaStore, private val store: Accou
                 }
                 k == "cfg" -> {
 
-                    if (if (esAdmin) f.ts <= cfg.ts() else f.ts == cfg.ts()) return false
+                    if (esAdmin && f.ts <= cfg.ts()) return false
+                    if (f.ts == cfg.ts() && f.valor.toString() == cfg.valor()?.toString()) return false
                     cfg.put(f.valor, f.ts)
                 }
                 k.startsWith("rev:") -> {
@@ -138,13 +191,14 @@ class Nube(context: Context, private val mda: MdaStore, private val store: Accou
                     rev.put(m, f.valor, f.ts)
                 }
                 k == "permisos" -> {
-                    if (f.ts <= permisos.ts()) return false
-                    permisos.put(f.valor, f.ts)
+                    if (!autoritativo && f.ts <= permisos.ts()) return false
+                    if (!permisos.aplicarRemoto(f.valor, f.ts, esAdmin)) return false
                 }
                 k.startsWith("bs:") -> { if (!bs.aplicarBs(k.removePrefix("bs:"), f.valor, f.ts)) return false }
                 k.startsWith("bsok:") -> { if (!bs.aplicarOk(k.removePrefix("bsok:"), f.valor, f.ts)) return false }
                 k == "usuarios" -> {
-                    if (f.ts <= usuarios.ts()) return false
+                    if (!autoritativo && f.ts <= usuarios.ts()) return false
+                    if (f.ts == usuarios.ts() && CfgStore.canon(f.valor) == CfgStore.canon(usuarios.valor())) return false
                     usuarios.put(f.valor, f.ts)
                 }
                 k.startsWith("trab:") -> {
@@ -153,7 +207,8 @@ class Nube(context: Context, private val mda: MdaStore, private val store: Accou
                     trab.put(m, f.valor, f.ts)
                 }
                 k == "semanal" -> {
-                    if (f.ts <= mda.weeklyTs()) return false
+
+                    if (if (esAdmin) f.ts <= mda.weeklyTs() else f.ts == mda.weeklyTs()) return false
 
                     val w = try { WeeklyImport.parse(f.valor.opt("w")?.toString() ?: return false) } catch (e: Exception) { aviso("reporte semanal de la nube", e); return false }
                     mda.setWeeklyConTs(w, f.ts)
@@ -162,6 +217,8 @@ class Nube(context: Context, private val mda: MdaStore, private val store: Accou
             }
 
             if (!k.startsWith("ifaz:")) local(k)?.let { marcarEnviado(k, it.digest) }
+            autores.recibido(k, Local(f.ts, f.valor).digest, f.por)
+            descargasAplicadas++
             return true
         } catch (_: Exception) { return false }
     }
@@ -169,7 +226,7 @@ class Nube(context: Context, private val mda: MdaStore, private val store: Accou
     class Resultado(val ok: Boolean, val mensaje: String, val bajados: Int, val subidos: Int, val huboCambios: Boolean)
 
     private var http: NubeHttp? = null
-    private fun cliente(): NubeHttp = http ?: NubeHttp(BuildConfig.SUPA_URL, BuildConfig.SUPA_KEY).also { http = it }
+    private fun cliente(): NubeHttp = http ?: crearCliente(supaUrl, supaKey).also { http = it }
 
     private fun entrar(forzar: Boolean = false) {
         val c = cliente()
@@ -181,24 +238,26 @@ class Nube(context: Context, private val mda: MdaStore, private val store: Accou
     }
 
     fun probarCuenta(email: String, clave: String): String? = try {
-        NubeHttp(BuildConfig.SUPA_URL, BuildConfig.SUPA_KEY).login(email.trim(), clave); null
+        crearCliente(supaUrl, supaKey).login(email.trim(), clave); null
     } catch (e: NubeError) { e.usuario } catch (e: java.io.IOException) { "Sin conexión: ${e.message ?: "revisa internet"}" }
 
     @Synchronized
     fun sincronizar(): Resultado {
         if (!disponible) return Resultado(false, "Esta versión no trae la conexión a la nube.", 0, 0, false)
+        descargasAplicadas = 0
         return try {
+            conservarAutoresPendientes()
             try { entrar() ; bajarYSubir() } catch (e: NubeError) {
                 if (e.http == 401) { entrar(forzar = true); bajarYSubir() } else throw e
             }
         } catch (e: NubeError) {
-            Resultado(false, e.usuario, 0, 0, false)
+            Resultado(false, e.usuario, descargasAplicadas, 0, descargasAplicadas > 0)
         } catch (e: java.net.UnknownHostException) {
-            Resultado(false, "Sin conexión: se sincroniza cuando vuelva internet.", 0, 0, false)
+            Resultado(false, "Sin conexión: se sincroniza cuando vuelva internet.", descargasAplicadas, 0, descargasAplicadas > 0)
         } catch (e: java.io.IOException) {
-            Resultado(false, "Sin conexión o sin respuesta (${e.message ?: e.javaClass.simpleName}).", 0, 0, false)
+            Resultado(false, "Sin conexión o sin respuesta (${e.message ?: e.javaClass.simpleName}).", descargasAplicadas, 0, descargasAplicadas > 0)
         } catch (e: Exception) {
-            Resultado(false, "Error al sincronizar: ${e.message ?: e.javaClass.simpleName}", 0, 0, false)
+            Resultado(false, "Error al sincronizar: ${e.message ?: e.javaClass.simpleName}", descargasAplicadas, 0, descargasAplicadas > 0)
         }
     }
 
@@ -224,30 +283,44 @@ class Nube(context: Context, private val mda: MdaStore, private val store: Accou
         val c = cliente()
 
         val (filas, cursor) = c.traer(prefs.getString("cursor", null))
+
+        val controles = c.controlesCompartidos()
+        val configuracion = controles["cfg"]
         val lecturas = HashMap<String, MutableList<AccountingData>>()
         var bajados = 0
-        for (f in filas) if (aplicar(f, lecturas)) bajados++
+        val filaUsuarios = controles["usuarios"]
+        if (filaUsuarios != null) { if (aplicar(filaUsuarios, lecturas, autoritativo = true)) bajados++ }
+        else if (usuarios.lista().isNotEmpty()) { usuarios.put(JSONObject(), 0L); bajados++ }
+        controles["permisos"]?.let { if (aplicar(it, lecturas, autoritativo = true)) bajados++ }
+        if (esAdmin && controles["permisos"] == null) permisos.inicializarSiVacio()
+        configuracionVerificada = configuracion?.valor?.optJSONObject("etq") != null &&
+            (esAdmin || controles["permisos"] != null && usuarios.lista().any { it.correo.equals(email, true) })
+        for (f in filas) {
+            if (f.clave in setOf("cfg", "permisos", "usuarios")) continue
+            if (aplicar(f, lecturas)) bajados++
+        }
+        if (configuracion != null && aplicar(configuracion, lecturas)) bajados++
         var huboCambios = bajados > 0
         for ((s, lista) in lecturas) {
             val nuevas = store.mergeIn(s, lista)
-            if (nuevas > 0) { bajados += nuevas; huboCambios = true }
+            if (nuevas > 0) { bajados += nuevas; descargasAplicadas += nuevas; huboCambios = true }
         }
 
-        if (quitarBorradas(c)) huboCambios = true
+        if (quitarBorradas(c)) { huboCambios = true; descargasAplicadas++ }
 
-        val por = nombre ?: Build.MODEL ?: "teléfono"
+        val por = "autor no registrado"
         val claves = LinkedHashSet<String>()
         mda.mdaSeries().filter { serieOk(it) }.forEach { claves.add("mda:$it") }
         mda.infoSeries().filter { serieOk(it) }.forEach { claves.add("info:$it") }
         mda.ifazSeries().filter { serieOk(it) }.forEach { claves.add("ifaz:$it") }
-        claves.add("semanal")
         etq.ids().forEach { claves.add("etq:$it") }
         rev.ids().forEach { claves.add("rev:$it") }
 
         if (esAdmin) {
-            bs.asegurarHoras()
-            claves.add("permisos")
+            claves.add("semanal")
             claves.add("cfg")
+            bs.asegurarHoras()
+            if (permisos.tieneCambiosPendientes()) claves.add("permisos")
             bs.nombresBs().forEach { claves.add("bs:$it") }
             bs.okNombres().forEach { claves.add("bsok:$it") }
         }
@@ -256,14 +329,21 @@ class Nube(context: Context, private val mda: MdaStore, private val store: Accou
             val l = local(k) ?: continue
             if (enviado(k) == l.digest) continue
             if (k.startsWith("bs:") && l.valor.toString().length > 4_000_000) continue
-            cambiadas.add(FilaNube(k, l.valor, l.ts)); digests[k] = l.digest
+
+            autores.conservar(k, l.digest, email)
+            cambiadas.add(FilaNube(k, l.valor, l.ts, autores.autor(k, l.digest))); digests[k] = l.digest
         }
         val lecFilas = ArrayList<FilaNube>(); val lecDigest = HashMap<String, String>()
         for (s in store.serials()) {
             val h = store.history(s)
             val d = "${h.size}:${h.firstOrNull()?.timestamp ?: 0}"
             if (enviado("lec:$s") == d) continue
-            h.forEach { lecFilas.add(FilaNube("lec:$s:${it.timestamp}", it.toJson(), it.timestamp)) }
+            h.forEach {
+                val k = "lec:$s:${it.timestamp}"
+                val l = Local(it.timestamp, it.toJson())
+                autores.conservar(k, l.digest, email)
+                lecFilas.add(FilaNube(k, l.valor, l.ts, autores.autor(k, l.digest)))
+            }
             lecDigest["lec:$s"] = d
         }
         if (cambiadas.isNotEmpty()) {
@@ -271,6 +351,7 @@ class Nube(context: Context, private val mda: MdaStore, private val store: Accou
             if (otras.isNotEmpty()) c.subir(otras, por, sobrescribir = true)
             if (archivos.isNotEmpty()) c.subir(archivos, por, sobrescribir = true, lote = 1)
             digests.forEach { (k, d) -> marcarEnviado(k, d) }
+            cambiadas.firstOrNull { it.clave == "permisos" }?.let { permisos.confirmarVersion(it.valor, it.ts) }
         }
         if (lecFilas.isNotEmpty()) { c.subir(lecFilas, por, sobrescribir = false); lecDigest.forEach { (k, d) -> marcarEnviado(k, d) } }
 

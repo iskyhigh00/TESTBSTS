@@ -18,8 +18,20 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.UUID
 
+interface LabelPrinter {
+    val bluetoothOn: Boolean
+    val available: Boolean
+    val isConnected: Boolean
+    val connectedAddress: String?
+    fun startScan(onFound: (P12Printer.Found) -> Unit): Boolean
+    fun stopScan()
+    suspend fun connect(address: String): String?
+    fun close()
+    suspend fun send(data: ByteArray, copies: Int, withResponse: Boolean): String?
+}
+
 @Suppress("DEPRECATION", "MissingPermission")
-class P12Printer(private val ctx: Context, private val log: (String) -> Unit) {
+class P12Printer(private val ctx: Context, private val log: (String) -> Unit) : LabelPrinter {
 
     data class Found(val name: String, val address: String, val likely: Boolean = false, val rssi: Int = 0)
 
@@ -44,11 +56,13 @@ class P12Printer(private val ctx: Context, private val log: (String) -> Unit) {
     @Volatile private var connectDone: CompletableDeferred<String?>? = null
     @Volatile private var writeDone: CompletableDeferred<Boolean>? = null
 
-    val bluetoothOn get() = adapter?.isEnabled == true
-    val available get() = adapter != null
-    val isConnected get() = writeChar != null && gatt != null
+    override val bluetoothOn get() = adapter?.isEnabled == true
+    override val available get() = adapter != null
+    override val isConnected get() = writeChar != null && gatt != null
+    @Volatile override var connectedAddress: String? = null
+        private set
 
-    fun startScan(onFound: (Found) -> Unit): Boolean {
+    override fun startScan(onFound: (Found) -> Unit): Boolean {
         val scanner = adapter?.bluetoothLeScanner ?: return false
         stopScan()
         val cb = object : ScanCallback() {
@@ -66,7 +80,7 @@ class P12Printer(private val ctx: Context, private val log: (String) -> Unit) {
             scanner.startScan(null, st, cb); true } catch (e: Exception) { log("No se pudo buscar: ${e.message}"); false }
     }
 
-    fun stopScan() {
+    override fun stopScan() {
         val cb = scanCb ?: return
         scanCb = null
         try { adapter?.bluetoothLeScanner?.stopScan(cb) } catch (e: Exception) { aviso("cerrar impresora", e) }
@@ -78,6 +92,7 @@ class P12Printer(private val ctx: Context, private val log: (String) -> Unit) {
             if (newState == BluetoothProfile.STATE_CONNECTED && status == BluetoothGatt.GATT_SUCCESS) {
                 if (!g.requestMtu(MTU_WANTED)) g.discoverServices()
             } else {
+                connectedAddress = null
                 writeChar = null
                 connectDone?.complete("Conexión perdida o rechazada (estado $status)")
                 writeDone?.complete(false)
@@ -101,6 +116,7 @@ class P12Printer(private val ctx: Context, private val log: (String) -> Unit) {
                 return
             }
             writeChar = w
+            connectedAddress = g.device.address
             svc.getCharacteristic(NOTIFY)?.let { n ->
                 g.setCharacteristicNotification(n, true)
                 n.getDescriptor(CCCD)?.let { d ->
@@ -123,7 +139,7 @@ class P12Printer(private val ctx: Context, private val log: (String) -> Unit) {
         }
     }
 
-    suspend fun connect(address: String): String? {
+    override suspend fun connect(address: String): String? {
         val ad = adapter ?: return "Este teléfono no tiene Bluetooth."
         if (!ad.isEnabled) return "El Bluetooth está apagado."
         close()
@@ -140,13 +156,14 @@ class P12Printer(private val ctx: Context, private val log: (String) -> Unit) {
         return null
     }
 
-    fun close() {
+    override fun close() {
+        connectedAddress = null
         writeChar = null
         gatt?.let { try { it.disconnect(); it.close() } catch (e: Exception) { aviso("cerrar impresora", e) } }
         gatt = null
     }
 
-    suspend fun send(data: ByteArray, copies: Int, withResponse: Boolean): String? = try { sendInner(data, copies, withResponse) }
+    override suspend fun send(data: ByteArray, copies: Int, withResponse: Boolean): String? = try { sendInner(data, copies, withResponse) }
     catch (e: SecurityException) { "Falta el permiso de Bluetooth." }
 
     private suspend fun sendInner(data: ByteArray, copies: Int, withResponse: Boolean): String? {

@@ -1,6 +1,8 @@
 package cl.reabill.monitor
 
-enum class Proc(val clave: String, val etiqueta: String) {
+enum class Proc(val clave: String, val etiqueta: String, val porDefecto: Boolean = false) {
+    LEER("leer", "Leer billeteros", true),
+    IMPRIMIR("imprimir", "Imprimir etiquetas", true),
     CALIBRAR("calibrar", "Calibrar"),
     BORRAR("borrar", "Borrar contabilidad"),
     INTERFAZ("interfaz", "Cambiar interfaz"),

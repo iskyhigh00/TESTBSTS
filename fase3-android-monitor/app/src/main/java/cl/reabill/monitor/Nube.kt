@@ -27,6 +27,7 @@ class Nube(
     val usuarios = UsuariosStore(context)
     val permisos = PermisosStore(context)
     val bs = BsStore(context)
+    val registros = RegistrosStore(context)
     private val autores = AutoresPendientesStore(context)
     private var descargasAplicadas = 0
 
@@ -107,6 +108,7 @@ class Nube(
         clave == "permisos" -> permisos.valor()?.let { Local(permisos.ts(), it) }
         clave.startsWith("bs:") -> clave.removePrefix("bs:").let { n -> bs.valorBs(n)?.let { Local(bs.ts(n), it) } }
         clave.startsWith("bsok:") -> clave.removePrefix("bsok:").let { n -> bs.okValor(n)?.let { Local(bs.okTs(n), it) } }
+        clave.startsWith("reg:") -> clave.removePrefix("reg:").let { id -> registros.valor(id)?.let { Local(registros.ts(id), it) } }
         clave.startsWith("trab:") -> trab.valor(clave.removePrefix("trab:"))?.let { Local(trab.ts(clave.removePrefix("trab:")), it) }
         clave.startsWith("mda:") -> localMda(clave.removePrefix("mda:"))
         clave.startsWith("info:") -> localInfo(clave.removePrefix("info:"))
@@ -315,6 +317,7 @@ class Nube(
         mda.ifazSeries().filter { serieOk(it) }.forEach { claves.add("ifaz:$it") }
         etq.ids().forEach { claves.add("etq:$it") }
         rev.ids().forEach { claves.add("rev:$it") }
+        registros.ids().forEach { claves.add("reg:$it") }
 
         if (esAdmin) {
             claves.add("semanal")

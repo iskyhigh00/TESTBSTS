@@ -377,6 +377,28 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         if (v.has("tema") && premium != cl.reabill.monitor.ui.theme.Acta.premium) cl.reabill.monitor.ui.theme.Tema.guardar(getApplication(), premium)
     }
 
+    private fun prepararRegistro() {
+        try {
+            if (requiereUsuario()) return
+            val correo = nube.email.trim().lowercase()
+            if (correo.isEmpty()) return
+            vaciarRegistro()
+            val lineas = if (logFile.exists()) logFile.readLines() else return
+            val fmt = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+            val ahora = System.currentTimeMillis()
+            val desde = fmt.format(java.util.Date(ahora - 2 * 86_400_000L))
+            val porDia = lineas.filter { it.length > 20 && it[10] == ' ' }.groupBy { it.substring(0, 10) }.filterKeys { it >= desde }
+            for ((dia, ls) in porDia) {
+                val arr = org.json.JSONArray()
+                ls.takeLast(500).forEach { arr.put(it.replace('\t', ' ').take(300)) }
+                val v = org.json.JSONObject().put("correo", correo).put("nombre", nube.nombre ?: "").put("tel", android.os.Build.MODEL ?: "")
+                    .put("ver", APP_VERSION).put("dia", dia).put("lineas", arr)
+                nube.registros.actualizar("$correo:$dia", v, ahora)
+            }
+            nube.registros.purgar(fmt.format(java.util.Date(ahora - 7 * 86_400_000L)))
+        } catch (e: Exception) { aviso("preparar registro", e) }
+    }
+
     private fun refrescarDesdeNube() {
         aplicarConfig()
         refrescarAcceso()
@@ -401,7 +423,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         if (_nube.value.trabajando) return
         nubeEstado(true, "Sincronizando…")
         viewModelScope.launch {
-            val r = withContext(Dispatchers.IO) { nube.sincronizar() }
+            val r = withContext(Dispatchers.IO) { prepararRegistro(); nube.sincronizar() }
             if (requiereUsuario()) _sesionLista.value = false
             if (r.ok) _sesionLista.value = nube.sesionLista
             if (r.ok || r.huboCambios) refrescarDesdeNube() else refrescarAcceso()

@@ -82,7 +82,7 @@ class NubeHttp(private val base: String, private val apiKey: String, private val
             val siguiente = if (ultimoTiempo == null) "" else "&or=" + URLEncoder.encode(
                 "(actualizado.gt.${literal(ultimoTiempo)},and(actualizado.eq.${literal(ultimoTiempo)},clave.gt.${literal(ultimaClave!!)}))", "UTF-8")
 
-            val url = u("/rest/v1/billmon_kv?select=clave,valor,ts,por,actualizado$desdeFiltro$siguiente&order=actualizado.asc,clave.asc&limit=$pagina")
+            val url = u("/rest/v1/billmon_kv?select=clave,valor,ts,por,actualizado&clave=not.like.reg:*$desdeFiltro$siguiente&order=actualizado.asc,clave.asc&limit=$pagina")
             val (code, txt) = llamar("GET", url, null)
             revisar(code, txt)
             val arr = JSONArray(txt)

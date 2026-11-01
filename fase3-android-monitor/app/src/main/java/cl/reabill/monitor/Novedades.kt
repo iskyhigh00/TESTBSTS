@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.8.1" to listOf(
+            "El Registro de cada teléfono se sube a la nube junto con la sincronización (últimos días, con tu nombre y la versión) para poder revisar qué pasó si algo falla. No lleva claves.",
+        ),
         "2.8.0" to listOf(
             "Más seguridad al cambiar de cuenta: no se puede entrar con otro usuario ni salir mientras hay una lectura, calibración, carga de bill-set o impresión en curso; al cambiar se desconectan el billetero y la impresora.",
             "Cada cambio queda a nombre de quien lo hizo, aunque se suba después de que entre otro usuario en el mismo teléfono.",

@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.8.2" to listOf(
+            "Preferencias → Por revisar (solo admin): «Borrar la lista (todos los teléfonos)» quita los billeteros por revisar de todos los teléfonos a la vez.",
+        ),
         "2.8.1" to listOf(
             "El Registro de cada teléfono se sube a la nube junto con la sincronización (últimos días, con tu nombre y la versión) para poder revisar qué pasó si algo falla. No lleva claves.",
         ),

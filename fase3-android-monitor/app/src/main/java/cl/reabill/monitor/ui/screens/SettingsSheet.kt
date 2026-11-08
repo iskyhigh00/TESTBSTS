@@ -170,6 +170,22 @@ internal fun SettingsSheet(
                     if (dlg) UsuarioDialog(vm, onClose = { dlg = false }, onListo = { dlg = false })
                 }
 
+                if (acceso.admin) PrefGroup("Por revisar") {
+                    val pend by vm.revPendientes.collectAsStateWithLifecycle()
+                    var confirmar by remember { mutableStateOf(false) }
+                    var resultado by remember { mutableStateOf("") }
+                    Text("${pend.size} en este teléfono.", style = ActaType.Body.copy(color = Acta.Ink2))
+                    if (resultado.isNotEmpty()) Text(resultado, style = ActaType.Label, modifier = Modifier.padding(top = 4.dp))
+                    ActaButton("Borrar la lista (todos los teléfonos)", onClick = { confirmar = true }, danger = true, enabled = pend.isNotEmpty(), height = 46.dp, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
+                    if (confirmar) AlertDialog(
+                        onDismissRequest = { confirmar = false },
+                        title = { Text("¿Borrar la lista?") },
+                        text = { Text("Se quitan los billeteros por revisar de todos los teléfonos con BILLMON. En la Bitácora no se borra nada.") },
+                        confirmButton = { ActaButton("Borrar", onClick = { confirmar = false; vm.borrarPendientesParaTodos { err -> resultado = err ?: "Lista borrada." } }, danger = true, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) },
+                        dismissButton = { ActaButton("Cancelar", onClick = { confirmar = false }, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) }
+                    )
+                }
+
                 if (acceso.admin) PrefGroup("Permisos de técnicos") {
                     val tecnicos = vm.tecnicos()
                     if (tecnicos.isEmpty()) Text("Los técnicos aparecen cuando la Bitácora los publica.", style = ActaType.Body.copy(color = Acta.Ink2))

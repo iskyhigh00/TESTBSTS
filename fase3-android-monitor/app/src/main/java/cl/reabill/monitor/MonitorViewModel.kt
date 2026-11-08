@@ -344,6 +344,20 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         sincronizarPronto()
     }
 
+    fun borrarPendientesParaTodos(listo: (String?) -> Unit) {
+        if (!exigirAdmin()) { listo("Solo el admin puede borrar la lista."); return }
+        viewModelScope.launch {
+            val n = revStore.pendientes().size
+            val err = withContext(Dispatchers.IO) { nube.borrarPendientesRev() }
+            if (err == null) {
+                _revPend.value = revStore.pendientes()
+                addLog("Lista de billeteros por revisar borrada para todos ($n en este teléfono).")
+                sincronizarPronto()
+            } else addLog("No se pudo borrar la lista de pendientes: $err")
+            listo(err)
+        }
+    }
+
     fun imprimirIntercambio(e: Etq, fecha: String) {
         if (!exigir(Proc.IMPRIMIR)) return
         if (!impresoraCompartidaLista()) return

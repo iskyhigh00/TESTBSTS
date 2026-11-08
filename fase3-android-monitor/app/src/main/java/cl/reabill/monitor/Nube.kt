@@ -230,6 +230,20 @@ class Nube(
     private var http: NubeHttp? = null
     private fun cliente(): NubeHttp = http ?: crearCliente(supaUrl, supaKey).also { http = it }
 
+    @Synchronized
+    fun borrarPendientesRev(): String? {
+        if (!esAdmin) return "Solo el admin puede borrar la lista."
+        return try {
+            try { entrar(); cliente().borrarPendientes("rev:") } catch (e: NubeError) {
+                if (e.http == 401) { entrar(forzar = true); cliente().borrarPendientes("rev:") } else throw e
+            }
+            for (r in rev.pendientes()) { rev.quitar(r.mda); olvidarEnviado("rev:${r.mda}") }
+            null
+        } catch (e: NubeError) {
+            if (e.http == 403) "Sin permiso en Supabase para borrar (la regla de billmon_kv no lo deja)." else e.usuario
+        } catch (e: java.io.IOException) { "Sin conexión: inténtalo con internet." }
+    }
+
     private fun entrar(forzar: Boolean = false) {
         val c = cliente()
         if (c.sesion && !forzar) return

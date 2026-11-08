@@ -131,6 +131,12 @@ class NubeHttp(private val base: String, private val apiKey: String, private val
         return out
     }
 
+    fun borrarPendientes(prefijo: String) {
+        val url = u("/rest/v1/billmon_kv?clave=like." + URLEncoder.encode("$prefijo*", "UTF-8") + "&valor-%3E%3Eestado=eq.pendiente")
+        val (code, txt) = llamar("DELETE", url, null, mapOf("Prefer" to "return=minimal"))
+        revisar(code, txt)
+    }
+
     fun subir(filas: List<FilaNube>, por: String, sobrescribir: Boolean, lote: Int = 200) {
         var i = 0
         while (i < filas.size) {

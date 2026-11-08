@@ -374,7 +374,8 @@ class Nube(
 
         if (cursor != null) prefs.edit().putString("cursor", cursor).apply()
         prefs.edit().putLong("ultima", System.currentTimeMillis()).apply()
-        val subidos = cambiadas.size + lecFilas.size
+
+        val subidos = cambiadas.count { !it.clave.startsWith("reg:") } + lecFilas.size
         val msg = when {
             bajados == 0 && subidos == 0 -> "Todo al día."
             else -> "Bajó $bajados y subió $subidos."

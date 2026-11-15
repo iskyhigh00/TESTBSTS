@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.8.4" to listOf(
+            "SC Advance: la tasa (AR) ahora es aceptados ÷ insertados, igual que el Sistema (AS) y que el SC83. Antes usaba «validados», que daba 100 % aunque un billete no quedara apilado. Las lecturas guardadas se recalculan solas.",
+        ),
         "2.8.3" to listOf(
             "Datos compartidos: el Registro que sube cada teléfono ya no cuenta como «subió» ni deja líneas repetidas en el Registro.",
         ),

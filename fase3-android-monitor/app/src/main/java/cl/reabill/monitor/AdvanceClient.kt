@@ -229,7 +229,7 @@ class AdvanceClient(private val usb: UsbSerialManager) : ValidatorClient {
         val perDen = LongArray(5) { fila(it + 1) }
         val sinDen = fila(0)
         val value = perDen.indices.sumOf { perDen[it] * den[it] }
-        val rate = if (inserted > 0) validated * 100.0 / inserted else 0.0
+        val rate = if (inserted > 0) accepted * 100.0 / inserted else 0.0
         val qp = if (accepted > 0) total.toDouble() / accepted else 0.0
         val conj = if (total > 0) accepted * 100.0 / total else 0.0
         val cuadra = stk != null && perDen.sum() + sinDen == accepted

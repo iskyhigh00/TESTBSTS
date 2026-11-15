@@ -21,8 +21,10 @@ data class AccountingData(
         put("bcRej", bcRejected)
     }
     companion object {
+
         fun fromJson(o: JSONObject) = AccountingData(
-            o.optInt("ins"), o.optInt("acc"), o.optInt("rej"), o.optDouble("rate"),
+            o.optInt("ins"), o.optInt("acc"), o.optInt("rej"),
+            if (o.optInt("ins") > 0) o.optInt("acc") * 100.0 / o.optInt("ins") else o.optDouble("rate"),
             o.optInt("stk"), o.optInt("dep"), o.optInt("bcIns"), o.optInt("bcAcc"),
             o.optInt("bcRej"), o.optLong("ts")
         )

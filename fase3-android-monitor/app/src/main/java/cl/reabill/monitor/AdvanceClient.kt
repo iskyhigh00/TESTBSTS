@@ -113,8 +113,10 @@ class AdvanceClient(private val usb: UsbSerialManager) : ValidatorClient {
             r = exchangeOnce(0x01, ByteArray(0), 4000) { datos(it) || it.size == 10 }
         }
         if (r == null || !datos(r)) return null
-        return r.copyOfRange(8, 8 + Interfaz.BLOQUE)
+        return r.copyOfRange(8, 8 + Interfaz.BLOQUE).also { lastConfigBlock = it }
     }
+
+    @Volatile var lastConfigBlock: ByteArray? = null
 
     override val supportsInterface: Boolean = true
 

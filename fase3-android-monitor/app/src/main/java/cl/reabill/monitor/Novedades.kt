@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.8.6" to listOf(
+            "SC Advance: al conectar, el Registro guarda la configuración completa del billetero (544 bytes, solo lectura) para poder comparar un billetero que funciona con otro que no.",
+        ),
         "2.8.5" to listOf(
             "SC Advance: ahora se puede cargar el bill-set 354 de IGT desde la app (antes se rechazaba por el largo de su registro final). Los paquetes de Software y cualquier archivo con registros desconocidos o direcciones fuera de zona se siguen rechazando.",
         ),

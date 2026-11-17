@@ -229,6 +229,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         mdaStore.setIfaz(serie, nuevo)
         val volver = if (v == Interfaz.STAND_ALONE && nuevo.habitual != null) "  ·  habitual: ${Interfaz.nombre(nuevo.habitual)}" else ""
         addLog("Interfaz de $serie: ${Interfaz.nombre(v)} (valor $v)$volver")
+        (client as? AdvanceClient)?.lastConfigBlock?.let { b -> addLog("Configuración del equipo (${b.size} B, para comparar): " + b.joinToString("") { "%02x".format(it) }) }
         if (previo?.ultima != null && previo.ultima != v)
             addLog("La interfaz cambió fuera de la app: antes ${Interfaz.nombre(previo.ultima)}, ahora ${Interfaz.nombre(v)}.")
         _ifaz.value = IfazUi(soportada = true, valor = v, registro = nuevo)

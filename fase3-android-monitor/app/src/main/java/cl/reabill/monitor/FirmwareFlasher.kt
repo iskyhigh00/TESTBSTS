@@ -11,6 +11,7 @@ class FirmwareFile(val name: String, val data: ByteArray, val label: String, val
         const val BLOCKS = 64
         const val KIND_SC83 = "SC83"
         const val KIND_ADVANCE = "ADVANCE"
+        private val FINAL_LARGOS = setOf(18, 28)
 
         fun splitRecords(d: ByteArray): List<ByteArray>? {
             val out = ArrayList<ByteArray>()
@@ -58,7 +59,7 @@ class FirmwareFile(val name: String, val data: ByteArray, val label: String, val
             if (recs.any { type(it) !in known })
                 return null to "El bill-set Advance contiene registros de un tipo desconocido; no se escribe."
             if (type(recs.first()) != 0x0403) return null to "El bill-set Advance no empieza con el registro esperado."
-            if (type(recs.last()) != 0x0000 || recs.last().size != 18)
+            if (type(recs.last()) != 0x0000 || recs.last().size !in FINAL_LARGOS)
                 return null to "El bill-set Advance no termina con el registro final esperado."
             if (recs.none { type(it) == 0x0404 }) return null to "El bill-set Advance no trae datos."
             if (data.size > 200_000) return null to "El bill-set Advance es demasiado grande (${data.size} B)."

@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.8.5" to listOf(
+            "SC Advance: ahora se puede cargar el bill-set 354 de IGT desde la app (antes se rechazaba por el largo de su registro final). Los paquetes de Software y cualquier archivo con registros desconocidos o direcciones fuera de zona se siguen rechazando.",
+        ),
         "2.8.4" to listOf(
             "SC Advance: la tasa (AR) ahora es aceptados ÷ insertados, igual que el Sistema (AS) y que el SC83. Antes usaba «validados», que daba 100 % aunque un billete no quedara apilado. Las lecturas guardadas se recalculan solas.",
         ),

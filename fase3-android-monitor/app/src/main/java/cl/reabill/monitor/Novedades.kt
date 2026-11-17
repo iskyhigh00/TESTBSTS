@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.8.8" to listOf(
+            "Historial técnico por billetero: cada vez que lees un SC Advance, si cambió algo desde la última lectura (versiones, interfaz o la configuración de 544 bytes) se anota un evento en el Registro («Cambio en el billetero…») y se sube a la nube, con quién lo vio. Solo lee: no escribe nada en el billetero.",
+        ),
         "2.8.7" to listOf(
             "Cargar bill-set → «Actualizar para IGT Trimline» (solo admin): deja el SC Advance como los que ya funcionan en la Trimline (Software aprobado Boot 01.24.00 / aplicación 286109400, bill-set 403 e interfaz Netplex), verificando cada paso. Solo escribe el Software aprobado (se compara su huella); los archivos los agrega el admin con «Agregar archivo».",
         ),

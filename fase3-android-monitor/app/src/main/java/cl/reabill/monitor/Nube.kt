@@ -23,6 +23,7 @@ class Nube(
     val etq = EtqStore(context)
     val rev = RevStore(context)
     val trab = TrabStore(context)
+    val cambios = CambiosStore(context)
     val cfg = CfgStore(context)
     val usuarios = UsuariosStore(context)
     val permisos = PermisosStore(context)
@@ -97,6 +98,11 @@ class Nube(
     private fun localIfaz(s: String): Local? = mda.ifaz(s)?.let { Local(it.ts, JSONObject(it.toJson())) }
     private fun localSemanal(): Local? = mda.weekly()?.let { Local(mda.weeklyTs(), JSONObject().put("w", it.toJson())) }
 
+    private fun localCam(r: String): Local? {
+        val s = r.substringBeforeLast(':'); val t = r.substringAfterLast(':').toLongOrNull() ?: return null
+        return cambios.valorEvento(s, t)?.let { Local(t, it) }
+    }
+
     private fun localEtq(id: String): Local? = etq.valor(id)?.let { Local(etq.ts(id), it) }
     private fun localCfg(): Local? = cfg.valor()?.let { Local(cfg.ts(), it) }
     private fun localRev(m: String): Local? = rev.valor(m)?.let { Local(rev.ts(m), it) }
@@ -110,6 +116,7 @@ class Nube(
         clave.startsWith("bsok:") -> clave.removePrefix("bsok:").let { n -> bs.okValor(n)?.let { Local(bs.okTs(n), it) } }
         clave.startsWith("reg:") -> clave.removePrefix("reg:").let { id -> registros.valor(id)?.let { Local(registros.ts(id), it) } }
         clave.startsWith("trab:") -> trab.valor(clave.removePrefix("trab:"))?.let { Local(trab.ts(clave.removePrefix("trab:")), it) }
+        clave.startsWith("cam:") -> localCam(clave.removePrefix("cam:"))
         clave.startsWith("mda:") -> localMda(clave.removePrefix("mda:"))
         clave.startsWith("info:") -> localInfo(clave.removePrefix("info:"))
         clave.startsWith("ifaz:") -> localIfaz(clave.removePrefix("ifaz:"))
@@ -169,6 +176,12 @@ class Nube(
                     val fusion = IfazRegistro.fusionar(actual, remoto) ?: return false
                     if (actual != null && actual.toJson() == fusion.toJson()) return false
                     mda.setIfaz(s, fusion)
+                }
+                k.startsWith("cam:") -> {
+                    val r = k.removePrefix("cam:"); val s = r.substringBeforeLast(':'); val t = r.substringAfterLast(':').toLongOrNull() ?: return false
+                    if (!serieOk(s)) return false
+                    autores.recibido(k, Local(f.ts, f.valor).digest, f.por)
+                    if (!cambios.mezclar(s, f.valor, t)) return false
                 }
                 k.startsWith("lec:") -> {
                     val s = k.removePrefix("lec:").substringBeforeLast(':'); if (!serieOk(s)) return false
@@ -363,6 +376,20 @@ class Nube(
             }
             lecDigest["lec:$s"] = d
         }
+        val camFilas = ArrayList<FilaNube>(); val camDigest = HashMap<String, String>()
+        for (s in cambios.series().filter { serieOk(it) }) {
+            val ev = cambios.eventos(s)
+            val d = "${ev.size}:${ev.lastOrNull()?.t ?: 0}"
+            if (enviado("cam:$s") == d) continue
+            for (e in ev) {
+                val k = "cam:$s:${e.t}"
+                val v = cambios.valorEvento(s, e.t) ?: continue
+                val l = Local(e.t, v)
+                autores.conservar(k, l.digest, email)
+                camFilas.add(FilaNube(k, l.valor, l.ts, autores.autor(k, l.digest)))
+            }
+            camDigest["cam:$s"] = d
+        }
         if (cambiadas.isNotEmpty()) {
             val (archivos, otras) = cambiadas.partition { it.clave.startsWith("bs:") }
             if (otras.isNotEmpty()) c.subir(otras, por, sobrescribir = true)
@@ -371,11 +398,12 @@ class Nube(
             cambiadas.firstOrNull { it.clave == "permisos" }?.let { permisos.confirmarVersion(it.valor, it.ts) }
         }
         if (lecFilas.isNotEmpty()) { c.subir(lecFilas, por, sobrescribir = false); lecDigest.forEach { (k, d) -> marcarEnviado(k, d) } }
+        if (camFilas.isNotEmpty()) { c.subir(camFilas, por, sobrescribir = false); camDigest.forEach { (k, d) -> marcarEnviado(k, d) } }
 
         if (cursor != null) prefs.edit().putString("cursor", cursor).apply()
         prefs.edit().putLong("ultima", System.currentTimeMillis()).apply()
 
-        val subidos = cambiadas.count { !it.clave.startsWith("reg:") } + lecFilas.size
+        val subidos = cambiadas.count { !it.clave.startsWith("reg:") } + lecFilas.size + camFilas.size
         val msg = when {
             bajados == 0 && subidos == 0 -> "Todo al día."
             else -> "Bajó $bajados y subió $subidos."

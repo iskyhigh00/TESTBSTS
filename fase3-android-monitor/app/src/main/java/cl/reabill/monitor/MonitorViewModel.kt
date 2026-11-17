@@ -115,6 +115,19 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         refreshLibrary()
     }
 
+    private suspend fun registrarCambios(client: ValidatorClient, serie: String, app: String, set: String) {
+        val adv = client as? AdvanceClient ?: return
+        if (serie.isBlank() || serie == "—" || DemoClient.isDemoSerial(serie)) return
+        val boot = withContext(Dispatchers.IO) { adv.readBoot() }
+        val cfg = adv.lastConfigBlock?.joinToString("") { "%02x".format(it) }.orEmpty()
+        val est = CambiosStore.Estado(
+            if (boot == "—") "" else boot, Regex("\\d{9}").find(app)?.value.orEmpty(), set.takeIf { it != "—" }.orEmpty(), _ifaz.value.valor, cfg
+        )
+        val ev = nube.cambios.registrar(serie, est, nube.nombre ?: nube.email) ?: return
+        addLog("Cambio en el billetero $serie: ${ev.txt}")
+        sincronizarPronto()
+    }
+
     private fun refreshLibrary() {
         viewModelScope.launch(Dispatchers.IO) {
             _library.value = (libDir.listFiles() ?: emptyArray()).sortedBy { it.name.lowercase() }
@@ -836,6 +849,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
                 if (setRaw.isNotEmpty()) addLog("Crudo de lectura: $setRaw")
                 if (!DemoClient.isDemoSerial(id.serial)) mdaStore.setInfo(id.serial, id.model, app, set)
                 try { leerInterfaz(client, id.serial) } catch (e: Exception) { addLog("Interfaz: error al leer (${e.message})") }
+                try { registrarCambios(client, id.serial, app, set) } catch (e: Exception) { addLog("Cambios del billetero: error (${e.message})") }
 
                 delay(300)
 

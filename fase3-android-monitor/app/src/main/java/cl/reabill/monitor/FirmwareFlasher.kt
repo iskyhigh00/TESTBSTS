@@ -2,15 +2,17 @@ package cl.reabill.monitor
 
 class FirmwareFile(val name: String, val data: ByteArray, val label: String, val kind: String = KIND_SC83) {
 
-    val records: List<ByteArray> by lazy { if (kind == KIND_ADVANCE) splitRecords(data) ?: emptyList() else emptyList() }
+    val records: List<ByteArray> by lazy { if (kind == KIND_ADVANCE || kind == KIND_SOFTWARE) splitRecords(data) ?: emptyList() else emptyList() }
 
-    val blocks: Int get() = if (kind == KIND_ADVANCE) records.size else (data.size + BLOCK - 1) / BLOCK
+    val blocks: Int get() = if (kind == KIND_ADVANCE || kind == KIND_SOFTWARE) records.size else (data.size + BLOCK - 1) / BLOCK
+    var software: SoftwareAprobado.Info? = null
 
     companion object {
         const val BLOCK = 1024
         const val BLOCKS = 64
         const val KIND_SC83 = "SC83"
         const val KIND_ADVANCE = "ADVANCE"
+        const val KIND_SOFTWARE = "SOFTWARE"
         private val FINAL_LARGOS = setOf(18, 28)
 
         fun splitRecords(d: ByteArray): List<ByteArray>? {
@@ -30,6 +32,7 @@ class FirmwareFile(val name: String, val data: ByteArray, val label: String, val
             if (sc83.first != null) return sc83
             val adv = parseAdvance(name, data)
             if (adv.first != null) return adv
+            if (data.size > 200_000 && splitRecords(data) != null) return SoftwareAprobado.parse(name, data)
 
             return null to (if (data.size in 20_000..400_000 && splitRecords(data) != null) adv.second else sc83.second)
         }

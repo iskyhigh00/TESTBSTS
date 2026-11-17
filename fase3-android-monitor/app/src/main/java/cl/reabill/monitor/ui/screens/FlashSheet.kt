@@ -47,7 +47,8 @@ fun FlashSheet(
     val acceso by vm.acceso.collectAsStateWithLifecycle()
     val libre = acceso.puede(cl.reabill.monitor.Proc.BILLSET)
 
-    val library = if (libre) libraryTodos else libraryTodos.filter { vm.billsetProbado(it.name) }
+    val library = (if (libre) libraryTodos else libraryTodos.filter { vm.billsetProbado(it.name) })
+        .filter { it.kind != cl.reabill.monitor.FirmwareFile.KIND_SOFTWARE || acceso.admin }
     val close = { if (!ui.running) { vm.resetFlash(); onClose() } }
     BackHandler(enabled = visible, onBack = { close() })
 
@@ -75,11 +76,28 @@ fun FlashSheet(
             )
             Hairline(color = Acta.Ink)
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+                if (acceso.admin) {
+                    val igt by vm.igt.collectAsStateWithLifecycle()
+                    Text("IGT TRIMLINE", style = ActaType.Label, modifier = Modifier.padding(top = 14.dp))
+                    Text(
+                        "Deja el billetero como los que ya funcionan en la Trimline: Software aprobado (Boot 01.24.00, aplicación 286109400), bill-set 403 e interfaz Netplex. " +
+                            "Escribe el programa del billetero: no desconectes el cable. Probado en SCN8342U.",
+                        style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(vertical = 6.dp)
+                    )
+                    if (igt.mensaje.isNotEmpty())
+                        Text(igt.mensaje, style = ActaType.Body.copy(color = if (igt.listo && !igt.ok) Acta.Error else Acta.Ink), modifier = Modifier.padding(bottom = 8.dp))
+                    if (igt.listo) ActaButton("Entendido", onClick = { vm.cerrarIgt() }, height = 40.dp, modifier = Modifier.padding(bottom = 8.dp))
+                    HoldButton(
+                        "Actualizar para IGT Trimline", "mantener presionado", onArmed = { vm.iniciarIgt() },
+                        enabled = !ui.running && !igt.activo, modifier = Modifier.fillMaxWidth()
+                    )
+                    Hairline(Modifier.padding(top = 14.dp))
+                }
                 Row(Modifier.fillMaxWidth().padding(vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(ui.file?.name ?: (if (libre) "Ningún archivo elegido" else "Elige un bill-set"), style = ActaType.Body)
                         ui.file?.let {
-                            Text("Bill-set #${it.label} · ${it.blocks} bloques · ${it.data.size} B", style = ActaType.Label)
+                            Text(it.software?.let { s -> "Software · Boot ${s.boot} · aplicación ${s.app} · ${it.blocks} registros" } ?: "Bill-set #${it.label} · ${it.blocks} bloques · ${it.data.size} B", style = ActaType.Label)
                         }
                         if (ui.error.isNotEmpty())
                             Text(ui.error, style = ActaType.Body.copy(color = Acta.Error), modifier = Modifier.padding(top = 4.dp))
@@ -101,7 +119,7 @@ fun FlashSheet(
                         ) {
                             Column(Modifier.weight(1f)) {
                                 Text(f.name, style = ActaType.Body.copy(color = if (sel) Acta.Accent else Acta.Ink))
-                                Text("Bill-set #${f.label}", style = ActaType.Label)
+                                Text(f.software?.let { s -> "Software · Boot ${s.boot} · aplicación ${s.app}" } ?: "Bill-set #${f.label}", style = ActaType.Label)
                             }
                             if (libre) ActaButton("Quitar", onClick = { vm.removeFromLibrary(f) }, danger = true, enabled = !ui.running, height = 36.dp, modifier = Modifier.padding(start = 8.dp))
                         }

@@ -120,6 +120,15 @@ class AdvanceClient(private val usb: UsbSerialManager) : ValidatorClient {
 
     override val supportsInterface: Boolean = true
 
+    fun readBoot(): String {
+        val (r, _) = exchange(0x03, byteArrayOf(2)) { it.size > 10 && (it[2].toInt() and 0x7F) == 0x03 }
+        if (r == null) return "—"
+        val t = asciiTokens(r.copyOfRange(8, r.size - 2))
+        val id = t.firstOrNull { Regex("\\d{18}").matches(it) } ?: return "—"
+        val ver = t.firstOrNull { Regex("\\d\\d\\.\\d\\d\\.\\d\\d").matches(it) }.orEmpty()
+        return "$id v$ver"
+    }
+
     override fun readInterface(): Pair<Int?, String> {
         val b = readConfigBlock(robusto = false) ?: return null to "sin respuesta al leer la configuración"
         val v = Interfaz.leer(b) ?: return null to "bloque de configuración incompleto"

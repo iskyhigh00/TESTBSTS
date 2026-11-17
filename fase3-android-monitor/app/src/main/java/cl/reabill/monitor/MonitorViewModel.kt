@@ -25,6 +25,8 @@ data class FlashUi(
     val message: String = ""
 )
 
+data class IgtUi(val activo: Boolean = false, val listo: Boolean = false, val ok: Boolean = false, val mensaje: String = "")
+
 internal class CambioCuenta {
     var enCurso: Boolean = false
         private set
@@ -90,6 +92,10 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     val library: StateFlow<List<FirmwareFile>> = _library
 
     @Volatile private var flashing = false
+
+    private val _igt = MutableStateFlow(IgtUi())
+    val igt: StateFlow<IgtUi> = _igt
+    private val igtCola = kotlin.collections.ArrayDeque<FirmwareFile>()
 
     @Volatile private var opRunning = false
     private fun beginOp(): Boolean = synchronized(this) {
@@ -476,7 +482,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     fun correoActual(): String = nube.email.takeIf { !it.equals(Permisos.CUENTA_COMPARTIDA, true) }.orEmpty()
 
     private fun operacionCuentaEnCurso(): Boolean = _nube.value.trabajando || opRunning || calibrating ||
-        flashing || _flash.value.running || etiquetas.print.value.printing
+        flashing || _flash.value.running || _igt.value.activo || etiquetas.print.value.printing
 
     fun entrarComo(correo: String, clave: String, listo: (String?) -> Unit) {
         if (cambiandoCuenta || operacionCuentaEnCurso()) {
@@ -994,6 +1000,84 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
 
     fun resetFlash() { if (!cambiandoCuenta && !flashing && !_flash.value.running) _flash.value = FlashUi() }
 
+
+    fun iniciarIgt() {
+        if (!exigirAdmin() || _igt.value.activo) return
+        if (_demo.value || flashing || opRunning || calibrating || _busy.value || _flash.value.running) { ocupado(); return }
+        val adv = mei as? AdvanceClient
+        if (adv == null || !_connected.value) { igtFin(false, "Conecta un SC Advance primero."); return }
+        viewModelScope.launch {
+            _igt.value = IgtUi(activo = true, mensaje = "Leyendo el estado del billetero…")
+            val boot = withContext(Dispatchers.IO) { adv.readBoot() }
+            val st = _status.value
+            val necesitaSw = !(boot.contains(SoftwareAprobado.BOOT_OBJETIVO) && st.firmwareApp.contains(SoftwareAprobado.APP_OBJETIVO))
+            val necesitaBs = necesitaSw || !(st.billSet.contains(SoftwareAprobado.BILLSET_OBJETIVO) && st.billSet.contains(SoftwareAprobado.BILLSET_VERSION))
+            addLog("IGT Trimline: estado actual — Boot $boot, aplicación ${st.firmwareApp}, bill-set ${st.billSet}, interfaz ${Interfaz.nombre(_ifaz.value.valor)}")
+            val sw = _library.value.firstOrNull { it.kind == FirmwareFile.KIND_SOFTWARE && it.software?.app == SoftwareAprobado.APP_OBJETIVO }
+            val bs = _library.value.firstOrNull { it.kind == FirmwareFile.KIND_ADVANCE && it.label == SoftwareAprobado.BILLSET_OBJETIVO && it.version == SoftwareAprobado.BILLSET_VERSION }
+            if (necesitaSw && sw == null) { igtFin(false, "Falta el Software aprobado (N3048F400029354) en la biblioteca: agrégalo con «Agregar archivo»."); return@launch }
+            if (necesitaBs && bs == null) { igtFin(false, "Falta el bill-set 403 versión 04.03.00 en la biblioteca: agrégalo con «Agregar archivo»."); return@launch }
+            igtCola.clear()
+            if (necesitaSw && sw != null) igtCola.addLast(sw)
+            if (necesitaBs && bs != null) igtCola.addLast(bs)
+            addLog("IGT Trimline: procedimiento iniciado (" + (if (necesitaSw) "Software, " else "") + (if (necesitaBs) "bill-set 403, " else "") + "interfaz Netplex).")
+            igtSiguiente()
+        }
+    }
+
+    private fun igtSiguiente() {
+        val f = igtCola.removeFirstOrNull()
+        if (f == null) { igtFinal(); return }
+        val que = if (f.kind == FirmwareFile.KIND_SOFTWARE) "el Software" else "el bill-set ${f.label}"
+        _igt.value = _igt.value.copy(mensaje = "Escribiendo $que… no desconectes el cable.")
+        _flash.value = FlashUi(file = f)
+        startFlash()
+        viewModelScope.launch {
+            delay(1500)
+            if (_igt.value.activo && !_flash.value.running && !_flash.value.done) igtFin(false, _flash.value.error.ifEmpty { "No se pudo iniciar la escritura." })
+        }
+    }
+
+    private fun igtTrasEscritura(coincide: Boolean) {
+        viewModelScope.launch {
+            delay(400)
+            if (!_igt.value.activo) return@launch
+            if (!coincide) { igtFin(false, "Después de escribir, las versiones leídas no son las esperadas: se detiene el procedimiento. Revisa el Registro."); return@launch }
+            igtSiguiente()
+        }
+    }
+
+    private fun igtFinal() {
+        viewModelScope.launch {
+            _igt.value = _igt.value.copy(mensaje = "Comprobando la interfaz…")
+            val limite = System.currentTimeMillis() + 30000
+            while (System.currentTimeMillis() < limite && (_busy.value || opRunning || !_connected.value || _ifaz.value.valor == null)) delay(300)
+            var v = _ifaz.value.valor
+            if (v == null) { igtFin(false, "No pude leer la interfaz del billetero."); return@launch }
+            if (v != SoftwareAprobado.INTERFAZ_OBJETIVO) {
+                cambiarInterfaz(SoftwareAprobado.INTERFAZ_OBJETIVO)
+                delay(800)
+                val limite2 = System.currentTimeMillis() + 60000
+                while (System.currentTimeMillis() < limite2 && (opRunning || _ifaz.value.trabajando)) delay(400)
+                v = _ifaz.value.valor
+            }
+            val boot = withContext(Dispatchers.IO) { (mei as? AdvanceClient)?.readBoot() }.orEmpty().ifEmpty { "—" }
+            val st = _status.value
+            val ok = v == SoftwareAprobado.INTERFAZ_OBJETIVO && boot.contains(SoftwareAprobado.BOOT_OBJETIVO) && st.firmwareApp.contains(SoftwareAprobado.APP_OBJETIVO) &&
+                st.billSet.contains(SoftwareAprobado.BILLSET_OBJETIVO) && st.billSet.contains(SoftwareAprobado.BILLSET_VERSION)
+            val resumen = "Boot $boot · aplicación ${st.firmwareApp} · bill-set ${st.billSet} · interfaz ${Interfaz.nombre(v)}"
+            igtFin(ok, if (ok) "Listo. $resumen" else "Terminó, pero el estado final no es el esperado: $resumen")
+        }
+    }
+
+    private fun igtFin(ok: Boolean, mensaje: String) {
+        igtCola.clear()
+        _igt.value = IgtUi(activo = false, listo = true, ok = ok, mensaje = mensaje)
+        addLog("IGT Trimline: " + (if (ok) "terminado bien. " else "DETENIDO. ") + mensaje)
+    }
+
+    fun cerrarIgt() { if (!_igt.value.activo) _igt.value = IgtUi() }
+
     fun pickFirmware(uri: android.net.Uri) {
         if (flashing) return
         if (!puede(Proc.BILLSET)) { addLog("Solo el admin puede agregar archivos de bill-set."); return }
@@ -1193,6 +1277,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         if (calibrating || opRunning) { ocupado(); return }
         if (_busy.value) { addLog("Espera a que termine la lectura en curso antes de escribir."); return }
         if (_demo.value) { runFlashDemo(f); return }
+        if (f.kind == FirmwareFile.KIND_SOFTWARE && !nube.esAdmin) { val m = "Escribir un Software es solo del admin."; addLog(m); _flash.update { it.copy(error = m) }; return }
 
         if (!puede(Proc.BILLSET) && !billsetProbado(f.name)) {
             val m = "Este bill-set aún no lo ha probado el admin en un ${_status.value.model.takeIf { it != "—" } ?: "billetero de este modelo"}; solo el admin puede escribirlo primero."
@@ -1203,7 +1288,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         val kind = deviceKind()
 
         val msg = when {
-            f.kind == FirmwareFile.KIND_ADVANCE && kind != FirmwareFile.KIND_ADVANCE ->
+            (f.kind == FirmwareFile.KIND_ADVANCE || f.kind == FirmwareFile.KIND_SOFTWARE) && kind != FirmwareFile.KIND_ADVANCE ->
                 "El archivo es de un SC Advance y el equipo conectado no es un Advance (${kindName(kind)}, PID ${"%04X".format(usb.productId())}); no se escribe nada."
             f.kind == FirmwareFile.KIND_SC83 && kind == FirmwareFile.KIND_ADVANCE ->
                 "El archivo es de un Cashflow SC83 y el equipo conectado es un SC Advance; no se escribe nada."
@@ -1223,6 +1308,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
             val err = try { runFlash(f, normal) } catch (e: Exception) { "Error: ${e.message}" }
             if (err != null) {
                 addLog("Escritura falló: $err")
+                if (_igt.value.activo) igtFin(false, "Falló la escritura: $err")
                 flashing = false
                 _busy.value = false
                 usb.close(); mei = null
@@ -1247,14 +1333,21 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
             while (System.currentTimeMillis() < end &&
                 (_status.value.billSet == "—" || _busy.value || !_connected.value)) delay(300)
             val ahora = _status.value.billSet
-            val coincide = ahora.contains(f.label)
+            var coincide = ahora.contains(f.label)
+            if (f.kind == FirmwareFile.KIND_SOFTWARE) {
+                val boot = withContext(Dispatchers.IO) { (mei as? AdvanceClient)?.readBoot() }.orEmpty()
+                val inf = f.software
+                coincide = coincide && inf != null && boot.contains(inf.boot) && _status.value.firmwareApp.contains(inf.app)
+                addLog("Boot tras escribir: $boot · aplicación: ${_status.value.firmwareApp} (esperado Boot ${inf?.boot}, aplicación ${inf?.app})")
+            }
             addLog("Bill-set tras escribir: $ahora (esperado #${f.label})")
 
-            if (coincide && nube.esAdmin) {
+            if (coincide && nube.esAdmin && f.kind != FirmwareFile.KIND_SOFTWARE) {
                 val modelo = _status.value.model
                 if (nube.bs.marcarProbado(f.name, modelo, nube.nombre ?: nube.email)) { addLog("Bill-set ${f.name} probado en $modelo: los técnicos ya pueden escribirlo."); sincronizarPronto() }
                 hecho(Proc.BILLSET)
             }
+            if (_igt.value.activo) igtTrasEscritura(coincide)
             _flash.update {
                 it.copy(running = false, done = true, progress = 100, ok = true,
                     message = if (ahora == "—") "Escritura terminada, pero no pude leer el bill-set. Reconecta el equipo."

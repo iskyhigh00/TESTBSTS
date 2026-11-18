@@ -120,6 +120,8 @@ class AdvanceClient(private val usb: UsbSerialManager) : ValidatorClient {
 
     override val supportsInterface: Boolean = true
 
+    @Volatile var lastBeginResp: String = ""
+
     fun readBoot(): String {
         val (r, _) = exchange(0x03, byteArrayOf(2)) { it.size > 10 && (it[2].toInt() and 0x7F) == 0x03 }
         if (r == null) return "—"
@@ -370,6 +372,7 @@ class AdvanceClient(private val usb: UsbSerialManager) : ValidatorClient {
         if (!sendClock()) return "El equipo no respondió a la fecha (2E)."
         Thread.sleep(50)
         val r = exchangeOnce(0x0A, ByteArray(0), 5000) { it.size == 10 && (it[2].toInt() and 0x7F) == 0x0A }
+        lastBeginResp = if (r == null) "" else hex(r)
         return if (r == null) "El equipo no respondió al comando de modo descarga (0A)." else null
     }
 

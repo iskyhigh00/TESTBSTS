@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.8.9" to listOf(
+            "El Registro ahora dice qué usuario tenía la app al abrirla. Si un Software no pasa a modo descarga, el Registro anota la respuesta exacta del equipo al comando 0A.",
+        ),
         "2.8.8" to listOf(
             "Historial técnico por billetero: cada vez que lees un SC Advance, si cambió algo desde la última lectura (versiones, interfaz o la configuración de 544 bytes) se anota un evento en el Registro («Cambio en el billetero…») y se sube a la nube, con quién lo vio. Solo lee: no escribe nada en el billetero.",
         ),

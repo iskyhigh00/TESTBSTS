@@ -109,7 +109,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     init {
 
         _log.value = listOf("Listo. Conecta el billetero por USB-OTG.") + loadSavedLog()
-        appendToFile(System.currentTimeMillis(), "──── BILLMON v$APP_VERSION iniciada ────")
+        appendToFile(System.currentTimeMillis(), "──── BILLMON v$APP_VERSION iniciada · usuario: ${nube.nombre ?: nube.email.ifBlank { "sin usuario" }} ────")
         viewModelScope.launch(Dispatchers.IO) { Updater.cleanupDownloads(getApplication()) }
         checkForUpdate()
         refreshLibrary()
@@ -1160,7 +1160,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
             if (e0 != null) return e0
             usb.close(); mei = null
             _connected.value = false
-            if (!awaitReenum(old, 20000)) return "El equipo no volvió en modo descarga."
+            if (!awaitReenum(old, 20000)) return "El equipo no volvió en modo descarga (respuesta a 0A: ${adv.lastBeginResp.ifEmpty { "ninguna" }}). Tenía la aplicación ${_status.value.firmwareApp}."
             delay(800)
         } else {
             usb.close(); mei = null

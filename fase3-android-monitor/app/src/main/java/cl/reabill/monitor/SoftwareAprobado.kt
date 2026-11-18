@@ -14,6 +14,7 @@ object SoftwareAprobado {
     const val BILLSET_OBJETIVO = "523361403"
     const val BILLSET_VERSION = "04.03.00"
     const val INTERFAZ_OBJETIVO = 1
+    val MODELOS_PROBADOS = setOf("SCN8342U", "SCN8347NU", "SCN8347")
 
     fun sha256(d: ByteArray): String = MessageDigest.getInstance("SHA-256").digest(d).joinToString("") { "%02x".format(it) }
 

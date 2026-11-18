@@ -1018,6 +1018,9 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     fun iniciarIgt() {
         if (!exigir(Proc.BILLSET) || !exigir(Proc.INTERFAZ) || _igt.value.activo) return
         if (_demo.value || flashing || opRunning || calibrating || _busy.value || _flash.value.running) { ocupado(); return }
+        if (!nube.esAdmin && _status.value.model.trim() !in SoftwareAprobado.MODELOS_PROBADOS) {
+            igtFin(false, "El modelo ${_status.value.model} aún no se ha probado con este procedimiento: solo el admin puede hacerlo primero."); return
+        }
         val adv = mei as? AdvanceClient
         if (adv == null || !_connected.value) { igtFin(false, "Conecta un SC Advance primero."); return }
         viewModelScope.launch {
@@ -1291,7 +1294,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         if (calibrating || opRunning) { ocupado(); return }
         if (_busy.value) { addLog("Espera a que termine la lectura en curso antes de escribir."); return }
         if (_demo.value) { runFlashDemo(f); return }
-        if (f.kind == FirmwareFile.KIND_SOFTWARE && !puede(Proc.BILLSET)) { val m = "Escribir un Software requiere el permiso «Cargar bill-set y Software»."; addLog(m); _flash.update { it.copy(error = m) }; return }
+        if (f.kind == FirmwareFile.KIND_SOFTWARE && !nube.esAdmin && (!puede(Proc.BILLSET) || !_igt.value.activo)) { val m = "El Software solo se escribe con «Actualizar para IGT Trimline» y el permiso «Cargar bill-set y Software»."; addLog(m); _flash.update { it.copy(error = m) }; return }
 
         if (!puede(Proc.BILLSET) && !billsetProbado(f.name)) {
             val m = "Este bill-set aún no lo ha probado el admin en un ${_status.value.model.takeIf { it != "—" } ?: "billetero de este modelo"}; solo el admin puede escribirlo primero."

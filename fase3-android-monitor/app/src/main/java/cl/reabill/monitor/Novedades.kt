@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.9.2" to listOf(
+            "Más restricciones para técnicos: el Software solo se escribe dentro de «Actualizar para IGT Trimline» (no suelto), y solo en los modelos donde ya se probó en la máquina (SCN8342U, SCN8347NU y SCN8347). Otros modelos los prueba primero el admin.",
+        ),
         "2.9.1" to listOf(
             "Quien tenga el permiso «Cargar bill-set y Software» (y «Cambiar interfaz» para el procedimiento IGT Trimline) puede escribir el Software aprobado y usar «Actualizar para IGT Trimline»; ya no es solo del admin. El permiso se llama ahora «Cargar bill-set y Software».",
         ),

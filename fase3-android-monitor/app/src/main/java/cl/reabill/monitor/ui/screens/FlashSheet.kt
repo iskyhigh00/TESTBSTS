@@ -48,7 +48,7 @@ fun FlashSheet(
     val libre = acceso.puede(cl.reabill.monitor.Proc.BILLSET)
 
     val library = (if (libre) libraryTodos else libraryTodos.filter { vm.billsetProbado(it.name) })
-        .filter { it.kind != cl.reabill.monitor.FirmwareFile.KIND_SOFTWARE || libre }
+        .filter { it.kind != cl.reabill.monitor.FirmwareFile.KIND_SOFTWARE || acceso.admin }
     val close = { if (!ui.running) { vm.resetFlash(); onClose() } }
     BackHandler(enabled = visible, onBack = { close() })
 

@@ -254,10 +254,11 @@ fun ActaApp(vm: MonitorViewModel) {
     var showHistory by remember { mutableStateOf(false) }
     var showReset by remember { mutableStateOf(false) }
     var showCal by remember { mutableStateOf(false) }
+    var showDiag by remember { mutableStateOf(false) }
     var showFlash by remember { mutableStateOf(false) }
     var calMarker by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(connected) { if (!connected) showCal = false }
+    LaunchedEffect(connected) { if (!connected) { showCal = false; showDiag = false } }
 
     if (ocr.test && ocr.id > 0 && !ocr.running) {
         var elegido by remember(ocr.id) { mutableStateOf(ocr.candidates.firstOrNull() ?: "") }
@@ -714,6 +715,10 @@ fun ActaApp(vm: MonitorViewModel) {
                             enabled = connected && !busy, modifier = Modifier.weight(1f)
                         )
                     }
+                    if (acceso.admin && kind == cl.reabill.monitor.FirmwareFile.KIND_ADVANCE) ActaButton(
+                        "Diagnóstico", onClick = { showDiag = true }, enabled = connected && !busy,
+                        modifier = Modifier.fillMaxWidth().padding(top = 10.dp)
+                    )
                     ActaButton(
                         "Máquinas", onClick = { filtroLista = ""; soloRevisar = false; vm.clearOcr(); showLista = true },
                         modifier = Modifier.fillMaxWidth().padding(top = 10.dp)
@@ -766,5 +771,6 @@ fun ActaApp(vm: MonitorViewModel) {
             visible = showCal, serial = status.serial, billSet = status.billSet,
             log = log, marker = calMarker, onClose = { showCal = false }
         )
+        DiagSheet(visible = showDiag, vm = vm, serial = status.serial, onClose = { showDiag = false })
     }
 }

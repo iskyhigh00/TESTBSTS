@@ -122,6 +122,24 @@ class AdvanceClient(private val usb: UsbSerialManager) : ValidatorClient {
 
     @Volatile var lastBeginResp: String = ""
 
+    fun readDiagnostic(): Pair<Diag?, String> {
+        fun esD(it: ByteArray) = (it[2].toInt() and 0x7F) == 0x0D
+        fun ocupado(it: ByteArray) = it.size == 10 && esD(it) && (it[3].toInt() and 0x80) != 0
+        fun pedir(arg: Int, largo: Int): ByteArray? {
+            var r = exchangeOnce(0x0D, byteArrayOf(arg.toByte()), 8000) { esD(it) && (it.size == largo || ocupado(it)) }
+            var n = 0
+            while (r != null && r.size == 10 && n < 100) {
+                n++
+                Thread.sleep(90)
+                r = exchangeOnce(0x01, ByteArray(0), 4000) { it.size == largo && esD(it) || it.size == 10 }
+            }
+            return if (r != null && r.size == largo && esD(r)) r else null
+        }
+        val b = pedir(1, 62) ?: return null to "sin respuesta al diagnóstico (0D 1)"
+        val f = pedir(2, 13) ?: return null to "sin respuesta al cierre del diagnóstico (0D 2)"
+        return Diag(b.copyOfRange(8, 8 + 52), f.copyOfRange(8, 8 + 3)) to ""
+    }
+
     fun readBoot(): String {
         val (r, _) = exchange(0x03, byteArrayOf(2)) { it.size > 10 && (it[2].toInt() and 0x7F) == 0x03 }
         if (r == null) return "—"

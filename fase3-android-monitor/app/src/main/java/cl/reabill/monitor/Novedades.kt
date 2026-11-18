@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.9.3" to listOf(
+            "Botón «Diagnóstico» (solo admin, SC Advance): lee lo mismo que STS (sensor del stacker y otros valores) y lo muestra junto a la aceptación real de toda la vida del billetero, la real reciente (con tus lecturas guardadas) y la del sistema de la última semana. Queda todo en el Registro para compararlo con el % de rechazo.",
+        ),
         "2.9.2" to listOf(
             "Más restricciones para técnicos: el Software solo se escribe dentro de «Actualizar para IGT Trimline» (no suelto), y solo en los modelos donde ya se probó en la máquina (SCN8342U, SCN8347NU y SCN8347). Otros modelos los prueba primero el admin.",
         ),

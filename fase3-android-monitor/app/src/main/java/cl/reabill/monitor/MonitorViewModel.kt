@@ -27,6 +27,12 @@ data class FlashUi(
 
 data class IgtUi(val activo: Boolean = false, val listo: Boolean = false, val ok: Boolean = false, val mensaje: String = "")
 
+data class DiagResultado(
+    val serie: String, val mda: String, val modelo: String, val sensor: Int, val umbral: Int, val a: Int, val c: Int, val e: Int, val f: Int,
+    val realVida: Double?, val reciente: Rendimiento.Reciente?, val sistema: Double?, val sistemaConteo: Pair<Int, Int>?, val valido: Boolean
+)
+data class DiagUi(val leyendo: Boolean = false, val resultado: DiagResultado? = null, val mensaje: String = "")
+
 internal class CambioCuenta {
     var enCurso: Boolean = false
         private set
@@ -96,6 +102,8 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     private val _igt = MutableStateFlow(IgtUi())
     val igt: StateFlow<IgtUi> = _igt
     private val igtCola = kotlin.collections.ArrayDeque<FirmwareFile>()
+    private val _diag = MutableStateFlow(DiagUi())
+    val diag: StateFlow<DiagUi> = _diag
 
     @Volatile private var opRunning = false
     private fun beginOp(): Boolean = synchronized(this) {
@@ -1094,6 +1102,40 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun cerrarIgt() { if (!_igt.value.activo) _igt.value = IgtUi() }
+
+
+    fun cerrarDiag() { if (!_diag.value.leyendo) _diag.value = DiagUi() }
+
+    fun leerDiagnostico() {
+        if (!exigirAdmin()) return
+        val adv = mei as? AdvanceClient
+        if (adv == null || !_connected.value || _demo.value) { _diag.value = DiagUi(mensaje = "Conecta un SC Advance primero."); return }
+        if (!beginOp()) { ocupado(); return }
+        val st = _status.value
+        _diag.value = DiagUi(leyendo = true, mensaje = "Leyendo…")
+        viewModelScope.launch {
+            try {
+                val (d, err) = withContext(Dispatchers.IO) { adv.readDiagnostic() }
+                if (d == null) { addLog("Diagnóstico: $err"); _diag.value = DiagUi(mensaje = "No se pudo leer: $err"); return@launch }
+                val mda = mdaStore.mda(st.serial).orEmpty()
+                val acc = _accounting.value
+                val vida = acc?.takeIf { it.inserted > 0 }?.let { it.accepted * 100.0 / it.inserted }
+                val rec = Rendimiento.reciente(store.history(st.serial))
+                val sis = _weekly.value?.pct(mda)?.let { it * 100 }
+                val cnt = _weekly.value?.conteo(mda)
+                val r = DiagResultado(st.serial, mda, st.model, d.sensor, d.umbral, d.a, d.c, d.e, d.f, vida, rec, sis, cnt, d.valido)
+                fun p(x: Double?) = if (x == null) "—" else "%.1f%%".format(java.util.Locale.US, x)
+                addLog("Diagnóstico: serie ${st.serial} · MDA ${mda.ifEmpty { "—" }} · ${st.model} · aplicación ${st.firmwareApp} · bill-set ${st.billSet} · sensor ${d.sensor}/${d.umbral} · A=${d.a} C=${d.c} E=${d.e} F=${d.f}" +
+                    " · real de vida ${p(vida)} · real reciente ${p(rec?.pct)}" + (rec?.let { " (${"%.1f".format(java.util.Locale.US, it.dias)} días, ${it.insertados} billetes)" } ?: "") + " · sistema ${p(sis)}" +
+                    (cnt?.let { " (${it.first} acept., ${it.second} rech.)" } ?: ""))
+                addLog("Diagnóstico bruto: ${d.hex} final ${d.finalHex}" + if (d.valido) "" else " (formato inesperado)")
+                _diag.value = DiagUi(resultado = r, mensaje = "Listo. Quedó en el Registro.")
+                sincronizarPronto()
+            } catch (e: Exception) {
+                addLog("Diagnóstico interrumpido: ${e.message}"); _diag.value = DiagUi(mensaje = "Interrumpido: ${e.message}")
+            } finally { endOp() }
+        }
+    }
 
     fun pickFirmware(uri: android.net.Uri) {
         if (flashing) return

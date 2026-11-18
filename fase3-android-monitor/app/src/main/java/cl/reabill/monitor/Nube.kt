@@ -209,7 +209,7 @@ class Nube(
                     if (!autoritativo && f.ts <= permisos.ts()) return false
                     if (!permisos.aplicarRemoto(f.valor, f.ts, esAdmin)) return false
                 }
-                k.startsWith("bs:") -> { if (!bs.aplicarBs(k.removePrefix("bs:"), f.valor, f.ts, esAdmin)) return false }
+                k.startsWith("bs:") -> { if (!bs.aplicarBs(k.removePrefix("bs:"), f.valor, f.ts)) return false }
                 k.startsWith("bsok:") -> { if (!bs.aplicarOk(k.removePrefix("bsok:"), f.valor, f.ts)) return false }
                 k == "usuarios" -> {
                     if (!autoritativo && f.ts <= usuarios.ts()) return false

@@ -41,9 +41,8 @@ class BsStore(context: Context) {
         prefs.edit().putLong("ts:$n", maxOf(ahora, ts(n) + 1)).putString("q:$n", "1").apply()
     }
 
-    fun aplicarBs(n: String, v: JSONObject, ts: Long, esAdmin: Boolean = true): Boolean {
+    fun aplicarBs(n: String, v: JSONObject, ts: Long): Boolean {
         if (!nombreOk(n) || ts <= ts(n)) return false
-        if (!esAdmin && v.optString("kind") == FirmwareFile.KIND_SOFTWARE) return false
         if (v.optBoolean("quitado")) {
             archivo(n).delete(); prefs.edit().putLong("ts:$n", ts).putString("q:$n", "1").apply(); return true
         }

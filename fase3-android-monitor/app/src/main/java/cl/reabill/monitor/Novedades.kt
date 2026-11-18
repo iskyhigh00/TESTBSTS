@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.9.1" to listOf(
+            "Quien tenga el permiso «Cargar bill-set y Software» (y «Cambiar interfaz» para el procedimiento IGT Trimline) puede escribir el Software aprobado y usar «Actualizar para IGT Trimline»; ya no es solo del admin. El permiso se llama ahora «Cargar bill-set y Software».",
+        ),
         "2.9.0" to listOf(
             "El Registro ahora dice qué usuario tenía la app al abrirla. Si un Software no pasa a modo descarga, el Registro anota la respuesta exacta del equipo al comando 0A.",
         ),

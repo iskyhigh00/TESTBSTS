@@ -6,7 +6,7 @@ enum class Proc(val clave: String, val etiqueta: String, val porDefecto: Boolean
     CALIBRAR("calibrar", "Calibrar"),
     BORRAR("borrar", "Borrar contabilidad"),
     INTERFAZ("interfaz", "Cambiar interfaz"),
-    BILLSET("billset", "Cargar cualquier bill-set");
+    BILLSET("billset", "Cargar bill-set y Software");
 
     companion object { fun de(clave: String): Proc? = values().firstOrNull { it.clave == clave } }
 }

@@ -1016,7 +1016,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
 
 
     fun iniciarIgt() {
-        if (!exigirAdmin() || _igt.value.activo) return
+        if (!exigir(Proc.BILLSET) || !exigir(Proc.INTERFAZ) || _igt.value.activo) return
         if (_demo.value || flashing || opRunning || calibrating || _busy.value || _flash.value.running) { ocupado(); return }
         val adv = mei as? AdvanceClient
         if (adv == null || !_connected.value) { igtFin(false, "Conecta un SC Advance primero."); return }
@@ -1291,7 +1291,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         if (calibrating || opRunning) { ocupado(); return }
         if (_busy.value) { addLog("Espera a que termine la lectura en curso antes de escribir."); return }
         if (_demo.value) { runFlashDemo(f); return }
-        if (f.kind == FirmwareFile.KIND_SOFTWARE && !nube.esAdmin) { val m = "Escribir un Software es solo del admin."; addLog(m); _flash.update { it.copy(error = m) }; return }
+        if (f.kind == FirmwareFile.KIND_SOFTWARE && !puede(Proc.BILLSET)) { val m = "Escribir un Software requiere el permiso «Cargar bill-set y Software»."; addLog(m); _flash.update { it.copy(error = m) }; return }
 
         if (!puede(Proc.BILLSET) && !billsetProbado(f.name)) {
             val m = "Este bill-set aún no lo ha probado el admin en un ${_status.value.model.takeIf { it != "—" } ?: "billetero de este modelo"}; solo el admin puede escribirlo primero."

@@ -48,7 +48,7 @@ fun FlashSheet(
     val libre = acceso.puede(cl.reabill.monitor.Proc.BILLSET)
 
     val library = (if (libre) libraryTodos else libraryTodos.filter { vm.billsetProbado(it.name) })
-        .filter { it.kind != cl.reabill.monitor.FirmwareFile.KIND_SOFTWARE || acceso.admin }
+        .filter { it.kind != cl.reabill.monitor.FirmwareFile.KIND_SOFTWARE || libre }
     val close = { if (!ui.running) { vm.resetFlash(); onClose() } }
     BackHandler(enabled = visible, onBack = { close() })
 
@@ -76,7 +76,7 @@ fun FlashSheet(
             )
             Hairline(color = Acta.Ink)
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
-                if (acceso.admin) {
+                if (libre && acceso.puede(cl.reabill.monitor.Proc.INTERFAZ)) {
                     val igt by vm.igt.collectAsStateWithLifecycle()
                     Text("IGT TRIMLINE", style = ActaType.Label, modifier = Modifier.padding(top = 14.dp))
                     Text(

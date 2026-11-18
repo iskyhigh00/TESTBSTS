@@ -25,8 +25,8 @@ class UsbSerialManager(private val context: Context) {
     val isOpen: Boolean get() = connection != null
 
     @Volatile var lastOut: Int = 0
-    @Volatile var traza: TrazaUsb? = null
         private set
+    @Volatile var traza: TrazaUsb? = null
 
     companion object {
         private const val ACTION_USB_PERMISSION = "cl.reabill.monitor.USB_PERMISSION"

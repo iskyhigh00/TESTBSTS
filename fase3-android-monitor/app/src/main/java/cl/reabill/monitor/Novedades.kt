@@ -2,6 +2,11 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.9.9" to listOf(
+            "Apariencia: textos de al menos 12 sp, botones y opciones de al menos 48 dp, y el naranja de «Sistema» con mejor contraste.",
+            "Más seguridad: confirmación al Salir de la cuenta, borrar tramas, limpiar el registro e importar un respaldo; «Borrar contabilidad» explica que no se puede deshacer; la advertencia de Cambiar interfaz va en rojo bajo las opciones.",
+            "Cargar bill-set: si la escritura falla ahora aparece «Reintentar la escritura». Registro pasó antes de Administración.",
+        ),
         "2.9.8" to listOf(
             "Menús reordenados: el panel principal sigue el orden de trabajo (billetero → acciones → contabilidad → interfaz → historial → máquinas) y Preferencias queda en Cuenta, Impresión, Actualización, Administración y Registro.",
             "Se quitaron por obsoletos: Modo demo, Probar con una imagen, Tema y la importación manual del reporte semanal.",

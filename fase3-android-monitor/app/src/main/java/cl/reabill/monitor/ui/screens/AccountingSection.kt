@@ -118,7 +118,7 @@ internal fun AccountingSection(
         ActaButton(
             if (phase == Phase.ReadingAccounting) "Leyendo…" else "Leer",
             onClick = onRead, enabled = puedeLeer && connected && !phase.isBusy,
-            height = 36.dp, modifier = Modifier.padding(vertical = 5.dp).width(96.dp)
+            height = 36.dp, modifier = Modifier.padding(vertical = 5.dp).widthIn(min = 96.dp)
         )
     }
     Column(Modifier.padding(horizontal = Gutter)) {
@@ -126,7 +126,7 @@ internal fun AccountingSection(
             HeadCell("Concepto", Modifier.weight(if (sistema != null) 1.6f else 1.5f), TextAlign.Start)
             HeadCell("Actual", Modifier.weight(1f))
             HeadCell("Anterior", Modifier.weight(1f))
-            if (sistema != null) Text("Sistema", style = ActaType.Label.copy(fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Acta.Sistema), textAlign = TextAlign.End, modifier = Modifier.weight(1f))
+            if (sistema != null) Text("Sistema", style = ActaType.Label.copy(fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Acta.Sistema), textAlign = TextAlign.End, modifier = Modifier.weight(1f))
         }
         if (acc == null) {
             Hairline()
@@ -174,7 +174,7 @@ internal fun SectionHeader(title: String, action: @Composable () -> Unit = {}) {
 
 @Composable
 internal fun HeadCell(text: String, modifier: Modifier, align: TextAlign = TextAlign.End) {
-    Text(text, style = ActaType.Label.copy(fontSize = 11.sp), textAlign = align, modifier = modifier)
+    Text(text, style = ActaType.Label.copy(fontSize = 12.sp), textAlign = align, modifier = modifier)
 }
 
 internal class SisCols(val aceptados: Int, val rechazados: Int, val pct: Double?, val fecha: String)

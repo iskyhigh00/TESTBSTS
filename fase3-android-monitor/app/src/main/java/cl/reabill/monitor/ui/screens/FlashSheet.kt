@@ -148,9 +148,9 @@ fun FlashSheet(
                         style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(top = 8.dp)
                     )
             }
-            if (!ui.done) {
+            if (!ui.done || !ui.ok) {
                 HoldButton(
-                    "Escribir en el equipo", "mantener presionado", onArmed = { vm.startFlash() },
+                    if (ui.done) "Reintentar la escritura" else "Escribir en el equipo", "mantener presionado", onArmed = { vm.startFlash() },
                     enabled = ui.file != null && !ui.running, modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(8.dp))

@@ -257,25 +257,6 @@ fun ActaApp(vm: MonitorViewModel) {
 
     LaunchedEffect(connected) { if (!connected) { showCal = false; showDiag = false } }
 
-    if (ocr.test && ocr.id > 0 && !ocr.running) {
-        var elegido by remember(ocr.id) { mutableStateOf(ocr.candidates.firstOrNull() ?: "") }
-        AlertDialog(
-            onDismissRequest = { vm.clearOcr() },
-            title = { Text("Prueba de lectura") },
-            text = {
-                Column(Modifier.verticalScroll(rememberScrollState())) {
-                    ocr.photo?.let { FotoConfirmacion(it, ocr.boxes, elegido) { c -> elegido = c } }
-                    Text(
-                        if (ocr.candidates.isNotEmpty()) "Número leído: " + ocr.candidates.joinToString("  ·  ") else ocr.message,
-                        style = ActaType.Body
-                    )
-                    if (ocr.raw.isNotEmpty()) Text("Texto visto: ${ocr.raw}", style = ActaType.Label, modifier = Modifier.padding(top = 8.dp))
-                }
-            },
-            confirmButton = { ActaButton("Cerrar", onClick = { vm.clearOcr() }, filled = true, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) }
-        )
-    }
-
     val novedades by vm.novedades.collectAsStateWithLifecycle()
     if (novedades.isNotEmpty() && !showSettings && !sinUsuario) {
         AlertDialog(
@@ -327,6 +308,10 @@ fun ActaApp(vm: MonitorViewModel) {
                             cl.reabill.monitor.ui.components.ActaChip(etiqueta, ifazSel == v, { if (!esActual) ifazSel = v }, Modifier.alpha(if (esActual) 0.45f else 1f))
                         }
                     }
+                    Text(
+                        "Ojo: Stand-alone, Netplex o EBDS pueden dejar de responder por USB al reiniciar el equipo.",
+                        style = ActaType.Body.copy(color = Acta.Error, fontWeight = FontWeight.Bold), modifier = Modifier.padding(top = 12.dp)
+                    )
                     val hist = reg?.hist?.takeLast(4)?.reversed().orEmpty()
                     if (hist.isNotEmpty()) {
                         Text("Cambios recientes", style = ActaType.Label, modifier = Modifier.padding(top = 14.dp))
@@ -335,16 +320,12 @@ fun ActaApp(vm: MonitorViewModel) {
                             Text("${fmt.format(java.util.Date(h.ts))}  ${cl.reabill.monitor.Interfaz.nombre(h.valor)}  ·  $quien", style = ActaType.Tiny, modifier = Modifier.padding(top = 3.dp))
                         }
                     }
-                    Text(
-                        "Stand-alone, Netplex o EBDS pueden dejar de responder por USB al reiniciar el equipo.",
-                        style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(top = 14.dp)
-                    )
                 }
             },
             confirmButton = {
                 val sel = ifazSel
                 ActaButton(
-                    if (sel == null) "Elige una" else "Cambiar a ${cl.reabill.monitor.Interfaz.nombre(sel)}",
+                    if (sel == null) "Elige una interfaz" else "Cambiar a ${cl.reabill.monitor.Interfaz.nombre(sel)}",
                     onClick = { if (sel != null) { showIfaz = false; vm.cambiarInterfaz(sel) } },
                     danger = true, enabled = sel != null && sel != actual && !ifaz.trabajando, height = 44.dp
                 )
@@ -548,18 +529,18 @@ fun ActaApp(vm: MonitorViewModel) {
                             if (l != null || cs != null) {
                                 Row(Modifier.fillMaxWidth().padding(top = 10.dp)) {
                                     Spacer(Modifier.width(30.dp))
-                                    Text("Aceptados", style = ActaType.Label.copy(fontSize = 11.sp), modifier = Modifier.weight(1f))
-                                    Text("Rechazados", style = ActaType.Label.copy(fontSize = 11.sp), modifier = Modifier.weight(1f))
-                                    Text("Total", style = ActaType.Label.copy(fontSize = 11.sp), modifier = Modifier.weight(1f))
+                                    Text("Aceptados", style = ActaType.Label.copy(fontSize = 12.sp), modifier = Modifier.weight(1f))
+                                    Text("Rechazados", style = ActaType.Label.copy(fontSize = 12.sp), modifier = Modifier.weight(1f))
+                                    Text("Total", style = ActaType.Label.copy(fontSize = 12.sp), modifier = Modifier.weight(1f))
                                 }
                                 if (l != null) Row(Modifier.fillMaxWidth().padding(top = 2.dp)) {
-                                    Text("AR", style = ActaType.Label.copy(fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Acta.Ink), modifier = Modifier.width(30.dp).alignByBaseline())
+                                    Text("AR", style = ActaType.Label.copy(fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Acta.Ink), modifier = Modifier.width(30.dp).alignByBaseline())
                                     Text(fmtInt(l.accepted), style = ActaType.Cell, modifier = Modifier.weight(1f).alignByBaseline())
                                     Text(fmtInt(l.rejected), style = ActaType.Cell, modifier = Modifier.weight(1f).alignByBaseline())
                                     Text(fmtInt(l.accepted + l.rejected), style = ActaType.Cell, modifier = Modifier.weight(1f).alignByBaseline())
                                 }
                                 if (cs != null) Row(Modifier.fillMaxWidth().padding(top = 2.dp)) {
-                                    Text("AS", style = ActaType.Label.copy(fontSize = 11.sp, fontWeight = FontWeight.Bold, color = colorAs), modifier = Modifier.width(30.dp).alignByBaseline())
+                                    Text("AS", style = ActaType.Label.copy(fontSize = 12.sp, fontWeight = FontWeight.Bold, color = colorAs), modifier = Modifier.width(30.dp).alignByBaseline())
                                     Text(fmtInt(cs.first), style = ActaType.Cell.copy(color = colorAs), modifier = Modifier.weight(1f).alignByBaseline())
                                     Text(fmtInt(cs.second), style = ActaType.Cell.copy(color = colorAs), modifier = Modifier.weight(1f).alignByBaseline())
                                     Text(fmtInt(cs.first + cs.second), style = ActaType.Cell.copy(color = colorAs), modifier = Modifier.weight(1f).alignByBaseline())
@@ -616,9 +597,9 @@ fun ActaApp(vm: MonitorViewModel) {
     if (showReset) {
         AlertDialog(
             onDismissRequest = { showReset = false },
-            title = { Text("Borrar contabilidad") },
+            title = { Text("¿Borrar la contabilidad?") },
             text = {
-                Text("Se guarda el estado actual y los contadores quedan en 0.")
+                Text("Los contadores de este billetero vuelven a 0. El estado actual queda guardado en el Historial. Esta acción no se puede deshacer.")
             },
             confirmButton = { ActaButton("Borrar", onClick = { showReset = false; vm.resetAccounting() }, danger = true, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) },
             dismissButton = { ActaButton("Cancelar", onClick = { showReset = false }, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) }
@@ -726,7 +707,7 @@ fun ActaApp(vm: MonitorViewModel) {
                 Column(Modifier.padding(horizontal = Gutter).padding(top = 16.dp)) {
                     ActaButton(
                         "Máquinas", onClick = { filtroLista = ""; soloRevisar = false; vm.clearOcr(); showLista = true },
-                        modifier = Modifier.fillMaxWidth().padding(top = 10.dp)
+                        modifier = Modifier.fillMaxWidth()
                     )
                     TareasStrip(
                         porRevisar = revPend.size, etiquetas = etqPend.size,

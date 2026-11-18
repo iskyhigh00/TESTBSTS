@@ -38,7 +38,7 @@ fun DiagSheet(visible: Boolean, vm: MonitorViewModel, serial: String, onClose: (
             Text("Equipo $serial", style = ActaType.Label)
             Text("Diagnóstico", style = ActaType.Title, modifier = Modifier.padding(top = 6.dp))
             Text(
-                "Envía las mismas dos consultas que STS al ejecutar el diagnóstico. No sé si mueven los motores: quita cualquier billete de la boca antes. " +
+                "Envía las mismas dos consultas que STS al ejecutar el diagnóstico. Puede mover los motores del billetero: quita cualquier billete de la boca antes. " +
                     "El resultado queda en el Registro para compararlo con el % de rechazo.",
                 style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(top = 4.dp, bottom = 14.dp)
             )
@@ -59,7 +59,7 @@ fun DiagSheet(visible: Boolean, vm: MonitorViewModel, serial: String, onClose: (
                     fila("Sistema, última semana" + (r.sistemaConteo?.let { " (${it.first} aceptados, ${it.second} rechazados)" } ?: ""), p(r.sistema))
                     Text("LO QUE LEE EL DIAGNÓSTICO", style = ActaType.Label, modifier = Modifier.padding(top = 14.dp))
                     fila("Sensor del stacker / umbral", "${r.sensor} / ${r.umbral}")
-                    fila("Otros valores (significado sin confirmar)", "A ${r.a} · C ${r.c} · E ${r.e} · F ${r.f}")
+                    fila("Otros valores (aún sin interpretar)", "A ${r.a} · C ${r.c} · E ${r.e} · F ${r.f}")
                     if (!r.valido) Text("El formato de la respuesta no es el esperado: revisa el Registro.", style = ActaType.Body.copy(color = Acta.Error), modifier = Modifier.padding(top = 8.dp))
                 }
                 if (ui.mensaje.isNotEmpty()) Text(ui.mensaje, style = ActaType.Body, modifier = Modifier.padding(top = 14.dp))

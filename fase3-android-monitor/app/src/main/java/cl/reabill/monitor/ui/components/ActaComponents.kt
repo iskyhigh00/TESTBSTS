@@ -192,7 +192,7 @@ fun ActaButton(
     }
     val edge = if (danger) Acta.Error else Acta.Ink
     Box(
-        modifier.heightIn(min = height).alpha(if (enabled) 1f else 0.4f)
+        modifier.heightIn(min = maxOf(height, 48.dp)).alpha(if (enabled) 1f else 0.4f)
             .clip(ButtonShape)
             .background(if (filled) Acta.Ink else Acta.Paper)
             .border(1.dp, edge, ButtonShape)
@@ -221,7 +221,7 @@ fun ActaChip(text: String, selected: Boolean, onClick: () -> Unit, modifier: Mod
     )
     val borde = if (Acta.premium) (if (selected) Acta.Primary else Acta.GlassBorder) else (if (selected) Acta.Ink else Acta.Hairline)
     Box(
-        modifier.heightIn(min = 40.dp).clip(shape)
+        modifier.heightIn(min = 48.dp).clip(shape)
             .background(fondoSel)
             .border(1.dp, borde, shape)
             .clickable(role = Role.Checkbox, onClick = onClick)
@@ -296,7 +296,7 @@ fun HoldButton(
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(text, style = ActaType.Button)
-            Text(hint, style = ActaType.Label.copy(fontSize = 10.sp))
+            Text(hint, style = ActaType.Label.copy(fontSize = 12.sp))
         }
     }
 }

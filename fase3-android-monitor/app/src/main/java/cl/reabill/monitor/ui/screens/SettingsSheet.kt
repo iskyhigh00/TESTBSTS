@@ -133,6 +133,7 @@ internal fun SettingsSheet(
                 PrefGroup("Datos compartidos") {
                     val n by vm.nubeUi.collectAsStateWithLifecycle()
                     var dlg by remember { mutableStateOf(false) }
+                    var salir by remember { mutableStateOf(false) }
                     when {
                         !n.disponible -> Text("Esta versión no trae la conexión a la nube.", style = ActaType.Body.copy(color = Acta.Ink2))
                         n.email.isEmpty() -> {
@@ -153,11 +154,18 @@ internal fun SettingsSheet(
                             )
                             Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                 ActaButton("Cambiar usuario", onClick = { dlg = true }, enabled = !n.trabajando && !busy, height = 46.dp, modifier = Modifier.weight(1f))
-                                ActaButton("Salir", onClick = { vm.nubeDesconectar() }, enabled = !n.trabajando && !busy, danger = true, height = 46.dp, modifier = Modifier.weight(1f))
+                                ActaButton("Salir", onClick = { salir = true }, enabled = !n.trabajando && !busy, danger = true, height = 46.dp, modifier = Modifier.weight(1f))
                             }
                         }
                     }
                     if (dlg) UsuarioDialog(vm, onClose = { dlg = false }, onListo = { dlg = false })
+                    if (salir) AlertDialog(
+                        onDismissRequest = { salir = false },
+                        title = { Text("¿Salir de la cuenta?") },
+                        text = { Text("Este teléfono deja de sincronizar con la nube hasta que vuelvas a entrar con tu correo y clave.") },
+                        confirmButton = { ActaButton("Salir", onClick = { salir = false; vm.nubeDesconectar() }, danger = true, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) },
+                        dismissButton = { ActaButton("Cancelar", onClick = { salir = false }, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) }
+                    )
                 }
 
                 PrefGroup("Impresora de etiquetas") {
@@ -186,6 +194,34 @@ internal fun SettingsSheet(
                     ActaButton("Historial de versiones", onClick = onChangelog, height = 46.dp, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
                 }
 
+                PrefGroup("Registro") {
+                    var limpiar by remember { mutableStateOf(false) }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ActaButton("Copiar", onClick = onCopy, height = 42.dp, textSize = 13.sp, modifier = Modifier.weight(1f))
+                        ActaButton("Copiar todo", onClick = onCopyAll, height = 42.dp, textSize = 13.sp, modifier = Modifier.weight(1f))
+                        if (acceso.admin) ActaButton("Limpiar", onClick = { limpiar = true }, danger = true, height = 42.dp, textSize = 13.sp, modifier = Modifier.weight(1f))
+                    }
+                    if (limpiar) AlertDialog(
+                        onDismissRequest = { limpiar = false },
+                        title = { Text("¿Limpiar el registro?") },
+                        text = { Text("Se borra el registro de este teléfono. Si lo necesitas para análisis, cópialo antes.") },
+                        confirmButton = { ActaButton("Limpiar", onClick = { limpiar = false; vm.clearLog() }, danger = true, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) },
+                        dismissButton = { ActaButton("Cancelar", onClick = { limpiar = false }, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) }
+                    )
+                    SelectionContainer {
+                        Column(Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                            log.take(30).forEach { line ->
+                                Hairline()
+                                val (time, msg) = splitLog(line)
+                                Row(Modifier.fillMaxWidth().padding(vertical = 5.dp)) {
+                                    Text(time, style = ActaType.Tiny.copy(fontSize = 12.sp), modifier = Modifier.width(62.dp))
+                                    Text(msg, style = ActaType.Log.copy(fontSize = 12.5.sp), modifier = Modifier.weight(1f))
+                                }
+                            }
+                        }
+                    }
+                }
+
                 if (acceso.admin) Seccion("Administración")
 
                 if (acceso.admin) PrefGroup("Permisos de técnicos") {
@@ -206,14 +242,14 @@ internal fun SettingsSheet(
                     }
                     Text("Lectura e impresión se permiten por defecto. Puedes desactivarlas para cada trabajador.", style = ActaType.Label, modifier = Modifier.padding(top = 10.dp))
                     if (tecnicos.isNotEmpty() && cl.reabill.monitor.Proc.values().any { !it.porDefecto && !vm.procHecho(it) })
-                        Text("Lo atenuado aún no lo has hecho tú.", style = ActaType.Label, modifier = Modifier.padding(top = 10.dp))
+                        Text("Lo atenuado aún no lo has hecho tú, por eso no se puede autorizar a otros.", style = ActaType.Label, modifier = Modifier.padding(top = 10.dp))
                 }
 
-                if (acceso.admin) PrefGroup("Por revisar") {
+                if (acceso.admin) PrefGroup("Billeteros por revisar") {
                     val pend by vm.revPendientes.collectAsStateWithLifecycle()
                     var confirmar by remember { mutableStateOf(false) }
                     var resultado by remember { mutableStateOf("") }
-                    Text("${pend.size} en este teléfono.", style = ActaType.Body.copy(color = Acta.Ink2))
+                    Text("${pend.size} en este teléfono. «Borrar la lista» la vacía en todos los teléfonos.", style = ActaType.Body.copy(color = Acta.Ink2))
                     if (resultado.isNotEmpty()) Text(resultado, style = ActaType.Label, modifier = Modifier.padding(top = 4.dp))
                     ActaButton("Borrar la lista (todos los teléfonos)", onClick = { confirmar = true }, danger = true, enabled = pend.isNotEmpty(), height = 46.dp, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
                     if (confirmar) AlertDialog(
@@ -226,14 +262,24 @@ internal fun SettingsSheet(
                 }
 
                 if (acceso.admin) PrefGroup("Respaldo") {
+                    var importar by remember { mutableStateOf(false) }
+                    Text("Exportar guarda un archivo con los datos de BILLMON. Importar los reemplaza por los del archivo.", style = ActaType.Label, modifier = Modifier.padding(bottom = 8.dp))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         ActaButton("Exportar", onClick = onExport, height = 46.dp, modifier = Modifier.weight(1f))
-                        ActaButton("Importar", onClick = onImport, height = 46.dp, modifier = Modifier.weight(1f))
+                        ActaButton("Importar", onClick = { importar = true }, height = 46.dp, modifier = Modifier.weight(1f))
                     }
+                    if (importar) AlertDialog(
+                        onDismissRequest = { importar = false },
+                        title = { Text("¿Importar un respaldo?") },
+                        text = { Text("Los datos actuales de este teléfono se reemplazan por los del archivo que elijas.") },
+                        confirmButton = { ActaButton("Elegir archivo", onClick = { importar = false; onImport() }, danger = true, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) },
+                        dismissButton = { ActaButton("Cancelar", onClick = { importar = false }, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) }
+                    )
                 }
 
                 if (acceso.admin) PrefGroup("Grabar tramas USB (para análisis)") {
                     val grabando by vm.trazaActiva.collectAsStateWithLifecycle()
+                    var borrarT by remember { mutableStateOf(false) }
                     Text(
                         "Guarda lo que la app envía y recibe del billetero, como Wireshark. Actívalo, haz las lecturas y guarda el archivo para mandarlo. " +
                             "Se detiene al pasar 5 MB y al cerrar la app.",
@@ -242,28 +288,15 @@ internal fun SettingsSheet(
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         ActaButton(if (grabando) "Detener" else "Grabar", onClick = { vm.activarTraza(!grabando) }, filled = !grabando, height = 46.dp, modifier = Modifier.weight(1f))
                         ActaButton("Guardar archivo", onClick = onExportTraza, enabled = !grabando, height = 46.dp, modifier = Modifier.weight(1f))
-                        ActaButton("Borrar", onClick = { vm.limpiarTraza() }, danger = true, enabled = !grabando, height = 46.dp, modifier = Modifier.weight(1f))
+                        ActaButton("Borrar", onClick = { borrarT = true }, danger = true, enabled = !grabando, height = 46.dp, modifier = Modifier.weight(1f))
                     }
-                }
-
-                PrefGroup("Registro") {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        ActaButton("Copiar", onClick = onCopy, height = 42.dp, textSize = 13.sp, modifier = Modifier.weight(1f))
-                        ActaButton("Copiar todo", onClick = onCopyAll, height = 42.dp, textSize = 13.sp, modifier = Modifier.weight(1f))
-                        if (acceso.admin) ActaButton("Limpiar", onClick = { vm.clearLog() }, danger = true, height = 42.dp, textSize = 13.sp, modifier = Modifier.weight(1f))
-                    }
-                    SelectionContainer {
-                        Column(Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                            log.take(30).forEach { line ->
-                                Hairline()
-                                val (time, msg) = splitLog(line)
-                                Row(Modifier.fillMaxWidth().padding(vertical = 5.dp)) {
-                                    Text(time, style = ActaType.Tiny.copy(fontSize = 11.sp), modifier = Modifier.width(62.dp))
-                                    Text(msg, style = ActaType.Log.copy(fontSize = 12.5.sp), modifier = Modifier.weight(1f))
-                                }
-                            }
-                        }
-                    }
+                    if (borrarT) AlertDialog(
+                        onDismissRequest = { borrarT = false },
+                        title = { Text("¿Borrar las tramas?") },
+                        text = { Text("Se borra la grabación guardada en este teléfono. Si no la guardaste como archivo, se pierde.") },
+                        confirmButton = { ActaButton("Borrar", onClick = { borrarT = false; vm.limpiarTraza() }, danger = true, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) },
+                        dismissButton = { ActaButton("Cancelar", onClick = { borrarT = false }, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) }
+                    )
                 }
 
                 Spacer(Modifier.height(16.dp))

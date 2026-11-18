@@ -57,7 +57,7 @@ object Acta {
 
     val Sistema: Color get() = when {
         premium -> if (dark) PremiumColors.Tertiary else PremiumColors.TertiaryLight
-        dark -> Color(0xFFFFB74D); else -> Color(0xFFC25E00)
+        dark -> Color(0xFFFFB74D); else -> Color(0xFFB35400)
     }
     val Accent: Color get() = when {
         premium -> if (dark) PremiumColors.Secondary else PremiumColors.SecondaryLight
@@ -116,7 +116,7 @@ object ActaType {
     val Serial get() = BillSet.copy(fontSize = 20.sp, letterSpacing = 0.sp)
     val Value get() = TextStyle(fontFamily = ActaMono, fontWeight = FontWeight.Medium, fontSize = 13.sp, color = Acta.Ink)
     val Cell get() = TextStyle(fontFamily = ActaMono, fontWeight = FontWeight.Medium, fontSize = 13.5.sp, color = Acta.Ink)
-    val Tiny get() = TextStyle(fontFamily = ActaMono, fontWeight = FontWeight.Normal, fontSize = 10.sp, color = Acta.Ink2)
+    val Tiny get() = TextStyle(fontFamily = ActaMono, fontWeight = FontWeight.Normal, fontSize = 12.sp, color = Acta.Ink2)
     val Log get() = TextStyle(fontFamily = ActaMono, fontWeight = FontWeight.Normal, fontSize = 12.sp, color = Acta.Ink)
 }
 

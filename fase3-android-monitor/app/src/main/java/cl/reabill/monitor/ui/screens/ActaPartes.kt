@@ -121,7 +121,7 @@ internal fun TopRow(phase: Phase, onSettings: () -> Unit) {
     ) {
         Text("BILLMON", style = ActaType.Section.copy(fontSize = 12.sp))
         Spacer(Modifier.width(8.dp))
-        Text("v$APP_VERSION", style = ActaType.Tiny.copy(fontSize = 11.sp))
+        Text("v$APP_VERSION", style = ActaType.Tiny.copy(fontSize = 12.sp))
         Spacer(Modifier.weight(1f))
         StatusMark(kind)
         Spacer(Modifier.width(6.dp))
@@ -196,7 +196,7 @@ internal fun Hero(
                         if (leyendo) "Leyendo…" else "Agregar máquina (foto)", onClick = onPhoto, enabled = !leyendo,
                         filled = true, height = 40.dp, modifier = Modifier.weight(1f)
                     )
-                    ActaButton("Escribir", onClick = onEdit, height = 40.dp, modifier = Modifier.width(96.dp))
+                    ActaButton("Escribir", onClick = onEdit, height = 40.dp, modifier = Modifier.widthIn(min = 96.dp))
                 }
             }
         }
@@ -243,7 +243,7 @@ internal fun InterfazSection(u: MonitorViewModel.IfazUi, onChange: () -> Unit, p
         if (puedeCambiar) ActaButton(
             if (u.trabajando) "Cambiando…" else "Cambiar", onClick = onChange,
             enabled = !u.trabajando && u.valor != null, height = 36.dp,
-            modifier = Modifier.padding(vertical = 5.dp).width(96.dp)
+            modifier = Modifier.padding(vertical = 5.dp).widthIn(min = 96.dp)
         )
     }
     Column(Modifier.padding(horizontal = Gutter)) {
@@ -266,7 +266,7 @@ internal fun InterfazSection(u: MonitorViewModel.IfazUi, onChange: () -> Unit, p
 @Composable
 internal fun Dato(rotulo: String, valor: String, modifier: Modifier = Modifier) {
     Column(modifier) {
-        Text(rotulo, style = ActaType.Label.copy(fontSize = 11.sp))
+        Text(rotulo, style = ActaType.Label.copy(fontSize = 12.sp))
         Text(valor, style = ActaType.Cell, modifier = Modifier.padding(top = 2.dp))
     }
 }
@@ -356,13 +356,13 @@ internal fun IdentityBlock(
     Hairline(Modifier.padding(horizontal = Gutter), Acta.Ink)
     Row(Modifier.padding(horizontal = Gutter).height(IntrinsicSize.Min)) {
         Column(Modifier.weight(1f).padding(top = 8.dp, bottom = 10.dp)) {
-            Text("Bill-set (variant)", style = ActaType.Label.copy(fontSize = 11.sp))
+            Text("Bill-set (variant)", style = ActaType.Label.copy(fontSize = 12.sp))
             if (billSet.isPlaceholder() && phase.isBusy) PendingText("——", ActaType.BillSet)
             else ResolveText(billSet, ActaType.BillSet)
         }
         Box(Modifier.width(1.dp).fillMaxHeight().background(Acta.Hairline))
         Column(Modifier.weight(1f).padding(start = 14.dp, top = 8.dp, bottom = 10.dp)) {
-            Text("Serie", style = ActaType.Label.copy(fontSize = 11.sp))
+            Text("Serie", style = ActaType.Label.copy(fontSize = 12.sp))
             Box(Modifier.padding(top = 5.dp)) { ResolveText(serial, ActaType.Serial) }
         }
     }
@@ -380,7 +380,7 @@ internal fun IdentityBlock(
 @Composable
 internal fun MiniField(label: String, value: String, modifier: Modifier) {
     Column(modifier.padding(vertical = 7.dp)) {
-        Text(label, style = ActaType.Label.copy(fontSize = 11.sp))
+        Text(label, style = ActaType.Label.copy(fontSize = 12.sp))
         ResolveText(value, ActaType.Value)
     }
 }
@@ -402,11 +402,11 @@ internal fun FilaMaquina(r: cl.reabill.monitor.MonitorViewModel.MdaFila, rv: cl.
             if (rv != null) MarcaPorRevisar(rv)
         }
         Column(Modifier.weight(1f)) {
-            Text("AR", style = ActaType.Label.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Acta.Ink))
+            Text("AR", style = ActaType.Label.copy(fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Acta.Ink))
             Text(r.lectura?.let { "${cl.reabill.monitor.ui.fmtRate(it.rate)}\u00A0%" } ?: "—", style = ActaType.Cell, maxLines = 1, softWrap = false)
         }
         Column(Modifier.weight(1f)) {
-            Text("AS", style = ActaType.Label.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Acta.Sistema))
+            Text("AS", style = ActaType.Label.copy(fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Acta.Sistema))
             Text(sis?.let { "${cl.reabill.monitor.ui.fmtRate(it * 100.0)}\u00A0%" } ?: "—", style = ActaType.Cell.copy(color = Acta.Sistema), maxLines = 1, softWrap = false)
         }
     }
@@ -421,12 +421,12 @@ internal fun FilaPendienteSinBilletero(rv: cl.reabill.monitor.Rev, sis: Double?,
             MarcaPorRevisar(rv)
         }
         Column(Modifier.weight(1f)) {
-            Text("AR", style = ActaType.Label.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Acta.Ink))
+            Text("AR", style = ActaType.Label.copy(fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Acta.Ink))
 
             Text("—", style = ActaType.Cell, maxLines = 1, softWrap = false)
         }
         Column(Modifier.weight(1f)) {
-            Text("AS", style = ActaType.Label.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Acta.Sistema))
+            Text("AS", style = ActaType.Label.copy(fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Acta.Sistema))
             val as_ = sis?.times(100.0) ?: rv.pct
             Text(as_?.let { "${cl.reabill.monitor.ui.fmtRate(it)}\u00A0%" } ?: "—", style = ActaType.Cell.copy(color = Acta.Sistema), maxLines = 1, softWrap = false)
         }

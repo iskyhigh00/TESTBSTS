@@ -105,6 +105,8 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     private val _diag = MutableStateFlow(DiagUi())
     val diag: StateFlow<DiagUi> = _diag
 
+    fun interfacesPermitidas(): List<Int> = mei?.interfacesPermitidas(_ifaz.value.valor, _status.value.model) ?: Interfaz.VALORES
+
     @Volatile private var opRunning = false
     private fun beginOp(): Boolean = synchronized(this) {
         if (cambiandoCuenta || opRunning || calibrating || flashing) false else { opRunning = true; true }
@@ -267,6 +269,9 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         val client = mei ?: run { addLog("Conecta el equipo primero."); return }
         if (!client.supportsInterface) { addLog("Este equipo no permite cambiar la interfaz."); return }
         if (valor !in Interfaz.VALORES) return
+        if (valor !in (client.interfacesPermitidas(_ifaz.value.valor, _status.value.model) ?: Interfaz.VALORES)) {
+            addLog("Ese cambio de interfaz no está probado en este equipo: no se hace."); return
+        }
         val st = _status.value
         val serie = st.serial
         if (serie.isBlank() || serie == "—") { addLog("Sin número de serie: no se cambia la interfaz."); return }

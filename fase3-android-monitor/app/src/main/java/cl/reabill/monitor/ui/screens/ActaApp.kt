@@ -318,11 +318,12 @@ fun ActaApp(vm: MonitorViewModel) {
                         )
                     )
                     Text("Nueva interfaz", style = ActaType.Label, modifier = Modifier.padding(top = 14.dp))
+                    if (vm.interfacesPermitidas().isEmpty()) Text("Para este equipo no hay ningún cambio de interfaz probado.", style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(top = 6.dp))
                     androidx.compose.foundation.layout.FlowRow(
                         Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        cl.reabill.monitor.Interfaz.VALORES.forEach { v ->
+                        vm.interfacesPermitidas().forEach { v ->
                             val esActual = v == actual
                             val etiqueta = cl.reabill.monitor.Interfaz.nombre(v) +
                                 (if (esActual) " (actual)" else if (v == reg?.habitual && actual == cl.reabill.monitor.Interfaz.STAND_ALONE) " (volver)" else "")
@@ -684,7 +685,7 @@ fun ActaApp(vm: MonitorViewModel) {
                         ifazSel = if (v == cl.reabill.monitor.Interfaz.STAND_ALONE) ifaz.registro?.habitual else null
                         showIfaz = true
                     },
-                    puedeCambiar = acceso.puede(cl.reabill.monitor.Proc.INTERFAZ)
+                    puedeCambiar = acceso.puede(cl.reabill.monitor.Proc.INTERFAZ) && vm.interfacesPermitidas().isNotEmpty()
                 )
 
                 val mdaActual = mdaMap[status.serial]

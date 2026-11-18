@@ -13,11 +13,50 @@ data class DeviceStatus(
 )
 
 class MeiClient(private val usb: UsbSerialManager) : ValidatorClient {
+    companion object {
+        const val IF_OFFSET = 83
+        const val IF_USB = 3
+        const val IF_NETPLEX = 1
+        val MODELOS_INTERFAZ = setOf("SC8304")
+    }
 
     override var lastDetail: String = ""
         private set
     override val supportsReset: Boolean = true
     override val calibrationNote: String = " Pasa el cupón de calibración."
+
+    override val supportsInterface: Boolean = true
+
+    override fun interfacesPermitidas(actual: Int?, modelo: String): List<Int>? =
+        if (modelo.trim() in MODELOS_INTERFAZ && actual == IF_USB) listOf(IF_NETPLEX) else emptyList()
+
+    private fun leerBloqueId(): ByteArray? {
+        val (b, _) = send(0x02, 0x01)
+        if (b.size != 90) return null
+        if ((b[80].toInt() and 0xFF) != 0x01 || (b[82].toInt() and 0xFF) != 0x41) return null
+        return b
+    }
+
+    override fun readInterface(): Pair<Int?, String> {
+        val b = leerBloqueId() ?: return null to "no pude leer el bloque de identidad"
+        return (b[IF_OFFSET].toInt() and 0xFF) to ""
+    }
+
+    override fun writeInterface(valor: Int): Pair<Boolean, String> {
+        val antes = leerBloqueId() ?: return false to "No se pudo leer la identidad: no se escribió nada."
+        val modelo = asciiTokens(antes.copyOfRange(0, 21)).firstOrNull().orEmpty()
+        val actual = antes[IF_OFFSET].toInt() and 0xFF
+        if (valor !in (interfacesPermitidas(actual, modelo) ?: emptyList()))
+            return false to "Ese cambio ($actual → $valor) no está probado en el modelo $modelo: no se escribió nada."
+        val nuevo = antes.copyOf(); nuevo[IF_OFFSET] = valor.toByte()
+        val err = FirmwareFlasher.sendAcked(usb, frame(0x02, 0x02, nuevo), "Escritura de la interfaz")
+        if (err != null) return false to err
+        Thread.sleep(500)
+        val despues = leerBloqueId() ?: return false to "Escritura confirmada, pero no pude releer para verificar."
+        if ((despues[IF_OFFSET].toInt() and 0xFF) != valor) return false to "Quedó en ${despues[IF_OFFSET].toInt() and 0xFF}, no en $valor."
+        for (i in antes.indices) if (i != IF_OFFSET && despues[i] != antes[i]) return false to "Cambió algo más además de la interfaz (byte $i): revisa el equipo."
+        return true to "verificado"
+    }
 
     private fun crc16(data: ByteArray, from: Int, to: Int): Int {
         var crc = 0

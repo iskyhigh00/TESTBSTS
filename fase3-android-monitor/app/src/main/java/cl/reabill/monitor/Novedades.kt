@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.9.4" to listOf(
+            "Cashflow (SC83): se puede pasar de USB a Netplex desde la app (solo SC8304, el único caso visto en una captura de STS; cambia un solo byte y se verifica). Solo se ofrecen cambios de interfaz ya probados: para cualquier otro Cashflow no aparece el botón.",
+        ),
         "2.9.3" to listOf(
             "Botón «Diagnóstico» (solo admin, SC Advance): lee lo mismo que STS (sensor del stacker y otros valores) y lo muestra junto a la aceptación real de toda la vida del billetero, la real reciente (con tus lecturas guardadas) y la del sistema de la última semana. Queda todo en el Registro para compararlo con el % de rechazo.",
         ),

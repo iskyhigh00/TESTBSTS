@@ -16,6 +16,8 @@ interface ValidatorClient {
 
     fun writeInterface(valor: Int): Pair<Boolean, String> = false to "no disponible en este equipo"
 
+    fun interfacesPermitidas(actual: Int?, modelo: String): List<Int>? = null
+
     fun readIdentity(): DeviceStatus
 
     fun readFirmware(): Triple<String, String, String>

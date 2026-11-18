@@ -137,9 +137,6 @@ fun ActaApp(vm: MonitorViewModel) {
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) vm.importBackup(uri)
     }
-    val weeklyLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) vm.importWeekly(uri)
-    }
     val trazaLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri ->
         if (uri != null) vm.exportarTraza(uri)
     }
@@ -189,9 +186,6 @@ fun ActaApp(vm: MonitorViewModel) {
     val etqPend by vm.etqPendientes.collectAsStateWithLifecycle()
     var buscandoFoto by remember { mutableStateOf(false) }
     val ocr by vm.ocr.collectAsStateWithLifecycle()
-    val testPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) vm.recognizeMda(uri, test = true)
-    }
     var fotoUri by remember { mutableStateOf<android.net.Uri?>(null) }
     val takePhoto = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
         val u = fotoUri
@@ -681,25 +675,7 @@ fun ActaApp(vm: MonitorViewModel) {
                     onPhoto = lanzarFoto
                 )
                 IdentityBlock(phase, status.billSet, status.serial, status.model, status.manufacturer, status.firmwareApp)
-                if (connected && ifaz.soportada) InterfazSection(
-                    ifaz,
-                    onChange = {
-                        val v = ifaz.valor
-                        ifazSel = if (v == cl.reabill.monitor.Interfaz.STAND_ALONE) ifaz.registro?.habitual else null
-                        showIfaz = true
-                    },
-                    puedeCambiar = acceso.puede(cl.reabill.monitor.Proc.INTERFAZ) && vm.interfacesPermitidas().isNotEmpty()
-                )
-
                 val mdaActual = mdaMap[status.serial]
-                AccountingSection(
-                    acc = accounting, history = history, phase = phase, connected = connected,
-                    sistema = if (connected) mdaActual?.let { m -> weekly?.conteo(m)?.let { SisCols(it.first, it.second, weekly?.pct(m), weekly?.fecha.orEmpty()) } } else null,
-                    onRead = { vm.readAccounting() }, onReset = { showReset = true }, puedeBorrar = acceso.puede(cl.reabill.monitor.Proc.BORRAR),
-                    puedeLeer = acceso.puede(cl.reabill.monitor.Proc.LEER)
-                )
-
-                if (history.isNotEmpty()) HistorySection(history, status.serial, onShowAll = { showHistory = true })
 
                 Column(Modifier.padding(horizontal = Gutter).padding(top = 16.dp)) {
 
@@ -723,6 +699,31 @@ fun ActaApp(vm: MonitorViewModel) {
                         "Diagnóstico", onClick = { showDiag = true }, enabled = connected && !busy,
                         modifier = Modifier.fillMaxWidth().padding(top = 10.dp)
                     )
+                    if (printUi.message.isNotEmpty()) {
+                        Text(printUi.message, style = ActaType.Label, modifier = Modifier.padding(top = 8.dp))
+                    }
+                }
+
+                if (connected && ifaz.soportada) InterfazSection(
+                    ifaz,
+                    onChange = {
+                        val v = ifaz.valor
+                        ifazSel = if (v == cl.reabill.monitor.Interfaz.STAND_ALONE) ifaz.registro?.habitual else null
+                        showIfaz = true
+                    },
+                    puedeCambiar = acceso.puede(cl.reabill.monitor.Proc.INTERFAZ) && vm.interfacesPermitidas().isNotEmpty()
+                )
+
+                AccountingSection(
+                    acc = accounting, history = history, phase = phase, connected = connected,
+                    sistema = if (connected) mdaActual?.let { m -> weekly?.conteo(m)?.let { SisCols(it.first, it.second, weekly?.pct(m), weekly?.fecha.orEmpty()) } } else null,
+                    onRead = { vm.readAccounting() }, onReset = { showReset = true }, puedeBorrar = acceso.puede(cl.reabill.monitor.Proc.BORRAR),
+                    puedeLeer = acceso.puede(cl.reabill.monitor.Proc.LEER)
+                )
+
+                if (history.isNotEmpty()) HistorySection(history, status.serial, onShowAll = { showHistory = true })
+
+                Column(Modifier.padding(horizontal = Gutter).padding(top = 16.dp)) {
                     ActaButton(
                         "Máquinas", onClick = { filtroLista = ""; soloRevisar = false; vm.clearOcr(); showLista = true },
                         modifier = Modifier.fillMaxWidth().padding(top = 10.dp)
@@ -733,9 +734,6 @@ fun ActaApp(vm: MonitorViewModel) {
                         onEtiquetas = { showEtq = true },
                         modifier = Modifier.padding(top = 10.dp)
                     )
-                    if (printUi.message.isNotEmpty()) {
-                        Text(printUi.message, style = ActaType.Label, modifier = Modifier.padding(top = 8.dp))
-                    }
                 }
                 Spacer(Modifier.height(18.dp))
             }
@@ -764,8 +762,6 @@ fun ActaApp(vm: MonitorViewModel) {
             onCopyAll = { vm.fullLogAsync { t -> clipboard.setText(AnnotatedString(t.ifEmpty { log.joinToString("\n") })) } },
             onExport = { exportLauncher.launch("billmon-respaldo-" + java.text.SimpleDateFormat("yyyyMMdd-HHmm", java.util.Locale.US).format(java.util.Date()) + ".json") },
             onImport = { importLauncher.launch(arrayOf("*/*")) },
-            onImportWeekly = { weeklyLauncher.launch(arrayOf("*/*")) },
-            onTestOcr = { testPicker.launch(arrayOf("image/*")) },
             onExportTraza = { trazaLauncher.launch("billmon-tramas-" + java.text.SimpleDateFormat("yyyyMMdd-HHmm", java.util.Locale.US).format(java.util.Date()) + ".txt") }
         )
         FlashSheet(

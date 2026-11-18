@@ -122,7 +122,6 @@ internal fun SettingsSheet(
         enter = fadeIn(tween(250)) + slideInVertically(tween(380, easing = FastOutSlowInEasing)) { it / 14 },
         exit = fadeOut(tween(180)) + slideOutVertically(tween(220)) { it / 14 }
     ) {
-        val demo by vm.demo.collectAsStateWithLifecycle()
         val acceso by vm.acceso.collectAsStateWithLifecycle()
         val prefs by vm.labelPrefs.collectAsStateWithLifecycle()
         val busy by vm.busy.collectAsStateWithLifecycle()
@@ -130,15 +129,6 @@ internal fun SettingsSheet(
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = Gutter)) {
                 Text("Preferencias", style = ActaType.Title.copy(fontSize = 34.sp), modifier = Modifier.padding(top = 18.dp))
                 Text("BILLMON v$APP_VERSION", style = ActaType.Tiny, modifier = Modifier.padding(top = 2.dp, bottom = 8.dp))
-
-                PrefGroup("Impresora de etiquetas") {
-                    Text(
-                        (if (prefs.lastName.isNotEmpty()) "Guardada: ${prefs.lastName}" else "Sin impresora guardada") + if (acceso.admin) "" else " (la define el admin)",
-                        style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(bottom = if (acceso.admin) 8.dp else 0.dp)
-                    )
-
-                    if (acceso.admin) ActaButton("Configurar impresora y etiqueta", onClick = onLabelConfig, height = 46.dp, modifier = Modifier.fillMaxWidth())
-                }
 
                 PrefGroup("Datos compartidos") {
                     val n by vm.nubeUi.collectAsStateWithLifecycle()
@@ -170,21 +160,33 @@ internal fun SettingsSheet(
                     if (dlg) UsuarioDialog(vm, onClose = { dlg = false }, onListo = { dlg = false })
                 }
 
-                if (acceso.admin) PrefGroup("Por revisar") {
-                    val pend by vm.revPendientes.collectAsStateWithLifecycle()
-                    var confirmar by remember { mutableStateOf(false) }
-                    var resultado by remember { mutableStateOf("") }
-                    Text("${pend.size} en este teléfono.", style = ActaType.Body.copy(color = Acta.Ink2))
-                    if (resultado.isNotEmpty()) Text(resultado, style = ActaType.Label, modifier = Modifier.padding(top = 4.dp))
-                    ActaButton("Borrar la lista (todos los teléfonos)", onClick = { confirmar = true }, danger = true, enabled = pend.isNotEmpty(), height = 46.dp, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
-                    if (confirmar) AlertDialog(
-                        onDismissRequest = { confirmar = false },
-                        title = { Text("¿Borrar la lista?") },
-                        text = { Text("Se quitan los billeteros por revisar de todos los teléfonos con BILLMON. En la Bitácora no se borra nada.") },
-                        confirmButton = { ActaButton("Borrar", onClick = { confirmar = false; vm.borrarPendientesParaTodos { err -> resultado = err ?: "Lista borrada." } }, danger = true, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) },
-                        dismissButton = { ActaButton("Cancelar", onClick = { confirmar = false }, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) }
+                PrefGroup("Impresora de etiquetas") {
+                    Text(
+                        (if (prefs.lastName.isNotEmpty()) "Guardada: ${prefs.lastName}" else "Sin impresora guardada") + if (acceso.admin) "" else " (la define el admin)",
+                        style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(bottom = if (acceso.admin) 8.dp else 0.dp)
                     )
+
+                    if (acceso.admin) ActaButton("Configurar impresora y etiqueta", onClick = onLabelConfig, height = 46.dp, modifier = Modifier.fillMaxWidth())
                 }
+
+                PrefGroup("Actualización") {
+                    val msg by vm.updateMsg.collectAsStateWithLifecycle()
+                    val nueva by vm.updateVersion.collectAsStateWithLifecycle()
+                    val prog by vm.updateProgress.collectAsStateWithLifecycle()
+                    Text("Versión instalada: v$APP_VERSION", style = ActaType.Label, modifier = Modifier.padding(bottom = 4.dp))
+                    if (msg.isNotEmpty()) Text(msg, style = ActaType.Body, modifier = Modifier.padding(bottom = 8.dp))
+                    if (nueva != null) {
+                        if (prog == -2) {
+                            ActaButton("Actualizar a v$nueva", onClick = { vm.installUpdate() }, filled = true, height = 46.dp, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp))
+                        } else {
+                            Text(if (prog >= 0) "Descargando… $prog\u00A0%" else "Descargando…", style = ActaType.Label, modifier = Modifier.padding(bottom = 8.dp))
+                        }
+                    }
+                    ActaButton("Buscar actualización", onClick = { vm.checkForUpdate() }, height = 46.dp, modifier = Modifier.fillMaxWidth())
+                    ActaButton("Historial de versiones", onClick = onChangelog, height = 46.dp, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
+                }
+
+                if (acceso.admin) Seccion("Administración")
 
                 if (acceso.admin) PrefGroup("Permisos de técnicos") {
                     val tecnicos = vm.tecnicos()
@@ -207,70 +209,20 @@ internal fun SettingsSheet(
                         Text("Lo atenuado aún no lo has hecho tú.", style = ActaType.Label, modifier = Modifier.padding(top = 10.dp))
                 }
 
-                if (acceso.admin) PrefGroup("Reporte semanal del sistema") {
-                    val w by vm.weekly.collectAsStateWithLifecycle()
-                    Text(
-                        w?.let { "Semana ${it.fecha.ifEmpty { "sin fecha" }} · ${it.datos.size} máquinas" }
-                            ?: "Sin reporte importado",
-                        style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(bottom = 8.dp)
+                if (acceso.admin) PrefGroup("Por revisar") {
+                    val pend by vm.revPendientes.collectAsStateWithLifecycle()
+                    var confirmar by remember { mutableStateOf(false) }
+                    var resultado by remember { mutableStateOf("") }
+                    Text("${pend.size} en este teléfono.", style = ActaType.Body.copy(color = Acta.Ink2))
+                    if (resultado.isNotEmpty()) Text(resultado, style = ActaType.Label, modifier = Modifier.padding(top = 4.dp))
+                    ActaButton("Borrar la lista (todos los teléfonos)", onClick = { confirmar = true }, danger = true, enabled = pend.isNotEmpty(), height = 46.dp, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
+                    if (confirmar) AlertDialog(
+                        onDismissRequest = { confirmar = false },
+                        title = { Text("¿Borrar la lista?") },
+                        text = { Text("Se quitan los billeteros por revisar de todos los teléfonos con BILLMON. En la Bitácora no se borra nada.") },
+                        confirmButton = { ActaButton("Borrar", onClick = { confirmar = false; vm.borrarPendientesParaTodos { err -> resultado = err ?: "Lista borrada." } }, danger = true, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) },
+                        dismissButton = { ActaButton("Cancelar", onClick = { confirmar = false }, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) }
                     )
-                    ActaButton("Importar reporte semanal", onClick = onImportWeekly, height = 46.dp, modifier = Modifier.fillMaxWidth())
-                }
-
-                PrefGroup("Actualización") {
-                    val msg by vm.updateMsg.collectAsStateWithLifecycle()
-                    val nueva by vm.updateVersion.collectAsStateWithLifecycle()
-                    val prog by vm.updateProgress.collectAsStateWithLifecycle()
-                    Text("Versión instalada: v$APP_VERSION", style = ActaType.Label, modifier = Modifier.padding(bottom = 4.dp))
-                    if (msg.isNotEmpty()) Text(msg, style = ActaType.Body, modifier = Modifier.padding(bottom = 8.dp))
-                    if (nueva != null) {
-                        if (prog == -2) {
-                            ActaButton("Actualizar a v$nueva", onClick = { vm.installUpdate() }, filled = true, height = 46.dp, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp))
-                        } else {
-                            Text(if (prog >= 0) "Descargando… $prog\u00A0%" else "Descargando…", style = ActaType.Label, modifier = Modifier.padding(bottom = 8.dp))
-                        }
-                    }
-                    ActaButton("Buscar actualización", onClick = { vm.checkForUpdate() }, height = 46.dp, modifier = Modifier.fillMaxWidth())
-                    ActaButton("Historial de versiones", onClick = onChangelog, height = 46.dp, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
-                }
-
-                if (acceso.admin) PrefGroup("Tema") {
-                    var quiere by remember { mutableStateOf<Boolean?>(null) }
-                    var claveTema by remember { mutableStateOf("") }
-                    var errorTema by remember { mutableStateOf("") }
-                    var verificando by remember { mutableStateOf(false) }
-                    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        ActaChip("Clásico", !Acta.premium, { if (Acta.premium) { quiere = false; claveTema = ""; errorTema = "" } })
-                        ActaChip("Premium", Acta.premium, { if (!Acta.premium) { quiere = true; claveTema = ""; errorTema = "" } })
-                    }
-                    quiere?.let { destino ->
-                        AlertDialog(
-                            onDismissRequest = { quiere = null },
-                            title = { Text("Clave de admin") },
-                            text = {
-                                Column {
-                                    OutlinedTextField(
-                                        value = claveTema, onValueChange = { claveTema = it.take(120); errorTema = "" }, singleLine = true,
-                                        label = { Text("Clave") }, isError = errorTema.isNotEmpty(),
-                                        visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
-                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password), modifier = Modifier.fillMaxWidth()
-                                    )
-                                    if (errorTema.isNotEmpty()) Text(errorTema, style = ActaType.Body.copy(color = Acta.Error), modifier = Modifier.padding(top = 6.dp))
-                                }
-                            },
-                            confirmButton = {
-                                ActaButton(
-                                    if (verificando) "Comprobando…" else "Cambiar", filled = true, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp),
-                                    enabled = claveTema.isNotEmpty() && !verificando,
-                                    onClick = {
-                                        verificando = true
-                                        vm.cambiarTema(destino, claveTema) { err -> verificando = false; if (err == null) quiere = null else errorTema = err }
-                                    }
-                                )
-                            },
-                            dismissButton = { ActaButton("Cancelar", onClick = { quiere = null }, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) }
-                        )
-                    }
                 }
 
                 if (acceso.admin) PrefGroup("Respaldo") {
@@ -292,18 +244,6 @@ internal fun SettingsSheet(
                         ActaButton("Guardar archivo", onClick = onExportTraza, enabled = !grabando, height = 46.dp, modifier = Modifier.weight(1f))
                         ActaButton("Borrar", onClick = { vm.limpiarTraza() }, danger = true, enabled = !grabando, height = 46.dp, modifier = Modifier.weight(1f))
                     }
-                }
-
-                if (acceso.admin) PrefGroup("Modo demo") {
-                    if (demo) ActaButton("Salir del demo", onClick = { vm.stopDemo() }, enabled = !busy, height = 46.dp, modifier = Modifier.fillMaxWidth())
-                    else ActaButton(
-                        "Ver billetero demo", onClick = { vm.startDemo(); onClose() },
-                        enabled = !connected && !busy, height = 46.dp, modifier = Modifier.fillMaxWidth()
-                    )
-                }
-
-                if (acceso.admin) PrefGroup("Lectura del N° de máquina (foto)") {
-                    ActaButton("Probar con una imagen", onClick = onTestOcr, height = 46.dp, modifier = Modifier.fillMaxWidth())
                 }
 
                 PrefGroup("Registro") {
@@ -332,6 +272,11 @@ internal fun SettingsSheet(
             ActaButton("Volver", onClick = onClose, modifier = Modifier.fillMaxWidth().padding(horizontal = Gutter, vertical = 12.dp))
         }
     }
+}
+
+@Composable
+internal fun Seccion(title: String) {
+    Text(title.uppercase(), style = ActaType.Label.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold), modifier = Modifier.padding(top = 30.dp))
 }
 
 @Composable

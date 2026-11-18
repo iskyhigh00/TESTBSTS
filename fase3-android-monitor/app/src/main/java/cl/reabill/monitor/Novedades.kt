@@ -2,6 +2,10 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.9.8" to listOf(
+            "Menús reordenados: el panel principal sigue el orden de trabajo (billetero → acciones → contabilidad → interfaz → historial → máquinas) y Preferencias queda en Cuenta, Impresión, Actualización, Administración y Registro.",
+            "Se quitaron por obsoletos: Modo demo, Probar con una imagen, Tema y la importación manual del reporte semanal.",
+        ),
         "2.9.7" to listOf(
             "Preferencias → «Grabar tramas USB» (solo admin): guarda lo que la app envía y recibe del billetero, como Wireshark, en un archivo de texto que puedes mandar para analizar. Se activa a mano, no se guarda nada sin pedirlo y se detiene al pasar 5 MB.",
         ),

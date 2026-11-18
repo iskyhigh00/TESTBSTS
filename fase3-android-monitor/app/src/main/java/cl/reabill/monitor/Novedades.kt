@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.9.6" to listOf(
+            "Cashflow: se desactiva el cambio de interfaz a Netplex. En un SC8307 la escritura se confirmaba pero, al reconectar, el billetero volvía a USB; hasta comprobar que el cambio se conserva al reiniciar, la app no lo ofrece. El Cashflow se sigue leyendo y se le sigue cargando el bill-set 255 como siempre.",
+        ),
         "2.9.5" to listOf(
             "Cashflow: al cambiar la interfaz, la app espera 3 segundos antes de verificar. No desconectes el billetero hasta que diga «verificado»: en una captura, un SC8307 desenchufado enseguida después de la escritura volvió a leerse en USB.",
         ),

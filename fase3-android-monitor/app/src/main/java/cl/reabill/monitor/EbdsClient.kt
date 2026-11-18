@@ -18,6 +18,7 @@ class MeiClient(private val usb: UsbSerialManager) : ValidatorClient {
         const val IF_USB = 3
         const val IF_NETPLEX = 1
         val MODELOS_INTERFAZ = setOf("SC8304")
+        @JvmField @Volatile var PERSISTENCIA_COMPROBADA = false
     }
 
     override var lastDetail: String = ""
@@ -28,7 +29,7 @@ class MeiClient(private val usb: UsbSerialManager) : ValidatorClient {
     override val supportsInterface: Boolean = true
 
     override fun interfacesPermitidas(actual: Int?, modelo: String): List<Int>? =
-        if (modelo.trim() in MODELOS_INTERFAZ && actual == IF_USB) listOf(IF_NETPLEX) else emptyList()
+        if (PERSISTENCIA_COMPROBADA && modelo.trim() in MODELOS_INTERFAZ && actual == IF_USB) listOf(IF_NETPLEX) else emptyList()
 
     private fun leerBloqueId(): ByteArray? {
         val (b, _) = send(0x02, 0x01)

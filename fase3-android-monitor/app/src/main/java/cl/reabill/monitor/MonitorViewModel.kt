@@ -109,7 +109,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     init {
 
         _log.value = listOf("Listo. Conecta el billetero por USB-OTG.") + loadSavedLog()
-        appendToFile(System.currentTimeMillis(), "──── BILLMON v$APP_VERSION iniciada · usuario: ${nube.nombre ?: nube.email.ifBlank { "sin usuario" }} ────")
+        appendToFile(System.currentTimeMillis(), "──── BILLMON v$APP_VERSION iniciada ────")
         viewModelScope.launch(Dispatchers.IO) { Updater.cleanupDownloads(getApplication()) }
         checkForUpdate()
         refreshLibrary()
@@ -1535,6 +1535,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     init {
         nubeEstado()
         iniciarNube()
+        appendToFile(System.currentTimeMillis(), "Usuario al abrir: ${nube.nombre ?: nube.email.ifBlank { "sin usuario" }}")
     }
 
     private companion object {

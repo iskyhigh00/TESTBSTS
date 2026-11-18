@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.9.5" to listOf(
+            "Cashflow: al cambiar la interfaz, la app espera 3 segundos antes de verificar. No desconectes el billetero hasta que diga «verificado»: en una captura, un SC8307 desenchufado enseguida después de la escritura volvió a leerse en USB.",
+        ),
         "2.9.4" to listOf(
             "Cashflow (SC83): se puede pasar de USB a Netplex desde la app (solo SC8304, el único caso visto en una captura de STS; cambia un solo byte y se verifica). Solo se ofrecen cambios de interfaz ya probados: para cualquier otro Cashflow no aparece el botón.",
         ),

@@ -51,7 +51,7 @@ class MeiClient(private val usb: UsbSerialManager) : ValidatorClient {
         val nuevo = antes.copyOf(); nuevo[IF_OFFSET] = valor.toByte()
         val err = FirmwareFlasher.sendAcked(usb, frame(0x02, 0x02, nuevo), "Escritura de la interfaz")
         if (err != null) return false to err
-        Thread.sleep(500)
+        Thread.sleep(3000)
         val despues = leerBloqueId() ?: return false to "Escritura confirmada, pero no pude releer para verificar."
         if ((despues[IF_OFFSET].toInt() and 0xFF) != valor) return false to "Quedó en ${despues[IF_OFFSET].toInt() and 0xFF}, no en $valor."
         for (i in antes.indices) if (i != IF_OFFSET && despues[i] != antes[i]) return false to "Cambió algo más además de la interfaz (byte $i): revisa el equipo."

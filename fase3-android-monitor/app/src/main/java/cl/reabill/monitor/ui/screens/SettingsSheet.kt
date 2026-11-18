@@ -114,7 +114,7 @@ internal fun SettingsSheet(
     visible: Boolean, vm: MonitorViewModel, log: List<String>, connected: Boolean, kind: String,
     onClose: () -> Unit, onLabelConfig: () -> Unit, onChangelog: () -> Unit,
     onCopy: () -> Unit, onCopyAll: () -> Unit, onExport: () -> Unit, onImport: () -> Unit,
-    onImportWeekly: () -> Unit, onTestOcr: () -> Unit
+    onImportWeekly: () -> Unit, onTestOcr: () -> Unit, onExportTraza: () -> Unit
 ) {
     BackHandler(enabled = visible, onBack = onClose)
     AnimatedVisibility(
@@ -277,6 +277,20 @@ internal fun SettingsSheet(
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         ActaButton("Exportar", onClick = onExport, height = 46.dp, modifier = Modifier.weight(1f))
                         ActaButton("Importar", onClick = onImport, height = 46.dp, modifier = Modifier.weight(1f))
+                    }
+                }
+
+                if (acceso.admin) PrefGroup("Grabar tramas USB (para análisis)") {
+                    val grabando by vm.trazaActiva.collectAsStateWithLifecycle()
+                    Text(
+                        "Guarda lo que la app envía y recibe del billetero, como Wireshark. Actívalo, haz las lecturas y guarda el archivo para mandarlo. " +
+                            "Se detiene al pasar 5 MB y al cerrar la app.",
+                        style = ActaType.Label, modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ActaButton(if (grabando) "Detener" else "Grabar", onClick = { vm.activarTraza(!grabando) }, filled = !grabando, height = 46.dp, modifier = Modifier.weight(1f))
+                        ActaButton("Guardar archivo", onClick = onExportTraza, enabled = !grabando, height = 46.dp, modifier = Modifier.weight(1f))
+                        ActaButton("Borrar", onClick = { vm.limpiarTraza() }, danger = true, enabled = !grabando, height = 46.dp, modifier = Modifier.weight(1f))
                     }
                 }
 

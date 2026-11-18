@@ -1111,6 +1111,33 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
 
     fun cerrarDiag() { if (!_diag.value.leyendo) _diag.value = DiagUi() }
 
+    val traza: TrazaUsb by lazy { TrazaUsb(java.io.File(getApplication<Application>().applicationContext.filesDir, "tramas-usb.txt")).also { usb.traza = it } }
+    private val _trazaActiva = MutableStateFlow(false)
+    val trazaActiva: StateFlow<Boolean> = _trazaActiva
+    fun trazaKb(): Long = traza.tamano() / 1024
+
+    fun activarTraza(si: Boolean) {
+        if (!exigirAdmin()) return
+        traza.activa = si; _trazaActiva.value = si
+        if (si) traza.marca("inicio de la grabación · BILLMON v$APP_VERSION · usuario ${nube.nombre ?: nube.email}")
+        addLog(if (si) "Grabación de tramas USB activada." else "Grabación de tramas USB detenida (${trazaKb()} KB).")
+    }
+
+    fun limpiarTraza() { if (!exigirAdmin()) return; traza.limpiar(); addLog("Tramas USB borradas.") }
+
+    fun exportarTraza(uri: android.net.Uri) {
+        if (!exigirAdmin()) return
+        viewModelScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    getApplication<Application>().contentResolver.openOutputStream(uri, "wt")?.use { traza.copiarA(it) }
+                        ?: throw IllegalStateException("no se pudo abrir el archivo de destino")
+                }
+                addLog("Tramas USB guardadas (${trazaKb()} KB).")
+            } catch (e: Exception) { addLog("No se pudieron guardar las tramas: ${e.message}") }
+        }
+    }
+
     fun leerDiagnostico() {
         if (!exigirAdmin()) return
         val adv = mei as? AdvanceClient
@@ -1550,6 +1577,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         synchronized(sessionLines) { sessionLines.add("$ts  $msg") }
         _log.value = (listOf("$ts  $msg") + _log.value).take(MAX_UI_LINES)
         appendToFile(now, msg)
+        traza.marca(msg)
     }
 
     private fun appendToFile(now: Long, msg: String) {

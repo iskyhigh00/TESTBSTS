@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "2.9.7" to listOf(
+            "Preferencias → «Grabar tramas USB» (solo admin): guarda lo que la app envía y recibe del billetero, como Wireshark, en un archivo de texto que puedes mandar para analizar. Se activa a mano, no se guarda nada sin pedirlo y se detiene al pasar 5 MB.",
+        ),
         "2.9.6" to listOf(
             "Cashflow: se desactiva el cambio de interfaz a Netplex. En un SC8307 la escritura se confirmaba pero, al reconectar, el billetero volvía a USB; hasta comprobar que el cambio se conserva al reiniciar, la app no lo ofrece. El Cashflow se sigue leyendo y se le sigue cargando el bill-set 255 como siempre.",
         ),

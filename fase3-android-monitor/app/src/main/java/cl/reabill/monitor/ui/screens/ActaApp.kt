@@ -140,6 +140,9 @@ fun ActaApp(vm: MonitorViewModel) {
     val weeklyLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) vm.importWeekly(uri)
     }
+    val trazaLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri ->
+        if (uri != null) vm.exportarTraza(uri)
+    }
     val weekly by vm.weekly.collectAsStateWithLifecycle()
     val mdaMap by vm.mdaMap.collectAsStateWithLifecycle()
     var showMda by remember { mutableStateOf(false) }
@@ -762,7 +765,8 @@ fun ActaApp(vm: MonitorViewModel) {
             onExport = { exportLauncher.launch("billmon-respaldo-" + java.text.SimpleDateFormat("yyyyMMdd-HHmm", java.util.Locale.US).format(java.util.Date()) + ".json") },
             onImport = { importLauncher.launch(arrayOf("*/*")) },
             onImportWeekly = { weeklyLauncher.launch(arrayOf("*/*")) },
-            onTestOcr = { testPicker.launch(arrayOf("image/*")) }
+            onTestOcr = { testPicker.launch(arrayOf("image/*")) },
+            onExportTraza = { trazaLauncher.launch("billmon-tramas-" + java.text.SimpleDateFormat("yyyyMMdd-HHmm", java.util.Locale.US).format(java.util.Date()) + ".txt") }
         )
         FlashSheet(
             visible = showFlash, vm = vm, serial = status.serial, billSet = status.billSet,

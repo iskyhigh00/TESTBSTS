@@ -25,6 +25,7 @@ class UsbSerialManager(private val context: Context) {
     val isOpen: Boolean get() = connection != null
 
     @Volatile var lastOut: Int = 0
+    @Volatile var traza: TrazaUsb? = null
         private set
 
     companion object {
@@ -153,6 +154,7 @@ class UsbSerialManager(private val context: Context) {
         if (message.isNotEmpty()) {
 
             lastOut = conn.bulkTransfer(out, message, message.size, if (message.size > 64) 3000 else 500)
+            traza?.out(message)
         }
 
         val acc = java.io.ByteArrayOutputStream()
@@ -164,6 +166,7 @@ class UsbSerialManager(private val context: Context) {
             val n = conn.bulkTransfer(inp, buf, buf.size, timeout)
             if (n <= 0) break
             acc.write(buf, 0, n)
+            traza?.inn(buf, n)
             if (frameComplete(acc.toByteArray(), expectCmd, expectSub)) break
         }
         return acc.toByteArray()
@@ -178,6 +181,7 @@ class UsbSerialManager(private val context: Context) {
         lastOut = -99
         if (message.isNotEmpty()) {
             lastOut = conn.bulkTransfer(out, message, message.size, if (message.size > 64) 3000 else 500)
+            traza?.out(message)
         }
 
         val acc = java.io.ByteArrayOutputStream()
@@ -189,6 +193,7 @@ class UsbSerialManager(private val context: Context) {
             val n = conn.bulkTransfer(inp, buf, buf.size, timeout)
             if (n <= 0) break
             acc.write(buf, 0, n)
+            traza?.inn(buf, n)
             val data = acc.toByteArray()
             var pos = 0
             while (data.size - pos >= 6) {

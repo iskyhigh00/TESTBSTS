@@ -114,7 +114,7 @@ internal fun SettingsSheet(
     visible: Boolean, vm: MonitorViewModel, log: List<String>, connected: Boolean, kind: String,
     onClose: () -> Unit, onLabelConfig: () -> Unit, onChangelog: () -> Unit,
     onCopy: () -> Unit, onCopyAll: () -> Unit, onExport: () -> Unit, onImport: () -> Unit,
-    onImportWeekly: () -> Unit, onTestOcr: () -> Unit, onExportTraza: () -> Unit
+    onExportTraza: () -> Unit
 ) {
     BackHandler(enabled = visible, onBack = onClose)
     AnimatedVisibility(

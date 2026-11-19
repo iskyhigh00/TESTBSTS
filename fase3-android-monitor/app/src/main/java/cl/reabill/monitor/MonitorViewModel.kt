@@ -129,7 +129,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         val adv = client as? AdvanceClient ?: return
         if (serie.isBlank() || serie == "—" || DemoClient.isDemoSerial(serie)) return
         val boot = withContext(Dispatchers.IO) { adv.readBoot() }
-        val cfg = adv.lastConfigBlock?.joinToString("") { "%02x".format(it) }.orEmpty()
+        val cfg = adv.lastConfigBlock?.takeIf { it.size == Interfaz.BLOQUE }?.joinToString("") { "%02x".format(it) }.orEmpty()
         val est = CambiosStore.Estado(
             if (boot == "—") "" else boot, Regex("\\d{9}").find(app)?.value.orEmpty(), set.takeIf { it != "—" }.orEmpty(), _ifaz.value.valor, cfg
         )

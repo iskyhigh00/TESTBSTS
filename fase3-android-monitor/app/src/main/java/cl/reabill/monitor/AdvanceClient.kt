@@ -101,7 +101,7 @@ class AdvanceClient(private val usb: UsbSerialManager) : ValidatorClient {
     }
 
     private fun readConfigBlock(robusto: Boolean = true): ByteArray? {
-        fun datos(it: ByteArray) = it.size == Interfaz.BLOQUE + 10 && (it[2].toInt() and 0x7F) == 0x23
+        fun datos(it: ByteArray) = (it.size == Interfaz.BLOQUE + 10 || it.size == Interfaz.BLOQUE_LARGO + 10) && (it[2].toInt() and 0x7F) == 0x23
         fun acepta(it: ByteArray) =
             datos(it) || (it.size == 10 && (it[2].toInt() and 0x7F) == 0x23 && (it[3].toInt() and 0x80) != 0)
 
@@ -113,12 +113,15 @@ class AdvanceClient(private val usb: UsbSerialManager) : ValidatorClient {
             r = exchangeOnce(0x01, ByteArray(0), 4000) { datos(it) || it.size == 10 }
         }
         if (r == null || !datos(r)) return null
-        return r.copyOfRange(8, 8 + Interfaz.BLOQUE).also { lastConfigBlock = it }
+        return r.copyOfRange(8, r.size - 2).also { lastConfigBlock = it }
     }
 
     @Volatile var lastConfigBlock: ByteArray? = null
 
     override val supportsInterface: Boolean = true
+
+    override fun interfacesPermitidas(actual: Int?, modelo: String): List<Int>? =
+        if ((lastConfigBlock?.size ?: Interfaz.BLOQUE) != Interfaz.BLOQUE) emptyList() else null
 
     @Volatile var lastBeginResp: String = ""
 
@@ -158,6 +161,7 @@ class AdvanceClient(private val usb: UsbSerialManager) : ValidatorClient {
     override fun writeInterface(valor: Int): Pair<Boolean, String> {
         if (valor !in Interfaz.VALORES) return false to "interfaz desconocida: $valor"
         val antes = readConfigBlock() ?: return false to "No se pudo leer la configuración: no se escribió nada."
+        if (antes.size != Interfaz.BLOQUE) return false to "Este equipo usa un bloque de configuración de ${antes.size} bytes: el cambio de interfaz solo está probado con el de ${Interfaz.BLOQUE}. No se escribió nada."
         val nuevo = Interfaz.ponerEnBloque(antes, valor)
         val (ack, notas) = exchange(0x24, nuevo) { it.size == 10 && (it[2].toInt() and 0x7F) == 0x24 }
         if (ack == null) return false to "El equipo no confirmó la escritura. $notas".trim()

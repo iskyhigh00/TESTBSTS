@@ -34,7 +34,7 @@ class MeiClient(private val usb: UsbSerialManager) : ValidatorClient {
     private fun leerBloqueId(): ByteArray? {
         val (b, _) = send(0x02, 0x01)
         if (b.size != 90) return null
-        if ((b[80].toInt() and 0xFF) != 0x01 || (b[82].toInt() and 0xFF) != 0x41) return null
+        if ((b[80].toInt() and 0xFF) != 0x01 || (b[82].toInt() and 0xFF) !in 0x41..0x42) return null
         return b
     }
 

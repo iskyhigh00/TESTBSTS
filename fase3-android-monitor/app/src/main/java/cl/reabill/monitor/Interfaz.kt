@@ -5,6 +5,7 @@ import org.json.JSONObject
 
 object Interfaz {
     const val BLOQUE = 544
+    const val BLOQUE_LARGO = 1024
     const val OFFSET = 16
 
     val RECALCULADOS = 252..253
@@ -16,7 +17,7 @@ object Interfaz {
     fun nombre(v: Int?): String = if (v == null) "—" else NOMBRES[v] ?: "Desconocida ($v)"
 
     fun leer(bloque: ByteArray): Int? =
-        if (bloque.size == BLOQUE) bloque[OFFSET].toInt() and 0xFF else null
+        if (bloque.size == BLOQUE || bloque.size == BLOQUE_LARGO) bloque[OFFSET].toInt() and 0xFF else null
 
     fun ponerEnBloque(bloque: ByteArray, valor: Int): ByteArray {
         require(bloque.size == BLOQUE) { "el bloque de configuración debe tener $BLOQUE bytes" }

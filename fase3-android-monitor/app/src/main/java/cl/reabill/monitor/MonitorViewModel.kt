@@ -105,7 +105,10 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     private val _diag = MutableStateFlow(DiagUi())
     val diag: StateFlow<DiagUi> = _diag
 
-    fun interfacesPermitidas(): List<Int> = mei?.interfacesPermitidas(_ifaz.value.valor, _status.value.model) ?: Interfaz.VALORES
+    fun interfacesPermitidas(): List<Int> = soloTaller(mei?.interfacesPermitidas(_ifaz.value.valor, _status.value.model) ?: Interfaz.VALORES)
+
+    /** Stand-alone solo se usa en el taller: solo el admin puede elegirla (un técnico en el piso no). */
+    private fun soloTaller(l: List<Int>): List<Int> = if (nube.esAdmin) l else l.filter { it != Interfaz.STAND_ALONE }
 
     @Volatile private var opRunning = false
     private fun beginOp(): Boolean = synchronized(this) {
@@ -269,7 +272,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         val client = mei ?: run { addLog("Conecta el equipo primero."); return }
         if (!client.supportsInterface) { addLog("Este equipo no permite cambiar la interfaz."); return }
         if (valor !in Interfaz.VALORES) return
-        if (valor !in (client.interfacesPermitidas(_ifaz.value.valor, _status.value.model) ?: Interfaz.VALORES)) {
+        if (valor !in soloTaller(client.interfacesPermitidas(_ifaz.value.valor, _status.value.model) ?: Interfaz.VALORES)) {
             addLog("Ese cambio de interfaz no está probado en este equipo: no se hace."); return
         }
         val st = _status.value

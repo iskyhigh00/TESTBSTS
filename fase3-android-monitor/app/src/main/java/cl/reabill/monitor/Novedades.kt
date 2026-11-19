@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "3.0.1" to listOf(
+            "Cambiar interfaz: Stand-alone solo la ofrece el admin (se usa en el taller). Netplex, EBDS y USB siguen igual.",
+        ),
         "3.0.0" to listOf(
             "SC Advance con App 286108530 (V5.30): ahora se lee la interfaz (antes decía «sin respuesta»); tiene un bloque de configuración de 1024 bytes. Solo lectura: en esos equipos no se ofrece cambiar la interfaz.",
             "Cashflow SC8307 con App 285336520: ahora se lee la interfaz (antes decía «no pude leer el bloque de identidad»).",

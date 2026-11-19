@@ -2,6 +2,13 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "3.1.0" to listOf(
+            "Procedimientos de un toque en «Cargar bill-set»: además de «IGT Trimline», nuevo «EGT» (Software 530, bill-set 403, interfaz EBDS). Por ahora solo el admin.",
+            "Preferencias → Archivos de firmware: agrega varios Software y bill-sets a la vez (quedan para todos los teléfonos), con la lista y «Quitar».",
+            "Máquina de cada billetero: cuando la Bitácora publique el catálogo, BILLMON muestra el modelo y el juego de la máquina por su MDA. Las tramas de la nube llevan MDA y máquina en el índice.",
+            "Preferencias → Resumen de billeteros (CSV): serie, máquina, Software, bill-set, interfaz y aceptación, para ver qué funciona en cada máquina.",
+            "Se quitó el Registro de Preferencias (las tramas y los ZIP lo reemplazan).",
+        ),
         "3.0.7" to listOf(
             "Arreglo: un Software (no solo un bill-set) se escribía por el camino del Cashflow, así que nunca llegaba al SC Advance y fallaba con «El equipo no volvió en modo descarga». Ahora usa el mismo camino que el bill-set del Advance, con las tramas que envía STS.",
         ),

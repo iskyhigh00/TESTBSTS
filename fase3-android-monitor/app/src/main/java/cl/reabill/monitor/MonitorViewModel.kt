@@ -102,6 +102,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     private val _igt = MutableStateFlow(IgtUi())
     val igt: StateFlow<IgtUi> = _igt
     private val igtCola = kotlin.collections.ArrayDeque<FirmwareFile>()
+    private var recetaActual: Receta = Recetas.IGT
     private val _diag = MutableStateFlow(DiagUi())
     val diag: StateFlow<DiagUi> = _diag
 
@@ -1045,11 +1046,12 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     fun resetFlash() { if (!cambiandoCuenta && !flashing && !_flash.value.running) _flash.value = FlashUi() }
 
 
-    fun iniciarIgt() {
+    fun iniciarProcedimiento(r: Receta) {
+        recetaActual = r
         if (!exigir(Proc.BILLSET) || !exigir(Proc.INTERFAZ) || _igt.value.activo) return
         if (_demo.value || flashing || opRunning || calibrating || _busy.value || _flash.value.running) { ocupado(); return }
-        if (!nube.esAdmin && _status.value.model.trim() !in SoftwareAprobado.MODELOS_PROBADOS) {
-            igtFin(false, "El modelo ${_status.value.model} aún no se ha probado con este procedimiento: solo el admin puede hacerlo primero."); return
+        if (!nube.esAdmin && _status.value.model.trim() !in r.modelosProbados) {
+            igtFin(false, "El modelo ${_status.value.model} aún no se ha probado con «${r.nombre}»: solo el admin puede hacerlo primero."); return
         }
         val adv = mei as? AdvanceClient
         if (adv == null || !_connected.value) { igtFin(false, "Conecta un SC Advance primero."); return }
@@ -1057,17 +1059,17 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
             _igt.value = IgtUi(activo = true, mensaje = "Leyendo el estado del billetero…")
             val boot = withContext(Dispatchers.IO) { adv.readBoot() }
             val st = _status.value
-            val necesitaSw = !(boot.contains(SoftwareAprobado.BOOT_OBJETIVO) && st.firmwareApp.contains(SoftwareAprobado.APP_OBJETIVO))
-            val necesitaBs = necesitaSw || !(st.billSet.contains(SoftwareAprobado.BILLSET_OBJETIVO) && st.billSet.contains(SoftwareAprobado.BILLSET_VERSION))
-            addLog("IGT Trimline: estado actual — Boot $boot, aplicación ${st.firmwareApp}, bill-set ${st.billSet}, interfaz ${Interfaz.nombre(_ifaz.value.valor)}")
-            val sw = _library.value.firstOrNull { it.kind == FirmwareFile.KIND_SOFTWARE && it.software?.app == SoftwareAprobado.APP_OBJETIVO }
-            val bs = _library.value.firstOrNull { it.kind == FirmwareFile.KIND_ADVANCE && it.label == SoftwareAprobado.BILLSET_OBJETIVO && it.version == SoftwareAprobado.BILLSET_VERSION }
-            if (necesitaSw && sw == null) { igtFin(false, "Falta el Software aprobado (N3048F400029354) en la biblioteca: agrégalo con «Agregar archivo»."); return@launch }
-            if (necesitaBs && bs == null) { igtFin(false, "Falta el bill-set 403 versión 04.03.00 en la biblioteca: agrégalo con «Agregar archivo»."); return@launch }
+            val necesitaSw = !(boot.contains(r.boot) && st.firmwareApp.contains(r.app))
+            val necesitaBs = necesitaSw || !(st.billSet.contains(r.billset) && st.billSet.contains(r.billsetVersion))
+            addLog("${r.nombre}: estado actual — Boot $boot, aplicación ${st.firmwareApp}, bill-set ${st.billSet}, interfaz ${Interfaz.nombre(_ifaz.value.valor)}")
+            val sw = _library.value.firstOrNull { it.kind == FirmwareFile.KIND_SOFTWARE && it.software?.app == r.app }
+            val bs = _library.value.firstOrNull { it.kind == FirmwareFile.KIND_ADVANCE && it.label == r.billset && it.version == r.billsetVersion }
+            if (necesitaSw && sw == null) { igtFin(false, "Falta el Software de aplicación ${r.app} en la biblioteca: agrégalo en Preferencias → Archivos de firmware."); return@launch }
+            if (necesitaBs && bs == null) { igtFin(false, "Falta el bill-set ${r.billset.takeLast(3)} versión ${r.billsetVersion} en la biblioteca: agrégalo en Preferencias → Archivos de firmware."); return@launch }
             igtCola.clear()
             if (necesitaSw && sw != null) igtCola.addLast(sw)
             if (necesitaBs && bs != null) igtCola.addLast(bs)
-            addLog("IGT Trimline: procedimiento iniciado (" + (if (necesitaSw) "Software, " else "") + (if (necesitaBs) "bill-set 403, " else "") + "interfaz Netplex).")
+            addLog("${r.nombre}: procedimiento iniciado (" + (if (necesitaSw) "Software, " else "") + (if (necesitaBs) "bill-set ${r.billset.takeLast(3)}, " else "") + "interfaz ${Interfaz.nombre(r.interfaz)}).")
             igtSiguiente()
         }
     }
@@ -1101,8 +1103,8 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
             while (System.currentTimeMillis() < limite && (_busy.value || opRunning || !_connected.value || _ifaz.value.valor == null)) delay(300)
             var v = _ifaz.value.valor
             if (v == null) { igtFin(false, "No pude leer la interfaz del billetero."); return@launch }
-            if (v != SoftwareAprobado.INTERFAZ_OBJETIVO) {
-                cambiarInterfaz(SoftwareAprobado.INTERFAZ_OBJETIVO)
+            if (v != recetaActual.interfaz) {
+                cambiarInterfaz(recetaActual.interfaz)
                 delay(800)
                 val limite2 = System.currentTimeMillis() + 60000
                 while (System.currentTimeMillis() < limite2 && (opRunning || _ifaz.value.trabajando)) delay(400)
@@ -1110,8 +1112,9 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
             }
             val boot = withContext(Dispatchers.IO) { (mei as? AdvanceClient)?.readBoot() }.orEmpty().ifEmpty { "—" }
             val st = _status.value
-            val ok = v == SoftwareAprobado.INTERFAZ_OBJETIVO && boot.contains(SoftwareAprobado.BOOT_OBJETIVO) && st.firmwareApp.contains(SoftwareAprobado.APP_OBJETIVO) &&
-                st.billSet.contains(SoftwareAprobado.BILLSET_OBJETIVO) && st.billSet.contains(SoftwareAprobado.BILLSET_VERSION)
+            val r = recetaActual
+            val ok = v == r.interfaz && boot.contains(r.boot) && st.firmwareApp.contains(r.app) &&
+                st.billSet.contains(r.billset) && st.billSet.contains(r.billsetVersion)
             val resumen = "Boot $boot · aplicación ${st.firmwareApp} · bill-set ${st.billSet} · interfaz ${Interfaz.nombre(v)}"
             igtFin(ok, if (ok) "Listo. $resumen" else "Terminó, pero el estado final no es el esperado: $resumen")
         }
@@ -1120,7 +1123,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     private fun igtFin(ok: Boolean, mensaje: String) {
         igtCola.clear()
         _igt.value = IgtUi(activo = false, listo = true, ok = ok, mensaje = mensaje)
-        addLog("IGT Trimline: " + (if (ok) "terminado bien. " else "DETENIDO. ") + mensaje)
+        addLog("${recetaActual.nombre}: " + (if (ok) "terminado bien. " else "DETENIDO. ") + mensaje)
     }
 
     fun cerrarIgt() { if (!_igt.value.activo) _igt.value = IgtUi() }
@@ -1141,6 +1144,77 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
 
     fun limpiarTraza() { if (!exigirAdmin()) return; traza.limpiar(); addLog("Tramas USB borradas.") }
 
+    fun maquinaDe(mda: String?): String? = nube.maquinas.resumen(mda)
+
+    private val _archivosMsg = MutableStateFlow("")
+    val archivosMsg: StateFlow<String> = _archivosMsg
+
+    fun agregarFirmwares(uris: List<android.net.Uri>) {
+        if (flashing) return
+        if (!puede(Proc.BILLSET)) { _archivosMsg.value = "Solo el admin puede agregar archivos."; return }
+        if (uris.isEmpty()) return
+        _archivosMsg.value = "Leyendo ${uris.size} archivo(s)…"
+        viewModelScope.launch {
+            var ok = 0
+            val fallos = ArrayList<String>()
+            for (uri in uris) {
+                val r = withContext(Dispatchers.IO) {
+                    try {
+                        val cr = getApplication<Application>().contentResolver
+                        val nombre = (cr.query(uri, null, null, null, null)?.use { c ->
+                            val i = c.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                            if (c.moveToFirst() && i >= 0) c.getString(i) else null
+                        } ?: "archivo.bin").replace(Regex("[^A-Za-z0-9._-]"), "_")
+                        val datos = cr.openInputStream(uri)?.use { it.readBytes() } ?: ByteArray(0)
+                        val (file, err) = FirmwareFile.parse(nombre, datos)
+                        if (file == null) Triple<Boolean, String, String>(false, err, nombre)
+                        else {
+                            if (nube.esAdmin) nube.bs.agregar(file.name, file.data) else java.io.File(libDir, file.name).writeBytes(file.data)
+                            Triple<Boolean, String, String>(true, "", nombre)
+                        }
+                    } catch (e: Exception) { Triple<Boolean, String, String>(false, e.message ?: e.javaClass.simpleName, "archivo") }
+                }
+                if (r.first) ok++ else fallos.add("${r.third}: ${r.second}")
+            }
+            if (ok > 0) { refreshLibrary(); sincronizarPronto() }
+            _archivosMsg.value = "Agregados: $ok de ${uris.size}." + if (fallos.isNotEmpty()) " No se pudieron agregar → " + fallos.joinToString(" · ") else ""
+            addLog("Archivos de firmware: " + _archivosMsg.value)
+        }
+    }
+
+    fun exportarResumenCsv(uri: android.net.Uri) {
+        if (!exigirAdmin()) return
+        viewModelScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    val texto = armarResumenCsv()
+                    getApplication<Application>().contentResolver.openOutputStream(uri, "wt")?.use { it.write(texto.toByteArray(Charsets.UTF_8)) }
+                        ?: throw IllegalStateException("no se pudo abrir el archivo de destino")
+                }
+                addLog("Resumen de billeteros guardado.")
+            } catch (e: Exception) { addLog("No se pudo guardar el resumen: ${e.message}") }
+        }
+    }
+
+    private fun armarResumenCsv(): String {
+        fun c(s: String?) = "\"" + (s ?: "").replace("\"", "\"\"") + "\""
+        val sb = StringBuilder("\uFEFF")
+        sb.append("serie;MDA;maquina_modelo;maquina_juego;maquina_fabricante;maquina_posicion;billetero_modelo;aplicacion;bill_set;interfaz;aceptados;rechazados;aceptacion_pct;ultima_lectura\n")
+        val series = (mdaStore.mdaSeries().map { it.removePrefix("mda:").removePrefix("mdats:") } + mdaStore.infoSeries())
+            .toSortedSet().filter { it.isNotBlank() && it != "—" && !DemoClient.isDemoSerial(it) }
+        val fmt = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.US)
+        for (serie in series) {
+            val mda = mdaStore.mda(serie); val i = mdaStore.info(serie); val m = nube.maquinas.de(mda)
+            val l = store.history(serie).firstOrNull(); val ifz = mdaStore.ifaz(serie)?.ultima
+            sb.append(listOf(
+                c(serie), c(mda), c(m?.modelo), c(m?.juego), c(m?.fabricante), c(m?.posicion), c(i?.modelo), c(i?.firmware), c(i?.billSet),
+                c(if (ifz == null) "" else Interfaz.nombre(ifz)), l?.accepted?.toString() ?: "", l?.rejected?.toString() ?: "",
+                l?.let { "%.1f".format(java.util.Locale.US, it.rate) } ?: "", l?.let { fmt.format(java.util.Date(it.timestamp)) } ?: ""
+            ).joinToString(";")).append("\n")
+        }
+        return sb.toString()
+    }
+
     private val _trazaNube = MutableStateFlow("")
     val trazaNube: StateFlow<String> = _trazaNube
 
@@ -1156,7 +1230,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
                     val s = traza.leer(f) ?: continue
                     val clave = "tr:${traza.instalacion()}:${f.name.removeSuffix(".txt")}"
                     val v = org.json.JSONObject().put("serie", s.serie).put("modelo", s.modelo).put("archivo", s.archivo).put("tam", s.tam)
-                        .put("tramas", s.tramas).put("ver", APP_VERSION).put("usuario", nube.nombre ?: nube.email).put("gz", s.gzBase64)
+                        .put("tramas", s.tramas).put("mda", mdaStore.mda(s.serie) ?: "").put("maq", nube.maquinas.resumen(mdaStore.mda(s.serie)) ?: "").put("ver", APP_VERSION).put("usuario", nube.nombre ?: nube.email).put("gz", s.gzBase64)
                     val err = nube.subirTrama(clave, v, System.currentTimeMillis())
                     if (err != null) { addLog("Tramas USB: no se pudo subir a la nube ($err)"); break }
                     traza.marcarSubida(f); n++

@@ -150,10 +150,10 @@ class NubeHttp(private val base: String, private val apiKey: String, private val
         }
     }
 
-    class TramaNube(val clave: String, val ts: Long, val por: String, val serie: String, val modelo: String, val archivo: String, val tam: Long, val tramas: Int)
+    class TramaNube(val clave: String, val ts: Long, val por: String, val serie: String, val modelo: String, val archivo: String, val tam: Long, val tramas: Int, val mda: String = "", val maq: String = "")
 
     fun listarTramas(limite: Int = 1000): List<TramaNube> {
-        val url = u("/rest/v1/billmon_kv?select=clave,ts,por,serie:valor-%3E%3Eserie,modelo:valor-%3E%3Emodelo,archivo:valor-%3E%3Earchivo,tam:valor-%3E%3Etam,tramas:valor-%3E%3Etramas&clave=like." +
+        val url = u("/rest/v1/billmon_kv?select=clave,ts,por,serie:valor-%3E%3Eserie,modelo:valor-%3E%3Emodelo,archivo:valor-%3E%3Earchivo,tam:valor-%3E%3Etam,tramas:valor-%3E%3Etramas,mda:valor-%3E%3Emda,maq:valor-%3E%3Emaq&clave=like." +
             URLEncoder.encode("tr:*", "UTF-8") + "&order=ts.desc&limit=$limite")
         val (code, txt) = llamar("GET", url, null)
         revisar(code, txt)
@@ -161,7 +161,7 @@ class NubeHttp(private val base: String, private val apiKey: String, private val
         return (0 until arr.length()).map { i ->
             val o = arr.getJSONObject(i)
             TramaNube(o.getString("clave"), o.optLong("ts"), o.optString("por"), o.optString("serie"), o.optString("modelo"), o.optString("archivo"),
-                o.optString("tam").toLongOrNull() ?: 0L, o.optString("tramas").toIntOrNull() ?: 0)
+                o.optString("tam").toLongOrNull() ?: 0L, o.optString("tramas").toIntOrNull() ?: 0, o.optString("mda").takeIf { it != "null" } ?: "", o.optString("maq").takeIf { it != "null" } ?: "")
         }
     }
 

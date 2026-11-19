@@ -26,6 +26,7 @@ class Nube(
     val cambios = CambiosStore(context)
     val cfg = CfgStore(context)
     val usuarios = UsuariosStore(context)
+    val maquinas = MaquinasStore(context)
     val permisos = PermisosStore(context)
     val bs = BsStore(context)
     val registros = RegistrosStore(context)
@@ -216,6 +217,10 @@ class Nube(
                     if (f.ts == usuarios.ts() && CfgStore.canon(f.valor) == CfgStore.canon(usuarios.valor())) return false
                     usuarios.put(f.valor, f.ts)
                 }
+                k == "maquinas" -> {
+                    if (!autoritativo && f.ts <= maquinas.ts()) return false
+                    maquinas.put(f.valor, f.ts)
+                }
                 k.startsWith("trab:") -> {
                     val m = k.removePrefix("trab:"); if (m.isBlank()) return false
                     if (f.ts <= trab.ts(m)) return false
@@ -260,8 +265,8 @@ class Nube(
             }
             var bajadas = 0
             java.util.zip.ZipOutputStream(out).use { z ->
-                val ind = StringBuilder("fecha-hora | modelo | serie | usuario | KB | tramas enviadas\n")
-                for (t in lista) ind.append("${t.archivo.substringBefore("_")} | ${t.modelo} | ${t.serie} | ${t.por} | ${t.tam / 1024} | ${t.tramas}\n")
+                val ind = StringBuilder("fecha-hora | modelo | serie | MDA | máquina | usuario | KB | tramas enviadas\n")
+                for (t in lista) ind.append("${t.archivo.substringBefore("_")} | ${t.modelo} | ${t.serie} | ${t.mda} | ${t.maq} | ${t.por} | ${t.tam / 1024} | ${t.tramas}\n")
                 z.putNextEntry(java.util.zip.ZipEntry("INDICE.txt")); z.write(ind.toString().toByteArray(Charsets.UTF_8)); z.closeEntry()
                 for ((i, t) in lista.withIndex()) {
                     progreso(i, lista.size)

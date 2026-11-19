@@ -111,10 +111,10 @@ import cl.reabill.monitor.ui.theme.ActaType
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 internal fun SettingsSheet(
-    visible: Boolean, vm: MonitorViewModel, log: List<String>, connected: Boolean, kind: String,
+    visible: Boolean, vm: MonitorViewModel,
     onClose: () -> Unit, onLabelConfig: () -> Unit, onChangelog: () -> Unit,
-    onCopy: () -> Unit, onCopyAll: () -> Unit, onExport: () -> Unit, onImport: () -> Unit,
-    onExportTraza: () -> Unit, onExportTrazaNube: () -> Unit
+    onExport: () -> Unit, onImport: () -> Unit,
+    onExportTraza: () -> Unit, onExportTrazaNube: () -> Unit, onExportResumen: () -> Unit
 ) {
     BackHandler(enabled = visible, onBack = onClose)
     AnimatedVisibility(
@@ -194,30 +194,24 @@ internal fun SettingsSheet(
                     ActaButton("Historial de versiones", onClick = onChangelog, height = 46.dp, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
                 }
 
-                PrefGroup("Registro") {
-                    var limpiar by remember { mutableStateOf(false) }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        ActaButton("Copiar", onClick = onCopy, height = 42.dp, textSize = 13.sp, modifier = Modifier.weight(1f))
-                        ActaButton("Copiar todo", onClick = onCopyAll, height = 42.dp, textSize = 13.sp, modifier = Modifier.weight(1f))
-                        if (acceso.admin) ActaButton("Limpiar", onClick = { limpiar = true }, danger = true, height = 42.dp, textSize = 13.sp, modifier = Modifier.weight(1f))
-                    }
-                    if (limpiar) AlertDialog(
-                        onDismissRequest = { limpiar = false },
-                        title = { Text("¿Limpiar el registro?") },
-                        text = { Text("Se borra el registro de este teléfono. Si lo necesitas para análisis, cópialo antes.") },
-                        confirmButton = { ActaButton("Limpiar", onClick = { limpiar = false; vm.clearLog() }, danger = true, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) },
-                        dismissButton = { ActaButton("Cancelar", onClick = { limpiar = false }, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) }
+                if (acceso.puede(cl.reabill.monitor.Proc.BILLSET)) PrefGroup("Archivos de firmware") {
+                    val lib by vm.library.collectAsStateWithLifecycle()
+                    val msgArch by vm.archivosMsg.collectAsStateWithLifecycle()
+                    val elegir = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris -> if (uris.isNotEmpty()) vm.agregarFirmwares(uris) }
+                    Text(
+                        "Software y bill-sets del billetero (Advance y Cashflow). Los que agrega el admin quedan para todos los teléfonos. Puedes elegir varios a la vez.",
+                        style = ActaType.Label, modifier = Modifier.padding(bottom = 8.dp)
                     )
-                    SelectionContainer {
-                        Column(Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                            log.take(30).forEach { line ->
-                                Hairline()
-                                val (time, msg) = splitLog(line)
-                                Row(Modifier.fillMaxWidth().padding(vertical = 5.dp)) {
-                                    Text(time, style = ActaType.Tiny.copy(fontSize = 12.sp), modifier = Modifier.width(62.dp))
-                                    Text(msg, style = ActaType.Log.copy(fontSize = 12.5.sp), modifier = Modifier.weight(1f))
-                                }
+                    ActaButton("Agregar archivos", onClick = { elegir.launch(arrayOf("*/*")) }, filled = true, height = 46.dp, modifier = Modifier.fillMaxWidth())
+                    if (msgArch.isNotEmpty()) Text(msgArch, style = ActaType.Label, modifier = Modifier.padding(top = 6.dp))
+                    lib.forEach { f ->
+                        Hairline(Modifier.padding(top = 8.dp))
+                        Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(f.name, style = ActaType.Body)
+                                Text(f.software?.let { s -> "Software · Boot ${s.boot} · aplicación ${s.app}" + if (!s.probado) " · no probado" else "" } ?: "Bill-set #${f.label}", style = ActaType.Label)
                             }
+                            ActaButton("Quitar", onClick = { vm.removeFromLibrary(f) }, danger = true, height = 36.dp, modifier = Modifier.padding(start = 8.dp))
                         }
                     }
                 }
@@ -259,6 +253,14 @@ internal fun SettingsSheet(
                         confirmButton = { ActaButton("Borrar", onClick = { confirmar = false; vm.borrarPendientesParaTodos { err -> resultado = err ?: "Lista borrada." } }, danger = true, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) },
                         dismissButton = { ActaButton("Cancelar", onClick = { confirmar = false }, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) }
                     )
+                }
+
+                if (acceso.admin) PrefGroup("Resumen de billeteros") {
+                    Text(
+                        "Una planilla (CSV) con cada billetero: su serie, la máquina (MDA, modelo y juego de la Bitácora), su Software, bill-set, interfaz y aceptación. Sirve para ver qué funciona en cada máquina.",
+                        style = ActaType.Label, modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    ActaButton("Guardar resumen (CSV)", onClick = onExportResumen, height = 46.dp, modifier = Modifier.fillMaxWidth())
                 }
 
                 if (acceso.admin) PrefGroup("Respaldo") {

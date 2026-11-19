@@ -78,19 +78,20 @@ fun FlashSheet(
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
                 if (libre && acceso.puede(cl.reabill.monitor.Proc.INTERFAZ)) {
                     val igt by vm.igt.collectAsStateWithLifecycle()
-                    Text("IGT TRIMLINE", style = ActaType.Label, modifier = Modifier.padding(top = 14.dp))
-                    Text(
-                        "Deja el billetero como los que ya funcionan en la Trimline: Software aprobado (Boot 01.24.00, aplicación 286109400), bill-set 403 e interfaz Netplex. " +
-                            "Escribe el programa del billetero: no desconectes el cable. Probado en SCN8342U.",
-                        style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(vertical = 6.dp)
-                    )
                     if (igt.mensaje.isNotEmpty())
-                        Text(igt.mensaje, style = ActaType.Body.copy(color = if (igt.listo && !igt.ok) Acta.Error else Acta.Ink), modifier = Modifier.padding(bottom = 8.dp))
+                        Text(igt.mensaje, style = ActaType.Body.copy(color = if (igt.listo && !igt.ok) Acta.Error else Acta.Ink), modifier = Modifier.padding(top = 14.dp, bottom = 8.dp))
                     if (igt.listo) ActaButton("Entendido", onClick = { vm.cerrarIgt() }, height = 40.dp, modifier = Modifier.padding(bottom = 8.dp))
-                    HoldButton(
-                        "Actualizar para IGT Trimline", "mantener presionado", onArmed = { vm.iniciarIgt() },
-                        enabled = !ui.running && !igt.activo, modifier = Modifier.fillMaxWidth()
-                    )
+                    cl.reabill.monitor.Recetas.TODAS.forEach { r ->
+                        Text(r.nombre.uppercase(), style = ActaType.Label, modifier = Modifier.padding(top = 14.dp))
+                        Text(
+                            r.resumen + " Escribe el programa del billetero: no desconectes el cable.",
+                            style = ActaType.Body.copy(color = Acta.Ink2), modifier = Modifier.padding(vertical = 6.dp)
+                        )
+                        HoldButton(
+                            "Actualizar para ${r.nombre}", "mantener presionado", onArmed = { vm.iniciarProcedimiento(r) },
+                            enabled = !ui.running && !igt.activo, modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                     Hairline(Modifier.padding(top = 14.dp))
                 }
                 Row(Modifier.fillMaxWidth().padding(vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {

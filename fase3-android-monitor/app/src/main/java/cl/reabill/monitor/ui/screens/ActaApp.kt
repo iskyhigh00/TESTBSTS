@@ -143,6 +143,9 @@ fun ActaApp(vm: MonitorViewModel) {
     val trazaNubeLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
         if (uri != null) vm.exportarTrazasNube(uri)
     }
+    val resumenLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
+        if (uri != null) vm.exportarResumenCsv(uri)
+    }
     val weekly by vm.weekly.collectAsStateWithLifecycle()
     val mdaMap by vm.mdaMap.collectAsStateWithLifecycle()
     var showMda by remember { mutableStateOf(false) }
@@ -659,6 +662,8 @@ fun ActaApp(vm: MonitorViewModel) {
                     onPhoto = lanzarFoto
                 )
                 IdentityBlock(phase, status.billSet, status.serial, status.model, status.manufacturer, status.firmwareApp)
+                val maqTxt = mdaMap[status.serial]?.let { m -> vm.maquinaDe(m)?.let { "Máquina $m · $it" } }
+                if (connected && maqTxt != null) Text(maqTxt, style = ActaType.Label, modifier = Modifier.padding(horizontal = Gutter).padding(top = 8.dp))
                 val falla by vm.falla.collectAsStateWithLifecycle()
                 if (connected && falla.isNotEmpty()) Text(falla, style = ActaType.Body.copy(color = Acta.Error, fontWeight = FontWeight.Bold), modifier = Modifier.padding(horizontal = Gutter).padding(top = 10.dp))
                 val mdaActual = mdaMap[status.serial]
@@ -740,16 +745,15 @@ fun ActaApp(vm: MonitorViewModel) {
         if (showEtq) EtiquetasDialog(vm, onClose = { showEtq = false })
         if (showLabel) LabelSheet(vm, onClose = { showLabel = false })
         SettingsSheet(
-            visible = showSettings, vm = vm, log = log, connected = connected, kind = kind,
+            visible = showSettings, vm = vm,
             onClose = { showSettings = false },
             onLabelConfig = { showLabel = true },
             onChangelog = { showCambios = true },
-            onCopy = { clipboard.setText(AnnotatedString(vm.sessionLog().ifEmpty { log.take(30).joinToString("\n") })) },
-            onCopyAll = { vm.fullLogAsync { t -> clipboard.setText(AnnotatedString(t.ifEmpty { log.joinToString("\n") })) } },
             onExport = { exportLauncher.launch("billmon-respaldo-" + java.text.SimpleDateFormat("yyyyMMdd-HHmm", java.util.Locale.US).format(java.util.Date()) + ".json") },
             onImport = { importLauncher.launch(arrayOf("*/*")) },
             onExportTraza = { trazaLauncher.launch("BMTr_" + java.text.SimpleDateFormat("yyyyMMdd-HHmm", java.util.Locale.US).format(java.util.Date()) + ".zip") },
-            onExportTrazaNube = { trazaNubeLauncher.launch("BMTr_" + java.text.SimpleDateFormat("yyyyMMdd-HHmm", java.util.Locale.US).format(java.util.Date()) + "_nube.zip") }
+            onExportTrazaNube = { trazaNubeLauncher.launch("BMTr_" + java.text.SimpleDateFormat("yyyyMMdd-HHmm", java.util.Locale.US).format(java.util.Date()) + "_nube.zip") },
+            onExportResumen = { resumenLauncher.launch("BMRes_" + java.text.SimpleDateFormat("yyyyMMdd-HHmm", java.util.Locale.US).format(java.util.Date()) + ".csv") }
         )
         FlashSheet(
             visible = showFlash, vm = vm, serial = status.serial, billSet = status.billSet,

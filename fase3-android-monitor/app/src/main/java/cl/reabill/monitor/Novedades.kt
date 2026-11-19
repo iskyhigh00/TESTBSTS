@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "3.0.4" to listOf(
+            "Interfaz: si la dejaste con la app y al reconectar el billetero volvió a otra, ahora lo dice claro («con este Software no se conserva») en vez de «cambió fuera de la app».",
+        ),
         "3.0.3" to listOf(
             "Diagnóstico: muestra los valores de referencia de billeteros con falla y sanos (de las capturas; pocas muestras) para comparar A, C y E.",
             "Tramas USB en la nube: cada sesión cerrada (con tramas) se sube sola, comprimida, desde todos los teléfonos con cuenta conectada. En Preferencias → Administración → Tramas USB, «Bajar de la nube» (solo admin) arma un ZIP con las sesiones de todos, una carpeta por serie y un índice.",

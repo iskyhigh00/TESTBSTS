@@ -262,9 +262,14 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         val volver = if (v == Interfaz.STAND_ALONE && nuevo.habitual != null) "  ·  habitual: ${Interfaz.nombre(nuevo.habitual)}" else ""
         addLog("Interfaz de $serie: ${Interfaz.nombre(v)} (valor $v)$volver")
         (client as? AdvanceClient)?.lastConfigBlock?.let { b -> addLog("Configuración del equipo (${b.size} B, para comparar): " + b.joinToString("") { "%02x".format(it) }) }
-        if (previo?.ultima != null && previo.ultima != v)
-            addLog("La interfaz cambió fuera de la app: antes ${Interfaz.nombre(previo.ultima)}, ahora ${Interfaz.nombre(v)}.")
-        _ifaz.value = IfazUi(soportada = true, valor = v, registro = nuevo)
+        var aviso = ""
+        if (previo?.ultima != null && previo.ultima != v) {
+            if (previo.hist.lastOrNull()?.origen == "app") {
+                aviso = "Volvió a ${Interfaz.nombre(v)}: la dejaste en ${Interfaz.nombre(previo.ultima)} con esta app y se restableció al apagar o reconectar el billetero. Con este Software la interfaz no se conserva."
+                addLog("La interfaz volvió a ${Interfaz.nombre(v)} (la dejaste en ${Interfaz.nombre(previo.ultima)}): con este Software no se conserva al apagar o reconectar el billetero.")
+            } else addLog("La interfaz cambió fuera de la app: antes ${Interfaz.nombre(previo.ultima)}, ahora ${Interfaz.nombre(v)}.")
+        }
+        _ifaz.value = IfazUi(soportada = true, valor = v, registro = nuevo, mensaje = aviso)
     }
 
     fun cambiarInterfaz(valor: Int) {

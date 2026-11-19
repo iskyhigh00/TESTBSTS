@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "3.0.7" to listOf(
+            "Arreglo: un Software (no solo un bill-set) se escribía por el camino del Cashflow, así que nunca llegaba al SC Advance y fallaba con «El equipo no volvió en modo descarga». Ahora usa el mismo camino que el bill-set del Advance, con las tramas que envía STS.",
+        ),
         "3.0.6" to listOf(
             "Software: ya no se rechaza uno que no esté en la lista probada. Si tiene la estructura de un Software de Advance se puede escribir, con un aviso en rojo (y su huella). Los cinco ya cargados con STS (400a, 400b, 501, 512 y 530) se reconocen por nombre.",
         ),

@@ -1356,7 +1356,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private suspend fun runFlash(f: FirmwareFile, normal: Boolean): String? {
-        if (f.kind == FirmwareFile.KIND_ADVANCE) return runFlashAdvance(f, normal)
+        if (f.kind == FirmwareFile.KIND_ADVANCE || f.kind == FirmwareFile.KIND_SOFTWARE) return runFlashAdvance(f, normal)
         val io = Dispatchers.IO
         if (normal) {
             step("Pasando a modo descarga", 0)

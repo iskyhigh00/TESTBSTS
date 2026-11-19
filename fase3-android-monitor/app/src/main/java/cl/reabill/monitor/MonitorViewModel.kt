@@ -805,6 +805,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
                 mei = if (advance) AdvanceClient(usb) else MeiClient(usb)
                 _kind.value = if (advance) FirmwareFile.KIND_ADVANCE else FirmwareFile.KIND_SC83
                 _connected.value = true
+                if (!flashing) traza.abrirSesion("BILLMON v$APP_VERSION · usuario ${nube.nombre ?: nube.email} · PID ${"%04X".format(usb.productId())}")
                 addLog("Conectado al billetero." + if (advance) " (SC Advance)" else "")
                 readAll()
             } catch (e: Exception) {
@@ -821,6 +822,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         _accounting.value = null
         _history.value = emptyList()
         addLog("Desconectado.")
+        traza.cerrarSesion()
     }
 
     fun logUsbEvent(msg: String) = addLog(msg)
@@ -834,12 +836,14 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
             _accounting.value = null
             _history.value = emptyList()
             addLog("Cable desconectado.")
+            traza.cerrarSesion()
         }
     }
 
     private fun readAll() {
         val client = mei ?: return
         _ifaz.value = IfazUi()
+        _falla.value = ""
         opRunning = true
         viewModelScope.launch {
             _busy.value = true
@@ -850,6 +854,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
                 _status.value = id
                 if (id.connected) {
                     addLog("Equipo: ${id.model}  serie ${id.serial}" + tiempos(client))
+                    traza.etiquetar(id.model, id.serial)
                     _history.value = withContext(Dispatchers.IO) { store.history(id.serial) }
                 } else {
 
@@ -866,6 +871,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
                 if (!DemoClient.isDemoSerial(id.serial)) mdaStore.setInfo(id.serial, id.model, app, set)
                 try { leerInterfaz(client, id.serial) } catch (e: Exception) { addLog("Interfaz: error al leer (${e.message})") }
                 try { registrarCambios(client, id.serial, app, set) } catch (e: Exception) { addLog("Cambios del billetero: error (${e.message})") }
+                try { leerEstado(client) } catch (e: Exception) { addLog("Estado del billetero: error (${e.message})") }
 
                 delay(300)
 
@@ -1114,16 +1120,15 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
 
     fun cerrarDiag() { if (!_diag.value.leyendo) _diag.value = DiagUi() }
 
-    val traza: TrazaUsb by lazy { TrazaUsb(java.io.File(getApplication<Application>().applicationContext.filesDir, "tramas-usb.txt")).also { usb.traza = it } }
-    private val _trazaActiva = MutableStateFlow(false)
+    val traza: TrazaUsb by lazy { TrazaUsb(java.io.File(getApplication<Application>().applicationContext.filesDir, "tramas")).also { usb.traza = it } }
+    private val _trazaActiva = MutableStateFlow(true)
     val trazaActiva: StateFlow<Boolean> = _trazaActiva
-    fun trazaKb(): Long = traza.tamano() / 1024
+    fun trazaResumen(): String = traza.resumen()
 
     fun activarTraza(si: Boolean) {
         if (!exigirAdmin()) return
         traza.activa = si; _trazaActiva.value = si
-        if (si) traza.marca("inicio de la grabación · BILLMON v$APP_VERSION · usuario ${nube.nombre ?: nube.email}")
-        addLog(if (si) "Grabación de tramas USB activada." else "Grabación de tramas USB detenida (${trazaKb()} KB).")
+        addLog(if (si) "Tramas USB: se guardan de nuevo." else "Tramas USB: en pausa.")
     }
 
     fun limpiarTraza() { if (!exigirAdmin()) return; traza.limpiar(); addLog("Tramas USB borradas.") }
@@ -1133,12 +1138,24 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             try {
                 withContext(Dispatchers.IO) {
-                    getApplication<Application>().contentResolver.openOutputStream(uri, "wt")?.use { traza.copiarA(it) }
+                    getApplication<Application>().contentResolver.openOutputStream(uri, "wt")?.use { traza.exportarZip(it) }
                         ?: throw IllegalStateException("no se pudo abrir el archivo de destino")
                 }
-                addLog("Tramas USB guardadas (${trazaKb()} KB).")
+                addLog("Tramas USB guardadas (${traza.resumen()}).")
             } catch (e: Exception) { addLog("No se pudieron guardar las tramas: ${e.message}") }
         }
+    }
+
+    private val _falla = MutableStateFlow("")
+    val falla: StateFlow<String> = _falla
+
+    private suspend fun leerEstado(client: ValidatorClient) {
+        val adv = client as? AdvanceClient ?: return
+        val est = withContext(Dispatchers.IO) { adv.readEstado() } ?: return
+        val txt = "%04X/%04X".format(est.first, est.second)
+        val mal = adv.enFalla(est.first)
+        addLog("Estado del billetero: $txt" + if (mal) " (señal de falla)" else "")
+        _falla.value = if (mal) "El billetero reporta falla al encender (estado $txt). No lo pongas en la máquina: revisa sensores, conectores y placa." else ""
     }
 
     fun leerDiagnostico() {
@@ -1616,6 +1633,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     init {
         nubeEstado()
         iniciarNube()
+        _trazaActiva.value = traza.activa
         appendToFile(System.currentTimeMillis(), "Usuario al abrir: ${nube.nombre ?: nube.email.ifBlank { "sin usuario" }}")
     }
 

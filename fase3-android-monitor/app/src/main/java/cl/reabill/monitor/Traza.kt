@@ -2,9 +2,32 @@ package cl.reabill.monitor
 
 import java.io.File
 import java.io.OutputStream
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 
-class TrazaUsb(private val archivo: File, private val tope: Long = 5_000_000L) {
-    @Volatile var activa: Boolean = false
+class TrazaUsb(
+    private val dir: File,
+    private val topeSesion: Long = 3_000_000L,
+    private val topeTotal: Long = 40_000_000L,
+    private val maxDias: Int = 45
+) {
+    private val marcaPausa = File(dir, ".pausada")
+
+    @Volatile var activa: Boolean = true
+        set(v) {
+            field = v
+            try { dir.mkdirs(); if (v) marcaPausa.delete() else marcaPausa.createNewFile() } catch (e: Exception) { }
+        }
+
+    private var actual: File? = null
+    private var etiquetada = false
+    private var tam = 0L
+    private var excedida = false
+
+    init { try { if (marcaPausa.exists()) activa = false } catch (e: Exception) { } }
 
     private fun hex(b: ByteArray, n: Int): String {
         val sb = StringBuilder(n * 2)
@@ -12,20 +35,103 @@ class TrazaUsb(private val archivo: File, private val tope: Long = 5_000_000L) {
         return sb.toString()
     }
 
-    @Synchronized private fun linea(s: String) {
-        if (!activa) return
+    private fun listar(): List<File> =
+        (dir.listFiles { x -> x.isFile && x.name.endsWith(".txt") } ?: emptyArray<File>()).sortedBy { it.name }
+
+    private fun escribir(s: String) {
+        val f = actual ?: return
+        if (excedida) return
         try {
-            if (archivo.length() > tope) { activa = false; archivo.appendText("# tope de tamaño alcanzado: se detuvo la grabación\n"); return }
-            archivo.appendText(s + "\n")
-        } catch (e: Exception) { activa = false }
+            if (tam > topeSesion) { excedida = true; f.appendText("# tope de ${topeSesion / 1_000_000} MB por sesión: no se guarda más de esta sesión\n"); return }
+            f.appendText(s + "\n"); tam += s.length + 1
+        } catch (e: Exception) { }
     }
 
-    fun out(b: ByteArray) { if (activa && b.isNotEmpty()) linea("${System.currentTimeMillis()} OUT ${hex(b, b.size)}") }
-    fun inn(b: ByteArray, n: Int) { if (activa && n > 0) linea("${System.currentTimeMillis()} IN ${hex(b, n)}") }
-    fun marca(texto: String) { if (activa) linea("# " + texto.replace('\n', ' ')) }
+    private fun abrir(cabecera: String) {
+        cerrar()
+        if (!activa) return
+        try {
+            dir.mkdirs()
+            val base = SimpleDateFormat("yyyyMMdd-HHmmss-SSS", Locale.US).format(Date())
+            var f = File(dir, "${base}_sin-identificar.txt"); var i = 2
+            while (f.exists()) { f = File(dir, "${base}x${i}_sin-identificar.txt"); i++ }
+            actual = f; etiquetada = false; tam = 0L; excedida = false
+            escribir("# ${System.currentTimeMillis()} sesión iniciada" + if (cabecera.isNotEmpty()) " · $cabecera" else "")
+            podar()
+        } catch (e: Exception) { actual = null }
+    }
 
-    @Synchronized fun tamano(): Long = try { if (archivo.exists()) archivo.length() else 0L } catch (e: Exception) { 0L }
-    @Synchronized fun limpiar() { try { archivo.delete() } catch (e: Exception) { } }
-    @Synchronized fun copiarA(out: OutputStream) { if (archivo.exists()) archivo.inputStream().use { it.copyTo(out) } }
+    private fun cerrar() {
+        if (actual != null) escribir("# ${System.currentTimeMillis()} sesión cerrada")
+        actual = null
+    }
+
+    @Synchronized fun abrirSesion(cabecera: String = "") = abrir(cabecera)
+    @Synchronized fun cerrarSesion() = cerrar()
+
+    @Synchronized fun out(b: ByteArray) {
+        if (!activa || b.isEmpty()) return
+        if (actual == null) abrir("trama sin sesión abierta")
+        escribir("${System.currentTimeMillis()} OUT ${hex(b, b.size)}")
+    }
+
+    @Synchronized fun inn(b: ByteArray, n: Int) {
+        if (!activa || n <= 0) return
+        if (actual == null) abrir("trama sin sesión abierta")
+        escribir("${System.currentTimeMillis()} IN ${hex(b, n)}")
+    }
+
+    @Synchronized fun marca(texto: String) {
+        if (!activa || actual == null) return
+        escribir("# ${System.currentTimeMillis()} " + texto.replace('\n', ' '))
+    }
+
+    @Synchronized fun etiquetar(modelo: String, serie: String) {
+        val f = actual ?: return
+        if (etiquetada) return
+        fun limpio(s: String) = s.replace(Regex("[^A-Za-z0-9._-]"), "").take(30).ifEmpty { "x" }
+        val base = f.name.substringBefore("_")
+        var nuevo = File(dir, "${base}_${limpio(modelo)}_${limpio(serie)}.txt"); var i = 2
+        while (nuevo.exists()) { nuevo = File(dir, "${base}_${limpio(modelo)}_${limpio(serie)}-${i}.txt"); i++ }
+        try { if (f.renameTo(nuevo)) { actual = nuevo; etiquetada = true } } catch (e: Exception) { }
+    }
+
+    private fun podar() {
+        try {
+            val limite = System.currentTimeMillis() - maxDias * 86_400_000L
+            listar().filter { it != actual && it.lastModified() < limite }.forEach { it.delete() }
+            val resto = listar()
+            var total = resto.sumOf { it.length() }
+            for (x in resto) { if (total <= topeTotal) break; if (x == actual) continue; total -= x.length(); x.delete() }
+        } catch (e: Exception) { }
+    }
+
+    @Synchronized fun resumen(): String {
+        val fs = listar()
+        return "${fs.size} sesiones · ${"%.1f".format(Locale.US, fs.sumOf { it.length() } / 1_000_000.0)} MB" + if (!activa) " · en pausa" else ""
+    }
+
+    @Synchronized fun hayDatos(): Boolean = listar().isNotEmpty()
+
+    @Synchronized fun limpiar() { listar().forEach { try { it.delete() } catch (e: Exception) { } }; actual = null }
+
+    private fun contar(f: File): Int { var n = 0; try { f.forEachLine { if (it.contains(" OUT ")) n++ } } catch (e: Exception) { }; return n }
+
+    @Synchronized fun exportarZip(out: OutputStream): Int {
+        val fs = listar()
+        ZipOutputStream(out).use { z ->
+            val ind = StringBuilder("fecha-hora | modelo | serie | KB | tramas enviadas\n")
+            for (f in fs) {
+                val p = f.name.removeSuffix(".txt").split("_")
+                ind.append("${p.getOrNull(0)} | ${p.getOrNull(1) ?: ""} | ${p.getOrNull(2) ?: ""} | ${f.length() / 1024} | ${contar(f)}\n")
+            }
+            z.putNextEntry(ZipEntry("INDICE.txt")); z.write(ind.toString().toByteArray(Charsets.UTF_8)); z.closeEntry()
+            for (f in fs) {
+                val p = f.name.removeSuffix(".txt").split("_")
+                val carpeta = (p.getOrNull(2) ?: "sin-identificar").replace(Regex("-\\d+$"), "")
+                z.putNextEntry(ZipEntry("$carpeta/${f.name}")); f.inputStream().use { it.copyTo(z) }; z.closeEntry()
+            }
+        }
+        return fs.size
+    }
 }
-

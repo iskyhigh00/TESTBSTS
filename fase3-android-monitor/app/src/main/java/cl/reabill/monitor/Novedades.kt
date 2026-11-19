@@ -2,6 +2,11 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "3.0.2" to listOf(
+            "Tramas USB: la app las guarda sola mientras está abierta, una sesión por billetero (modelo y serie en el nombre). Preferencias → Administración → Tramas USB: «Guardar todo» crea un ZIP con una carpeta por serie y un índice; también se puede pausar o borrar. Límite: 3 MB por sesión, 40 MB en total y 45 días.",
+            "SC Advance: al conectar lee el estado del billetero y avisa en rojo si reporta falla al encender (estado 000A/0030). Es una señal observada en capturas, no documentada.",
+            "Cambiar interfaz: avisa que con varios Software el cambio dura solo hasta apagar el billetero.",
+        ),
         "3.0.1" to listOf(
             "Cambiar interfaz: Stand-alone solo la ofrece el admin (se usa en el taller). Netplex, EBDS y USB siguen igual.",
         ),

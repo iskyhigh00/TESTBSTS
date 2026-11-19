@@ -120,6 +120,15 @@ class AdvanceClient(private val usb: UsbSerialManager) : ValidatorClient {
 
     override val supportsInterface: Boolean = true
 
+    /** Estado que el billetero devuelve a un sondeo (cmd 01): dos palabras de 16 bits. Solo lectura; null = sin respuesta. */
+    fun readEstado(): Pair<Int, Int>? {
+        val r = exchangeOnce(0x01, ByteArray(0), 3000) { it.size == 10 && (it[2].toInt() and 0x7F) == 0x01 } ?: return null
+        return ((r[4].toInt() and 0xFF) or ((r[5].toInt() and 0xFF) shl 8)) to ((r[6].toInt() and 0xFF) or ((r[7].toInt() and 0xFF) shl 8))
+    }
+
+    /** Bit 0x0008 de la primera palabra: visto en todos los arranques con falla (0x000A) y nunca en billeteros sanos (0x0001 / 0x0002). Señal observada, no documentada. */
+    fun enFalla(palabra1: Int): Boolean = (palabra1 and 0x0008) != 0
+
     override fun interfacesPermitidas(actual: Int?, modelo: String): List<Int>? =
         if ((lastConfigBlock?.size ?: Interfaz.BLOQUE) != Interfaz.BLOQUE) emptyList() else null
 

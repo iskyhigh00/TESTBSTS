@@ -137,7 +137,7 @@ fun ActaApp(vm: MonitorViewModel) {
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) vm.importBackup(uri)
     }
-    val trazaLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri ->
+    val trazaLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
         if (uri != null) vm.exportarTraza(uri)
     }
     val weekly by vm.weekly.collectAsStateWithLifecycle()
@@ -309,7 +309,7 @@ fun ActaApp(vm: MonitorViewModel) {
                         }
                     }
                     Text(
-                        "Ojo: Stand-alone, Netplex o EBDS pueden dejar de responder por USB al reiniciar el equipo.",
+                        "Ojo: Stand-alone, Netplex o EBDS pueden dejar de responder por USB al reiniciar el equipo. Además, con varios Software el cambio dura solo hasta apagar el billetero (vuelve a la interfaz por defecto del Software): después de cambiarla, apaga, enciende y vuelve a leer.",
                         style = ActaType.Body.copy(color = Acta.Error, fontWeight = FontWeight.Bold), modifier = Modifier.padding(top = 12.dp)
                     )
                     val hist = reg?.hist?.takeLast(4)?.reversed().orEmpty()
@@ -656,6 +656,8 @@ fun ActaApp(vm: MonitorViewModel) {
                     onPhoto = lanzarFoto
                 )
                 IdentityBlock(phase, status.billSet, status.serial, status.model, status.manufacturer, status.firmwareApp)
+                val falla by vm.falla.collectAsStateWithLifecycle()
+                if (connected && falla.isNotEmpty()) Text(falla, style = ActaType.Body.copy(color = Acta.Error, fontWeight = FontWeight.Bold), modifier = Modifier.padding(horizontal = Gutter).padding(top = 10.dp))
                 val mdaActual = mdaMap[status.serial]
 
                 Column(Modifier.padding(horizontal = Gutter).padding(top = 16.dp)) {
@@ -743,7 +745,7 @@ fun ActaApp(vm: MonitorViewModel) {
             onCopyAll = { vm.fullLogAsync { t -> clipboard.setText(AnnotatedString(t.ifEmpty { log.joinToString("\n") })) } },
             onExport = { exportLauncher.launch("billmon-respaldo-" + java.text.SimpleDateFormat("yyyyMMdd-HHmm", java.util.Locale.US).format(java.util.Date()) + ".json") },
             onImport = { importLauncher.launch(arrayOf("*/*")) },
-            onExportTraza = { trazaLauncher.launch("billmon-tramas-" + java.text.SimpleDateFormat("yyyyMMdd-HHmm", java.util.Locale.US).format(java.util.Date()) + ".txt") }
+            onExportTraza = { trazaLauncher.launch("billmon-tramas-" + java.text.SimpleDateFormat("yyyyMMdd-HHmm", java.util.Locale.US).format(java.util.Date()) + ".zip") }
         )
         FlashSheet(
             visible = showFlash, vm = vm, serial = status.serial, billSet = status.billSet,

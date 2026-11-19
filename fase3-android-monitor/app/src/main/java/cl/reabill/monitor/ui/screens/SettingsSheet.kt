@@ -277,24 +277,26 @@ internal fun SettingsSheet(
                     )
                 }
 
-                if (acceso.admin) PrefGroup("Grabar tramas USB (para análisis)") {
+                if (acceso.admin) PrefGroup("Tramas USB (para análisis)") {
                     val grabando by vm.trazaActiva.collectAsStateWithLifecycle()
                     var borrarT by remember { mutableStateOf(false) }
+                    var rev by remember { mutableStateOf(0) }
+                    val resumen = remember(rev, grabando) { vm.trazaResumen() }
                     Text(
-                        "Guarda lo que la app envía y recibe del billetero, como Wireshark. Actívalo, haz las lecturas y guarda el archivo para mandarlo. " +
-                            "Se detiene al pasar 5 MB y al cerrar la app.",
+                        "Se guardan solas mientras la app está abierta: una sesión por billetero, con su modelo y serie. $resumen. " +
+                            "Se borran las de más de 45 días o pasados 40 MB. «Guardar todo» crea un ZIP con una carpeta por serie.",
                         style = ActaType.Label, modifier = Modifier.padding(bottom = 8.dp)
                     )
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        ActaButton(if (grabando) "Detener" else "Grabar", onClick = { vm.activarTraza(!grabando) }, filled = !grabando, height = 46.dp, modifier = Modifier.weight(1f))
-                        ActaButton("Guardar archivo", onClick = onExportTraza, enabled = !grabando, height = 46.dp, modifier = Modifier.weight(1f))
-                        ActaButton("Borrar", onClick = { borrarT = true }, danger = true, enabled = !grabando, height = 46.dp, modifier = Modifier.weight(1f))
+                        ActaButton(if (grabando) "Pausar" else "Reanudar", onClick = { vm.activarTraza(!grabando) }, height = 46.dp, modifier = Modifier.weight(1f))
+                        ActaButton("Guardar todo", onClick = onExportTraza, filled = true, height = 46.dp, modifier = Modifier.weight(1f))
+                        ActaButton("Borrar", onClick = { borrarT = true }, danger = true, height = 46.dp, modifier = Modifier.weight(1f))
                     }
                     if (borrarT) AlertDialog(
                         onDismissRequest = { borrarT = false },
                         title = { Text("¿Borrar las tramas?") },
-                        text = { Text("Se borra la grabación guardada en este teléfono. Si no la guardaste como archivo, se pierde.") },
-                        confirmButton = { ActaButton("Borrar", onClick = { borrarT = false; vm.limpiarTraza() }, danger = true, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) },
+                        text = { Text("Se borran todas las sesiones guardadas en este teléfono. Si no las guardaste como ZIP, se pierden.") },
+                        confirmButton = { ActaButton("Borrar", onClick = { borrarT = false; vm.limpiarTraza(); rev++ }, danger = true, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) },
                         dismissButton = { ActaButton("Cancelar", onClick = { borrarT = false }, height = 44.dp, modifier = Modifier.widthIn(min = 110.dp)) }
                     )
                 }

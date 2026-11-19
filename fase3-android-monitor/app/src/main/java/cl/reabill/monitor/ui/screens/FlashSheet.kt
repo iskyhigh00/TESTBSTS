@@ -99,6 +99,11 @@ fun FlashSheet(
                         ui.file?.let {
                             Text(it.software?.let { s -> "Software · Boot ${s.boot} · aplicación ${s.app} · ${it.blocks} registros" } ?: "Bill-set #${it.label} · ${it.blocks} bloques · ${it.data.size} B", style = ActaType.Label)
                         }
+                        if (ui.file?.software?.probado == false)
+                            Text(
+                                "Aviso: este Software no está en la lista de los ya cargados con STS (huella ${ui.file?.software?.nombre?.removePrefix("no probado ")}). Se puede escribir; revisa que sea el correcto.",
+                                style = ActaType.Body.copy(color = Acta.Error), modifier = Modifier.padding(top = 4.dp)
+                            )
                         if (ui.error.isNotEmpty())
                             Text(ui.error, style = ActaType.Body.copy(color = Acta.Error), modifier = Modifier.padding(top = 4.dp))
                     }

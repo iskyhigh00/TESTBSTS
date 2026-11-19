@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "3.0.6" to listOf(
+            "Software: ya no se rechaza uno que no esté en la lista probada. Si tiene la estructura de un Software de Advance se puede escribir, con un aviso en rojo (y su huella). Los cinco ya cargados con STS (400a, 400b, 501, 512 y 530) se reconocen por nombre.",
+        ),
         "3.0.5" to listOf(
             "Los ZIP de tramas ahora se llaman «BMTr_fecha-hora.zip» (el de la nube termina en «_nube»): se identifican por el principio del nombre.",
         ),

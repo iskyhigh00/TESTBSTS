@@ -238,6 +238,45 @@ class Nube(
         } catch (_: Exception) { return false }
     }
 
+    @Synchronized
+    fun subirTrama(clave: String, valor: JSONObject, ts: Long): String? {
+        if (!disponible || email.isEmpty()) return "Sin cuenta conectada."
+        val fila = FilaNube(clave, valor, ts)
+        val por = nombre ?: email
+        return try {
+            try { entrar(); cliente().subir(listOf(fila), por, sobrescribir = false, lote = 1) } catch (e: NubeError) {
+                if (e.http == 401) { entrar(forzar = true); cliente().subir(listOf(fila), por, sobrescribir = false, lote = 1) } else throw e
+            }
+            null
+        } catch (e: NubeError) { e.usuario } catch (e: java.io.IOException) { "Sin conexión." } catch (e: Exception) { e.message ?: e.javaClass.simpleName }
+    }
+
+    @Synchronized
+    fun bajarTramasZip(out: java.io.OutputStream, progreso: (Int, Int) -> Unit = { _, _ -> }): String? {
+        if (!esAdmin) return "Solo el admin puede bajar las tramas."
+        return try {
+            val lista = try { entrar(); cliente().listarTramas() } catch (e: NubeError) {
+                if (e.http == 401) { entrar(forzar = true); cliente().listarTramas() } else throw e
+            }
+            var bajadas = 0
+            java.util.zip.ZipOutputStream(out).use { z ->
+                val ind = StringBuilder("fecha-hora | modelo | serie | usuario | KB | tramas enviadas\n")
+                for (t in lista) ind.append("${t.archivo.substringBefore("_")} | ${t.modelo} | ${t.serie} | ${t.por} | ${t.tam / 1024} | ${t.tramas}\n")
+                z.putNextEntry(java.util.zip.ZipEntry("INDICE.txt")); z.write(ind.toString().toByteArray(Charsets.UTF_8)); z.closeEntry()
+                for ((i, t) in lista.withIndex()) {
+                    progreso(i, lista.size)
+                    val gz = cliente().bajarTrama(t.clave) ?: continue
+                    val crudo = java.util.zip.GZIPInputStream(java.util.Base64.getDecoder().decode(gz).inputStream()).readBytes()
+                    val carpeta = t.serie.ifEmpty { "sin-identificar" }.replace(Regex("[^A-Za-z0-9._-]"), "")
+                    z.putNextEntry(java.util.zip.ZipEntry(carpeta + "/" + t.clave.removePrefix("tr:").replace(":", "_") + ".txt")); z.write(crudo); z.closeEntry()
+                    bajadas++
+                }
+            }
+            progreso(bajadas, lista.size)
+            null
+        } catch (e: NubeError) { e.usuario } catch (e: java.io.IOException) { "Sin conexión o sin respuesta (${e.message ?: e.javaClass.simpleName})." } catch (e: Exception) { e.message ?: e.javaClass.simpleName }
+    }
+
     class Resultado(val ok: Boolean, val mensaje: String, val bajados: Int, val subidos: Int, val huboCambios: Boolean)
 
     private var http: NubeHttp? = null

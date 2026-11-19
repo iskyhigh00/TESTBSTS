@@ -60,6 +60,7 @@ fun DiagSheet(visible: Boolean, vm: MonitorViewModel, serial: String, onClose: (
                     Text("LO QUE LEE EL DIAGNÓSTICO", style = ActaType.Label, modifier = Modifier.padding(top = 14.dp))
                     fila("Sensor del stacker / umbral", "${r.sensor} / ${r.umbral}")
                     fila("Otros valores (aún sin interpretar)", "A ${r.a} · C ${r.c} · E ${r.e} · F ${r.f}")
+                    Text("Referencia de capturas (pocas muestras): con falla A 275–442, C 62, E 7–8; sanos A 492–1027, C 81–170, E 11–32.", style = ActaType.Label, modifier = Modifier.padding(top = 6.dp))
                     if (!r.valido) Text("El formato de la respuesta no es el esperado: revisa el Registro.", style = ActaType.Body.copy(color = Acta.Error), modifier = Modifier.padding(top = 8.dp))
                 }
                 if (ui.mensaje.isNotEmpty()) Text(ui.mensaje, style = ActaType.Body, modifier = Modifier.padding(top = 14.dp))

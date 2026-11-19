@@ -140,6 +140,9 @@ fun ActaApp(vm: MonitorViewModel) {
     val trazaLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
         if (uri != null) vm.exportarTraza(uri)
     }
+    val trazaNubeLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
+        if (uri != null) vm.exportarTrazasNube(uri)
+    }
     val weekly by vm.weekly.collectAsStateWithLifecycle()
     val mdaMap by vm.mdaMap.collectAsStateWithLifecycle()
     var showMda by remember { mutableStateOf(false) }
@@ -745,7 +748,8 @@ fun ActaApp(vm: MonitorViewModel) {
             onCopyAll = { vm.fullLogAsync { t -> clipboard.setText(AnnotatedString(t.ifEmpty { log.joinToString("\n") })) } },
             onExport = { exportLauncher.launch("billmon-respaldo-" + java.text.SimpleDateFormat("yyyyMMdd-HHmm", java.util.Locale.US).format(java.util.Date()) + ".json") },
             onImport = { importLauncher.launch(arrayOf("*/*")) },
-            onExportTraza = { trazaLauncher.launch("billmon-tramas-" + java.text.SimpleDateFormat("yyyyMMdd-HHmm", java.util.Locale.US).format(java.util.Date()) + ".zip") }
+            onExportTraza = { trazaLauncher.launch("billmon-tramas-" + java.text.SimpleDateFormat("yyyyMMdd-HHmm", java.util.Locale.US).format(java.util.Date()) + ".zip") },
+            onExportTrazaNube = { trazaNubeLauncher.launch("billmon-tramas-nube-" + java.text.SimpleDateFormat("yyyyMMdd-HHmm", java.util.Locale.US).format(java.util.Date()) + ".zip") }
         )
         FlashSheet(
             visible = showFlash, vm = vm, serial = status.serial, billSet = status.billSet,

@@ -82,7 +82,7 @@ class NubeHttp(private val base: String, private val apiKey: String, private val
             val siguiente = if (ultimoTiempo == null) "" else "&or=" + URLEncoder.encode(
                 "(actualizado.gt.${literal(ultimoTiempo)},and(actualizado.eq.${literal(ultimoTiempo)},clave.gt.${literal(ultimaClave!!)}))", "UTF-8")
 
-            val url = u("/rest/v1/billmon_kv?select=clave,valor,ts,por,actualizado&clave=not.like.reg:*$desdeFiltro$siguiente&order=actualizado.asc,clave.asc&limit=$pagina")
+            val url = u("/rest/v1/billmon_kv?select=clave,valor,ts,por,actualizado&clave=not.like.reg:*&clave=not.like.tr:*$desdeFiltro$siguiente&order=actualizado.asc,clave.asc&limit=$pagina")
             val (code, txt) = llamar("GET", url, null)
             revisar(code, txt)
             val arr = JSONArray(txt)
@@ -148,5 +148,28 @@ class NubeHttp(private val base: String, private val apiKey: String, private val
             revisar(code, txt)
             i += lote
         }
+    }
+
+    class TramaNube(val clave: String, val ts: Long, val por: String, val serie: String, val modelo: String, val archivo: String, val tam: Long, val tramas: Int)
+
+    fun listarTramas(limite: Int = 1000): List<TramaNube> {
+        val url = u("/rest/v1/billmon_kv?select=clave,ts,por,serie:valor-%3E%3Eserie,modelo:valor-%3E%3Emodelo,archivo:valor-%3E%3Earchivo,tam:valor-%3E%3Etam,tramas:valor-%3E%3Etramas&clave=like." +
+            URLEncoder.encode("tr:*", "UTF-8") + "&order=ts.desc&limit=$limite")
+        val (code, txt) = llamar("GET", url, null)
+        revisar(code, txt)
+        val arr = JSONArray(txt)
+        return (0 until arr.length()).map { i ->
+            val o = arr.getJSONObject(i)
+            TramaNube(o.getString("clave"), o.optLong("ts"), o.optString("por"), o.optString("serie"), o.optString("modelo"), o.optString("archivo"),
+                o.optString("tam").toLongOrNull() ?: 0L, o.optString("tramas").toIntOrNull() ?: 0)
+        }
+    }
+
+    fun bajarTrama(clave: String): String? {
+        val url = u("/rest/v1/billmon_kv?select=gz:valor-%3E%3Egz&clave=eq." + URLEncoder.encode(clave, "UTF-8"))
+        val (code, txt) = llamar("GET", url, null)
+        revisar(code, txt)
+        val arr = JSONArray(txt)
+        return if (arr.length() == 0) null else arr.getJSONObject(0).optString("gz").ifEmpty { null }
     }
 }

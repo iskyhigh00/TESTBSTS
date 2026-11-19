@@ -108,8 +108,45 @@ class TrazaUsb(
 
     @Synchronized fun resumen(): String {
         val fs = listar()
-        return "${fs.size} sesiones · ${"%.1f".format(Locale.US, fs.sumOf { it.length() } / 1_000_000.0)} MB" + if (!activa) " · en pausa" else ""
+        val por = pendientes().size
+        return "${fs.size} sesiones · ${"%.1f".format(Locale.US, fs.sumOf { it.length() } / 1_000_000.0)} MB" +
+            (if (por > 0) " · $por por subir a la nube" else "") + if (!activa) " · en pausa" else ""
     }
+
+    private val subidas = File(dir, ".subidas")
+    private val archivoId = File(dir, ".id")
+
+    private fun leerSubidas(): Set<String> = try { if (subidas.exists()) subidas.readLines().toSet() else emptySet() } catch (e: Exception) { emptySet() }
+
+    private fun marcar(f: File) { try { subidas.appendText(f.name + "\n") } catch (e: Exception) { } }
+
+    @Synchronized fun instalacion(): String = try {
+        dir.mkdirs()
+        if (archivoId.exists() && archivoId.readText().isNotBlank()) archivoId.readText().trim()
+        else java.util.UUID.randomUUID().toString().take(8).also { archivoId.writeText(it) }
+    } catch (e: Exception) { "x" }
+
+    @Synchronized fun pendientes(): List<File> {
+        val ya = leerSubidas(); val out = ArrayList<File>()
+        for (f in listar()) {
+            if (f == actual || f.name in ya) continue
+            if (contar(f) == 0) { marcar(f); continue }
+            out.add(f)
+        }
+        return out
+    }
+
+    @Synchronized fun marcarSubida(f: File) = marcar(f)
+
+    class Sesion(val archivo: String, val modelo: String, val serie: String, val tam: Long, val tramas: Int, val gzBase64: String)
+
+    @Synchronized fun leer(f: File): Sesion? = try {
+        val bytes = f.readBytes()
+        val bo = java.io.ByteArrayOutputStream()
+        java.util.zip.GZIPOutputStream(bo).use { it.write(bytes) }
+        val p = f.name.removeSuffix(".txt").split("_")
+        Sesion(f.name, p.getOrNull(1) ?: "", (p.getOrNull(2) ?: "").replace(Regex("-\\d+$"), ""), bytes.size.toLong(), contar(f), java.util.Base64.getEncoder().encodeToString(bo.toByteArray()))
+    } catch (e: Exception) { null }
 
     @Synchronized fun hayDatos(): Boolean = listar().isNotEmpty()
 

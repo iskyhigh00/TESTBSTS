@@ -482,6 +482,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
                 if (!cfgStore.sembrado()) publicarConfig(oficial = true)
                 else if (cfgStore.valor()?.optJSONObject("etq")?.has("addr") != true) publicarConfig()
             }
+            if (r.ok) subirTramas()
             if (r.ok) aplicarConfig()
             if (r.ok) { if (manual || r.subidos > 0 || r.bajados > 0) addLog("Datos compartidos: ${r.mensaje}") }
             else addLog("Datos compartidos: ${r.mensaje}")
@@ -823,6 +824,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         _history.value = emptyList()
         addLog("Desconectado.")
         traza.cerrarSesion()
+        subirTramas()
     }
 
     fun logUsbEvent(msg: String) = addLog(msg)
@@ -837,6 +839,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
             _history.value = emptyList()
             addLog("Cable desconectado.")
             traza.cerrarSesion()
+            subirTramas()
         }
     }
 
@@ -1132,6 +1135,49 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun limpiarTraza() { if (!exigirAdmin()) return; traza.limpiar(); addLog("Tramas USB borradas.") }
+
+    private val _trazaNube = MutableStateFlow("")
+    val trazaNube: StateFlow<String> = _trazaNube
+
+    @Volatile private var subiendoTramas = false
+
+    private fun subirTramas() {
+        if (!nube.disponible || nube.email.isEmpty() || subiendoTramas) return
+        subiendoTramas = true
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                var n = 0
+                for (f in traza.pendientes()) {
+                    val s = traza.leer(f) ?: continue
+                    val clave = "tr:${traza.instalacion()}:${f.name.removeSuffix(".txt")}"
+                    val v = org.json.JSONObject().put("serie", s.serie).put("modelo", s.modelo).put("archivo", s.archivo).put("tam", s.tam)
+                        .put("tramas", s.tramas).put("ver", APP_VERSION).put("usuario", nube.nombre ?: nube.email).put("gz", s.gzBase64)
+                    val err = nube.subirTrama(clave, v, System.currentTimeMillis())
+                    if (err != null) { addLog("Tramas USB: no se pudo subir a la nube ($err)"); break }
+                    traza.marcarSubida(f); n++
+                }
+                if (n > 0) addLog("Tramas USB: $n sesión(es) subida(s) a la nube.")
+            } catch (e: Exception) {
+                addLog("Tramas USB: error al subir (${e.message})")
+            } finally { subiendoTramas = false }
+        }
+    }
+
+    fun exportarTrazasNube(uri: android.net.Uri) {
+        if (!exigirAdmin()) return
+        _trazaNube.value = "Bajando de la nube…"
+        viewModelScope.launch {
+            val err = withContext(Dispatchers.IO) {
+                try {
+                    val out = getApplication<Application>().contentResolver.openOutputStream(uri, "wt")
+                    if (out == null) "No se pudo abrir el archivo de destino."
+                    else out.use { nube.bajarTramasZip(it) { i, total -> _trazaNube.value = "Bajando de la nube… $i de $total" } }
+                } catch (e: Exception) { e.message ?: e.javaClass.simpleName }
+            }
+            _trazaNube.value = err ?: "Listo: tramas de la nube guardadas en el ZIP."
+            addLog("Tramas USB de la nube: " + (err ?: "guardadas en un ZIP."))
+        }
+    }
 
     fun exportarTraza(uri: android.net.Uri) {
         if (!exigirAdmin()) return

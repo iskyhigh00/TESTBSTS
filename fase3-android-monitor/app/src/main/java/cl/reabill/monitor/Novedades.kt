@@ -2,6 +2,10 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "3.0.3" to listOf(
+            "Diagnóstico: muestra los valores de referencia de billeteros con falla y sanos (de las capturas; pocas muestras) para comparar A, C y E.",
+            "Tramas USB en la nube: cada sesión cerrada (con tramas) se sube sola, comprimida, desde todos los teléfonos con cuenta conectada. En Preferencias → Administración → Tramas USB, «Bajar de la nube» (solo admin) arma un ZIP con las sesiones de todos, una carpeta por serie y un índice.",
+        ),
         "3.0.2" to listOf(
             "Tramas USB: la app las guarda sola mientras está abierta, una sesión por billetero (modelo y serie en el nombre). Preferencias → Administración → Tramas USB: «Guardar todo» crea un ZIP con una carpeta por serie y un índice; también se puede pausar o borrar. Límite: 3 MB por sesión, 40 MB en total y 45 días.",
             "SC Advance: al conectar lee el estado del billetero y avisa en rojo si reporta falla al encender (estado 000A/0030). Es una señal observada en capturas, no documentada.",

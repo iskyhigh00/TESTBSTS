@@ -748,8 +748,8 @@ fun ActaApp(vm: MonitorViewModel) {
             onCopyAll = { vm.fullLogAsync { t -> clipboard.setText(AnnotatedString(t.ifEmpty { log.joinToString("\n") })) } },
             onExport = { exportLauncher.launch("billmon-respaldo-" + java.text.SimpleDateFormat("yyyyMMdd-HHmm", java.util.Locale.US).format(java.util.Date()) + ".json") },
             onImport = { importLauncher.launch(arrayOf("*/*")) },
-            onExportTraza = { trazaLauncher.launch("billmon-tramas-" + java.text.SimpleDateFormat("yyyyMMdd-HHmm", java.util.Locale.US).format(java.util.Date()) + ".zip") },
-            onExportTrazaNube = { trazaNubeLauncher.launch("billmon-tramas-nube-" + java.text.SimpleDateFormat("yyyyMMdd-HHmm", java.util.Locale.US).format(java.util.Date()) + ".zip") }
+            onExportTraza = { trazaLauncher.launch("BMTr_" + java.text.SimpleDateFormat("yyyyMMdd-HHmm", java.util.Locale.US).format(java.util.Date()) + ".zip") },
+            onExportTrazaNube = { trazaNubeLauncher.launch("BMTr_" + java.text.SimpleDateFormat("yyyyMMdd-HHmm", java.util.Locale.US).format(java.util.Date()) + "_nube.zip") }
         )
         FlashSheet(
             visible = showFlash, vm = vm, serial = status.serial, billSet = status.billSet,

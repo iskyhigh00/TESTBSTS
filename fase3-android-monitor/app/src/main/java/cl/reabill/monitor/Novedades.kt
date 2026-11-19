@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "3.0.5" to listOf(
+            "Los ZIP de tramas ahora se llaman «BMTr_fecha-hora.zip» (el de la nube termina en «_nube»): se identifican por el principio del nombre.",
+        ),
         "3.0.4" to listOf(
             "Interfaz: si la dejaste con la app y al reconectar el billetero volvió a otra, ahora lo dice claro («con este Software no se conserva») en vez de «cambió fuera de la app».",
         ),

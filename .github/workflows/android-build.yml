@@ -60,14 +60,11 @@ jobs:
           grep -m1 'versionName' app/build.gradle.kts \
             | sed -E 's/.*"([0-9.]+)".*/\1/' > version.txt
 
-      - name: publish
-        if: ${{ env.APK_PUBLISH_TOKEN != '' && env.APK_REPO != '' }}
-        uses: softprops/action-gh-release@v2
+      - name: upload APK
+        uses: actions/upload-artifact@v4
         with:
-          repository: ${{ env.APK_REPO }}
-          token: ${{ env.APK_PUBLISH_TOKEN }}
-          tag_name: monitor-apk
-          name: build
-          files: |
+          name: BILLMON-APK
+          if-no-files-found: error
+          path: |
             fase3-android-monitor/CashflowMonitor.apk
             fase3-android-monitor/version.txt

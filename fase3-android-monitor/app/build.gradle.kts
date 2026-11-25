@@ -1,7 +1,29 @@
+import java.util.zip.ZipFile
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
+}
+
+// Install the approved launcher artwork before Android configures resource inputs.
+val launcherArchive = rootProject.file("../BILLMON_iconos.zip")
+val launcherRes = file("src/main/res")
+ZipFile(launcherArchive).use { archive ->
+    val expected = listOf("mdpi", "hdpi", "xhdpi", "xxhdpi", "xxxhdpi").flatMap { density ->
+        listOf("ic_launcher", "ic_launcher_round", "ic_launcher_foreground", "ic_launcher_monochrome").map { name ->
+            "mipmap-$density/$name.png"
+        }
+    }
+    expected.forEach { path ->
+        val entry = requireNotNull(archive.getEntry(path)) { "Missing launcher resource: $path" }
+        val bytes = archive.getInputStream(entry).use { it.readBytes() }
+        val target = launcherRes.resolve(path)
+        if (!target.exists() || !target.readBytes().contentEquals(bytes)) {
+            target.parentFile.mkdirs()
+            target.writeBytes(bytes)
+        }
+    }
 }
 
 android {
@@ -12,8 +34,8 @@ android {
         applicationId = "cl.reabill.monitor"
         minSdk = 26
         targetSdk = 35
-        versionCode = 257
-        versionName = "3.1.0"
+        versionCode = 258
+        versionName = "3.1.1"
 
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
 

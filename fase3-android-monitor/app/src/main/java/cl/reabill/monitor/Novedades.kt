@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "3.1.1" to listOf(
+            "Nuevo icono de BILLMON con la fotografía del MEI SC Advance.",
+        ),
         "3.1.0" to listOf(
             "Procedimientos de un toque en «Cargar bill-set»: además de «IGT Trimline», nuevo «EGT» (Software 530, bill-set 403, interfaz EBDS). Por ahora solo el admin.",
             "Preferencias → Archivos de firmware: agrega varios Software y bill-sets a la vez (quedan para todos los teléfonos), con la lista y «Quitar».",

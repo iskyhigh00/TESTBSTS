@@ -26,6 +26,61 @@ ZipFile(launcherArchive).use { archive ->
     }
 }
 
+
+// Generate a non-adaptive launcher bitmap from the approved artwork.
+// Remove only background connected to the image boundary.
+val sourceIcon = launcherRes.resolve("mipmap-xxxhdpi/ic_launcher_foreground.png")
+val originalIcon = javax.imageio.ImageIO.read(sourceIcon)
+val w = originalIcon.width
+val h = originalIcon.height
+val bitmap = java.awt.image.BufferedImage(w, h, java.awt.image.BufferedImage.TYPE_INT_ARGB)
+bitmap.setRGB(0, 0, w, h, originalIcon.getRGB(0, 0, w, h, null, 0, w), 0, w)
+val visited = BooleanArray(w * h)
+val queue = java.util.ArrayDeque<Int>()
+fun enqueue(x: Int, y: Int) {
+    if (x !in 0 until w || y !in 0 until h) return
+    val i = y * w + x
+    if (visited[i]) return
+    visited[i] = true
+    val c = bitmap.getRGB(x, y)
+    val r = (c ushr 16) and 255
+    val g = (c ushr 8) and 255
+    val b = c and 255
+    if ((c ushr 24) < 16 || (minOf(r,g,b) > 190 && maxOf(r,g,b)-minOf(r,g,b) < 30)) {
+        bitmap.setRGB(x,y,0)
+        queue.add(i)
+    }
+}
+for (x in 0 until w) { enqueue(x,0); enqueue(x,h-1) }
+for (y in 0 until h) { enqueue(0,y); enqueue(w-1,y) }
+while (queue.isNotEmpty()) {
+    val i = queue.removeFirst()
+    val x = i % w
+    val y = i / w
+    enqueue(x-1,y); enqueue(x+1,y); enqueue(x,y-1); enqueue(x,y+1)
+}
+var left=w; var top=h; var right=-1; var bottom=-1
+for (y in 0 until h) for (x in 0 until w) {
+    if ((bitmap.getRGB(x,y) ushr 24) > 32) {
+        left=minOf(left,x); top=minOf(top,y); right=maxOf(right,x); bottom=maxOf(bottom,y)
+    }
+}
+require(right >= left && bottom >= top) { "Empty launcher artwork" }
+val cropped = bitmap.getSubimage(left,top,right-left+1,bottom-top+1)
+val output = java.awt.image.BufferedImage(192,192,java.awt.image.BufferedImage.TYPE_INT_ARGB)
+val scale = 184.0 / maxOf(cropped.width,cropped.height)
+val ow = (cropped.width*scale).toInt()
+val oh = (cropped.height*scale).toInt()
+val graphics = output.createGraphics()
+graphics.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION,java.awt.RenderingHints.VALUE_INTERPOLATION_BICUBIC)
+graphics.drawImage(cropped,(192-ow)/2,(192-oh)/2,ow,oh,null)
+graphics.dispose()
+val iconTarget = launcherRes.resolve("drawable-nodpi/billmon_photo.png")
+iconTarget.parentFile.mkdirs()
+javax.imageio.ImageIO.write(output,"png",iconTarget)
+require((output.getRGB(0,0) ushr 24) == 0) { "Launcher background must be transparent" }
+
+
 android {
     namespace = "cl.reabill.monitor"
     compileSdk = 35
@@ -34,8 +89,8 @@ android {
         applicationId = "cl.reabill.monitor"
         minSdk = 26
         targetSdk = 35
-        versionCode = 258
-        versionName = "3.1.1"
+        versionCode = 259
+        versionName = "3.1.2"
 
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
 

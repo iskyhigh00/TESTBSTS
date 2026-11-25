@@ -1,3 +1,6 @@
+import java.awt.image.BufferedImage
+import java.awt.RenderingHints
+import java.util.ArrayDeque
 import java.util.zip.ZipFile
 
 plugins {
@@ -33,10 +36,10 @@ val sourceIcon = launcherRes.resolve("mipmap-xxxhdpi/ic_launcher_foreground.png"
 val originalIcon = javax.imageio.ImageIO.read(sourceIcon)
 val w = originalIcon.width
 val h = originalIcon.height
-val bitmap = java.awt.image.BufferedImage(w, h, java.awt.image.BufferedImage.TYPE_INT_ARGB)
+val bitmap = BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB)
 bitmap.setRGB(0, 0, w, h, originalIcon.getRGB(0, 0, w, h, null, 0, w), 0, w)
 val visited = BooleanArray(w * h)
-val queue = java.util.ArrayDeque<Int>()
+val queue = ArrayDeque<Int>()
 fun enqueue(x: Int, y: Int) {
     if (x !in 0 until w || y !in 0 until h) return
     val i = y * w + x
@@ -67,12 +70,12 @@ for (y in 0 until h) for (x in 0 until w) {
 }
 require(right >= left && bottom >= top) { "Empty launcher artwork" }
 val cropped = bitmap.getSubimage(left,top,right-left+1,bottom-top+1)
-val output = java.awt.image.BufferedImage(192,192,java.awt.image.BufferedImage.TYPE_INT_ARGB)
+val output = BufferedImage(192,192,BufferedImage.TYPE_INT_ARGB)
 val scale = 184.0 / maxOf(cropped.width,cropped.height)
 val ow = (cropped.width*scale).toInt()
 val oh = (cropped.height*scale).toInt()
 val graphics = output.createGraphics()
-graphics.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION,java.awt.RenderingHints.VALUE_INTERPOLATION_BICUBIC)
+graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION,RenderingHints.VALUE_INTERPOLATION_BICUBIC)
 graphics.drawImage(cropped,(192-ow)/2,(192-oh)/2,ow,oh,null)
 graphics.dispose()
 val iconTarget = launcherRes.resolve("drawable-nodpi/billmon_photo.png")

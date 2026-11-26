@@ -81,6 +81,11 @@ graphics.dispose()
 val iconTarget = launcherRes.resolve("drawable-nodpi/billmon_photo.png")
 iconTarget.parentFile.mkdirs()
 javax.imageio.ImageIO.write(output,"png",iconTarget)
+val adaptive = BufferedImage(324,324,BufferedImage.TYPE_INT_ARGB)
+val ag = adaptive.createGraphics()
+ag.drawImage(output,66,66,null)
+ag.dispose()
+javax.imageio.ImageIO.write(adaptive,"png",launcherRes.resolve("drawable-nodpi/billmon_adaptive_foreground.png"))
 require((output.getRGB(0,0) ushr 24) == 0) { "Launcher background must be transparent" }
 
 
@@ -92,8 +97,8 @@ android {
         applicationId = "cl.reabill.monitor"
         minSdk = 26
         targetSdk = 35
-        versionCode = 260
-        versionName = "3.1.3"
+        versionCode = 261
+        versionName = "3.1.4"
 
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
 

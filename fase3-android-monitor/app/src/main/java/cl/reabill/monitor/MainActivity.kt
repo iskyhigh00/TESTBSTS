@@ -29,7 +29,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cl.reabill.monitor.ui.screens.ActaApp
 import cl.reabill.monitor.ui.theme.Acta
 
-const val APP_VERSION = "3.1.1"
+val APP_VERSION = BuildConfig.VERSION_NAME
 
 class MainActivity : ComponentActivity() {
     private val vm: MonitorViewModel by viewModels()

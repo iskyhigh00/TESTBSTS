@@ -22,8 +22,8 @@
         android:fullBackupContent="@xml/respaldo_reglas"
         android:dataExtractionRules="@xml/respaldo_reglas_31"
         android:label="BILLMON"
-        android:icon="@drawable/billmon_photo"
-        android:roundIcon="@drawable/billmon_photo"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.NoActionBar">
 
@@ -41,7 +41,7 @@
                 android:resource="@xml/device_filter" />
         </activity>
 
-        <activity-alias android:name=".BillmonLauncherV313" android:targetActivity=".MainActivity" android:exported="true" android:label="BILLMON" android:icon="@drawable/billmon_photo">
+        <activity-alias android:name=".BillmonLauncherV313" android:targetActivity=".MainActivity" android:exported="true" android:label="BILLMON" android:icon="@mipmap/ic_launcher">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

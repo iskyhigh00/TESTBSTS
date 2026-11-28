@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "3.1.6" to listOf(
+            "Menos datos: los teléfonos suben las tramas solos como máximo cada 3 horas; solo el admin baja el catálogo de máquinas; y el admin tiene «Bajar lo nuevo de la nube» (solo lo subido desde la última descarga) además de «Bajar todo».",
+        ),
         "3.1.5" to listOf(
             "ZIP de tramas más claros: «BMTr_fecha_TELEFONO.zip» (lo grabado en este teléfono) y «BMTr_fecha_NUBE.zip» (todos los teléfonos). El índice dice el ORIGEN, quién lo generó y cuándo, el rango de fechas y cuántas sesiones hizo cada usuario.",
         ),

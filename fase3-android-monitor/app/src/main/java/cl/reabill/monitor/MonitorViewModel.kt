@@ -830,7 +830,6 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         _history.value = emptyList()
         addLog("Desconectado.")
         traza.cerrarSesion()
-        subirTramas()
     }
 
     fun logUsbEvent(msg: String) = addLog(msg)
@@ -845,7 +844,6 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
             _history.value = emptyList()
             addLog("Cable desconectado.")
             traza.cerrarSesion()
-            subirTramas()
         }
     }
 
@@ -1222,6 +1220,8 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun subirTramas() {
         if (!nube.disponible || nube.email.isEmpty() || subiendoTramas) return
+        if (System.currentTimeMillis() - nube.ultimaSubidaTramas() < 3 * 3_600_000L) return
+        nube.marcarSubidaTramas()
         subiendoTramas = true
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -1242,6 +1242,9 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    @Volatile private var tramasSoloNuevas = true
+    fun elegirTramasNube(soloNuevas: Boolean) { tramasSoloNuevas = soloNuevas }
+
     fun exportarTrazasNube(uri: android.net.Uri) {
         if (!exigirAdmin()) return
         _trazaNube.value = "Bajando de la nube…"
@@ -1250,7 +1253,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
                 try {
                     val out = getApplication<Application>().contentResolver.openOutputStream(uri, "wt")
                     if (out == null) "No se pudo abrir el archivo de destino."
-                    else out.use { nube.bajarTramasZip(it) { i, total -> _trazaNube.value = "Bajando de la nube… $i de $total" } }
+                    else out.use { nube.bajarTramasZip(it, tramasSoloNuevas) { i, total -> _trazaNube.value = "Bajando de la nube… $i de $total" } }
                 } catch (e: Exception) { e.message ?: e.javaClass.simpleName }
             }
             _trazaNube.value = err ?: "Listo: tramas de la nube guardadas en el ZIP."

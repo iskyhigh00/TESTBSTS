@@ -69,7 +69,7 @@ class NubeHttp(private val base: String, private val apiKey: String, private val
         }
     }
 
-    fun traer(desde: String?, pagina: Int = 200): Pair<List<FilaNube>, String?> {
+    fun traer(desde: String?, pagina: Int = 200, sinMaquinas: Boolean = false): Pair<List<FilaNube>, String?> {
         require(pagina > 0)
         val out = ArrayList<FilaNube>()
         var maxAct = desde
@@ -82,7 +82,7 @@ class NubeHttp(private val base: String, private val apiKey: String, private val
             val siguiente = if (ultimoTiempo == null) "" else "&or=" + URLEncoder.encode(
                 "(actualizado.gt.${literal(ultimoTiempo)},and(actualizado.eq.${literal(ultimoTiempo)},clave.gt.${literal(ultimaClave!!)}))", "UTF-8")
 
-            val url = u("/rest/v1/billmon_kv?select=clave,valor,ts,por,actualizado&clave=not.like.reg:*&clave=not.like.tr:*$desdeFiltro$siguiente&order=actualizado.asc,clave.asc&limit=$pagina")
+            val url = u("/rest/v1/billmon_kv?select=clave,valor,ts,por,actualizado&clave=not.like.reg:*&clave=not.like.tr:*${if (sinMaquinas) "&clave=not.like.maquinas" else ""}$desdeFiltro$siguiente&order=actualizado.asc,clave.asc&limit=$pagina")
             val (code, txt) = llamar("GET", url, null)
             revisar(code, txt)
             val arr = JSONArray(txt)
@@ -152,9 +152,9 @@ class NubeHttp(private val base: String, private val apiKey: String, private val
 
     class TramaNube(val clave: String, val ts: Long, val por: String, val serie: String, val modelo: String, val archivo: String, val tam: Long, val tramas: Int, val mda: String = "", val maq: String = "")
 
-    fun listarTramas(limite: Int = 1000): List<TramaNube> {
+    fun listarTramas(limite: Int = 1000, desdeTs: Long = 0L): List<TramaNube> {
         val url = u("/rest/v1/billmon_kv?select=clave,ts,por,serie:valor-%3E%3Eserie,modelo:valor-%3E%3Emodelo,archivo:valor-%3E%3Earchivo,tam:valor-%3E%3Etam,tramas:valor-%3E%3Etramas,mda:valor-%3E%3Emda,maq:valor-%3E%3Emaq&clave=like." +
-            URLEncoder.encode("tr:*", "UTF-8") + "&order=ts.desc&limit=$limite")
+            URLEncoder.encode("tr:*", "UTF-8") + "&order=ts.desc&limit=$limite" + (if (desdeTs > 0) "&ts=gt.$desdeTs" else ""))
         val (code, txt) = llamar("GET", url, null)
         revisar(code, txt)
         val arr = JSONArray(txt)

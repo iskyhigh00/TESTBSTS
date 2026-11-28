@@ -257,15 +257,17 @@ class Nube(
     }
 
     @Synchronized
-    fun bajarTramasZip(out: java.io.OutputStream, progreso: (Int, Int) -> Unit = { _, _ -> }): String? {
+    fun bajarTramasZip(out: java.io.OutputStream, soloNuevas: Boolean = false, progreso: (Int, Int) -> Unit = { _, _ -> }): String? {
         if (!esAdmin) return "Solo el admin puede bajar las tramas."
         return try {
-            val lista = try { entrar(); cliente().listarTramas() } catch (e: NubeError) {
-                if (e.http == 401) { entrar(forzar = true); cliente().listarTramas() } else throw e
+            val marca = if (soloNuevas) prefs.getLong("tr_marca", 0L) else 0L
+            val lista = try { entrar(); cliente().listarTramas(desdeTs = marca) } catch (e: NubeError) {
+                if (e.http == 401) { entrar(forzar = true); cliente().listarTramas(desdeTs = marca) } else throw e
             }
+            if (soloNuevas && lista.isEmpty()) return "No hay tramas nuevas en la nube desde la última descarga."
             var bajadas = 0
             java.util.zip.ZipOutputStream(out).use { z ->
-                val ind = StringBuilder("ORIGEN: NUBE (sesiones de todos los teléfonos)\n")
+                val ind = StringBuilder("ORIGEN: NUBE (sesiones de todos los teléfonos) — " + (if (soloNuevas) "SOLO LAS NUEVAS desde la última descarga" else "TODAS") + "\n")
                 ind.append("Generado: ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.US).format(java.util.Date())} por ${nombre ?: email}\n")
                 ind.append("Sesiones: ${lista.size}" + (if (lista.isNotEmpty()) " · de ${lista.last().archivo.substringBefore("_")} a ${lista.first().archivo.substringBefore("_")}" else "") + "\n")
                 ind.append("Por usuario: " + lista.groupingBy { it.por.ifBlank { "?" } }.eachCount().entries.sortedByDescending { it.value }.joinToString(" · ") { "${it.key} ${it.value}" } + "\n")
@@ -283,6 +285,7 @@ class Nube(
                 }
             }
             progreso(bajadas, lista.size)
+            if (bajadas == lista.size && lista.isNotEmpty()) prefs.edit().putLong("tr_marca", lista.maxOf { it.ts }).apply()
             null
         } catch (e: NubeError) { e.usuario } catch (e: java.io.IOException) { "Sin conexión o sin respuesta (${e.message ?: e.javaClass.simpleName})." } catch (e: Exception) { e.message ?: e.javaClass.simpleName }
     }
@@ -291,6 +294,9 @@ class Nube(
 
     private var http: NubeHttp? = null
     private fun cliente(): NubeHttp = http ?: crearCliente(supaUrl, supaKey).also { http = it }
+
+    fun ultimaSubidaTramas(): Long = prefs.getLong("tr_subida", 0L)
+    fun marcarSubidaTramas() { prefs.edit().putLong("tr_subida", System.currentTimeMillis()).apply() }
 
     @Synchronized
     fun borrarPendientesRev(): String? {
@@ -360,7 +366,7 @@ class Nube(
     private fun bajarYSubir(): Resultado {
         val c = cliente()
 
-        val (filas, cursor) = c.traer(prefs.getString("cursor", null))
+        val (filas, cursor) = c.traer(prefs.getString("cursor", null), sinMaquinas = !esAdmin)
 
         val controles = c.controlesCompartidos()
         val configuracion = controles["cfg"]

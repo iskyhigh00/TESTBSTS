@@ -114,7 +114,7 @@ internal fun SettingsSheet(
     visible: Boolean, vm: MonitorViewModel,
     onClose: () -> Unit, onLabelConfig: () -> Unit, onChangelog: () -> Unit,
     onExport: () -> Unit, onImport: () -> Unit,
-    onExportTraza: () -> Unit, onExportTrazaNube: () -> Unit, onExportResumen: () -> Unit
+    onExportTraza: () -> Unit, onExportTrazaNube: (Boolean) -> Unit, onExportResumen: () -> Unit
 ) {
     BackHandler(enabled = visible, onBack = onClose)
     AnimatedVisibility(
@@ -286,7 +286,7 @@ internal fun SettingsSheet(
                     val resumen = remember(rev, grabando) { vm.trazaResumen() }
                     Text(
                         "Se guardan solas mientras la app está abierta (una sesión por billetero) y todos los teléfonos las suben a la nube. $resumen. " +
-                            "Se borran las de más de 45 días o pasados 40 MB. «Guardar todo» crea un ZIP de este teléfono; «Bajar de la nube» el de todos, con una carpeta por serie.",
+                            "Se borran las de más de 45 días o pasados 40 MB. «Guardar todo» crea un ZIP de este teléfono; «Bajar lo nuevo» trae solo lo subido desde la última descarga (gasta menos datos); «Bajar todo», todas las sesiones de todos los teléfonos. Los demás teléfonos suben solos cada unas horas.",
                         style = ActaType.Label, modifier = Modifier.padding(bottom = 8.dp)
                     )
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -295,7 +295,8 @@ internal fun SettingsSheet(
                         ActaButton("Borrar", onClick = { borrarT = true }, danger = true, height = 46.dp, modifier = Modifier.weight(1f))
                     }
                     val estadoNube by vm.trazaNube.collectAsStateWithLifecycle()
-                    ActaButton("Bajar de la nube (todos los teléfonos)", onClick = onExportTrazaNube, height = 46.dp, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
+                    ActaButton("Bajar lo nuevo de la nube", onClick = { onExportTrazaNube(true) }, height = 46.dp, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
+                    ActaButton("Bajar todo de la nube", onClick = { onExportTrazaNube(false) }, height = 46.dp, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
                     if (estadoNube.isNotEmpty()) Text(estadoNube, style = ActaType.Label, modifier = Modifier.padding(top = 6.dp))
                     if (borrarT) AlertDialog(
                         onDismissRequest = { borrarT = false },

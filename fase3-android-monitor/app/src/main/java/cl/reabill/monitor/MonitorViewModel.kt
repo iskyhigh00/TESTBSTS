@@ -890,6 +890,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
                 _busy.value = false
                 endOp()
                 if (!DemoClient.isDemoSerial(_status.value.serial)) sincronizarPronto()
+                diagnosticoAutomatico()
             }
         }
     }
@@ -1129,6 +1130,71 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
 
     fun cerrarDiag() { if (!_diag.value.leyendo) _diag.value = DiagUi() }
 
+    data class DiagProg(val activo: Boolean = false, val auto: Boolean = false, val pct: Float = 0f, val texto: String = "", val aviso: String = "")
+    private val _diagProg = MutableStateFlow(DiagProg())
+    val diagProg: StateFlow<DiagProg> = _diagProg
+    @Volatile private var diagCancelar = false
+    fun cancelarDiagnostico() { if (_diagProg.value.activo) { diagCancelar = true; _diagProg.update { it.copy(texto = "Cancelando…") } } }
+    fun diagAvisoVisto() { if (!_diagProg.value.activo) _diagProg.value = DiagProg() }
+
+    private val diagPrefs by lazy { getApplication<Application>().getSharedPreferences("billmon_diag", android.content.Context.MODE_PRIVATE) }
+    private fun hoyDiag() = java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.US).format(java.util.Date())
+
+    private fun avisoDiag(err: String) =
+        (if (err == "cancelado") "Diagnóstico cancelado." else "El diagnóstico no terminó ($err).") +
+            " Para que el billetero salga del modo diagnóstico: sácalo del cashbox, espera 5 segundos y vuélvelo a poner."
+
+    private fun diagnosticoAutomatico() {
+        if (mei !is AdvanceClient || !_connected.value || _demo.value || flashing || !puede(Proc.LEER)) return
+        val serie = _status.value.serial
+        if (serie.isBlank() || DemoClient.isDemoSerial(serie)) return
+        if (diagPrefs.getString("dia:$serie", "") == hoyDiag()) return
+        leerDiagnostico(auto = true)
+    }
+
+    private fun guardarDiagnosticoNube(r: DiagResultado, st: DeviceStatus, d: Diag, auto: Boolean) {
+        val ts = System.currentTimeMillis()
+        val nul = org.json.JSONObject.NULL
+        val v = org.json.JSONObject().put("serie", r.serie).put("mda", r.mda).put("maq", nube.maquinas.resumen(r.mda) ?: "").put("modelo", r.modelo)
+            .put("app", st.firmwareApp).put("bs", st.billSet).put("sensor", r.sensor).put("umbral", r.umbral)
+            .put("a", r.a).put("c", r.c).put("e", r.e).put("f", r.f).put("ok", r.valido)
+            .put("vida", r.realVida ?: nul).put("rec", r.reciente?.pct ?: nul).put("sis", r.sistema ?: nul)
+            .put("hex", d.hex).put("fin", d.finalHex).put("ver", APP_VERSION).put("auto", auto).put("t", ts)
+            .put("usuario", nube.nombre ?: nube.email)
+        val clave = "dg:${r.serie}:" + java.text.SimpleDateFormat("yyyyMMdd-HHmmss", java.util.Locale.US).format(java.util.Date(ts))
+        val arr = org.json.JSONArray(diagPrefs.getString("pend", "[]"))
+        arr.put(org.json.JSONObject().put("k", clave).put("v", v).put("ts", ts))
+        while (arr.length() > 200) arr.remove(0)
+        diagPrefs.edit().putString("pend", arr.toString()).apply()
+    }
+
+    private fun subirDiagnosticosPend() {
+        val arr = org.json.JSONArray(diagPrefs.getString("pend", "[]"))
+        if (arr.length() == 0) return
+        var n = 0
+        while (arr.length() > 0) {
+            val o = arr.getJSONObject(0)
+            val err = nube.subirTrama(o.getString("k"), o.getJSONObject("v"), o.getLong("ts"))
+            if (err != null) { addLog("Diagnósticos: no se pudo subir a la nube ($err)"); break }
+            arr.remove(0); n++
+        }
+        diagPrefs.edit().putString("pend", arr.toString()).apply()
+        if (n > 0) addLog("Diagnósticos: $n subido(s) a la nube.")
+    }
+
+    fun exportarDiagnosticosNube(uri: android.net.Uri) {
+        if (!exigirAdmin()) return
+        viewModelScope.launch {
+            val err = withContext(Dispatchers.IO) {
+                try {
+                    val out = getApplication<Application>().contentResolver.openOutputStream(uri, "wt")
+                    if (out == null) "No se pudo abrir el archivo de destino." else out.use { nube.bajarDiagnosticosCsv(it) }
+                } catch (e: Exception) { e.message ?: e.javaClass.simpleName }
+            }
+            addLog("Diagnósticos de la nube: " + (err ?: "guardados en un CSV."))
+        }
+    }
+
     val traza: TrazaUsb by lazy { TrazaUsb(java.io.File(getApplication<Application>().applicationContext.filesDir, "tramas")).also { usb.traza = it } }
     private val _trazaActiva = MutableStateFlow(true)
     val trazaActiva: StateFlow<Boolean> = _trazaActiva
@@ -1226,6 +1292,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 var n = 0
+                try { subirDiagnosticosPend() } catch (e: Exception) { addLog("Diagnósticos: error al subir (${e.message})") }
                 for (f in traza.pendientes()) {
                     val s = traza.leer(f) ?: continue
                     val clave = "tr:${traza.instalacion()}:${f.name.removeSuffix(".txt")}"
@@ -1286,17 +1353,20 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         _falla.value = if (mal) "El billetero reporta falla al encender (estado $txt). No lo pongas en la máquina: revisa sensores, conectores y placa." else ""
     }
 
-    fun leerDiagnostico() {
-        if (!exigirAdmin()) return
+    fun leerDiagnostico(auto: Boolean = false) {
+        if (!auto && !exigirAdmin()) return
         val adv = mei as? AdvanceClient
-        if (adv == null || !_connected.value || _demo.value) { _diag.value = DiagUi(mensaje = "Conecta un SC Advance primero."); return }
-        if (!beginOp()) { ocupado(); return }
+        if (adv == null || !_connected.value || _demo.value) { if (!auto) _diag.value = DiagUi(mensaje = "Conecta un SC Advance primero."); return }
+        if (!beginOp()) { if (!auto) ocupado(); return }
         val st = _status.value
+        diagCancelar = false
+        _diagProg.value = DiagProg(activo = true, auto = auto, pct = 0f, texto = "Diagnóstico en curso…")
+        _busy.value = true
         _diag.value = DiagUi(leyendo = true, mensaje = "Leyendo…")
         viewModelScope.launch {
             try {
-                val (d, err) = withContext(Dispatchers.IO) { adv.readDiagnostic() }
-                if (d == null) { addLog("Diagnóstico: $err"); _diag.value = DiagUi(mensaje = "No se pudo leer: $err"); return@launch }
+                val (d, err) = withContext(Dispatchers.IO) { adv.readDiagnostic({ p -> _diagProg.update { it.copy(pct = p) } }, { diagCancelar }) }
+                if (d == null) { addLog("Diagnóstico: $err"); _diag.value = DiagUi(mensaje = "No se pudo leer: $err"); _diagProg.value = DiagProg(auto = auto, aviso = avisoDiag(err)); return@launch }
                 val mda = mdaStore.mda(st.serial).orEmpty()
                 val acc = _accounting.value
                 val vida = acc?.takeIf { it.inserted > 0 }?.let { it.accepted * 100.0 / it.inserted }
@@ -1310,10 +1380,13 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
                     (cnt?.let { " (${it.first} acept., ${it.second} rech.)" } ?: ""))
                 addLog("Diagnóstico bruto: ${d.hex} final ${d.finalHex}" + if (d.valido) "" else " (formato inesperado)")
                 _diag.value = DiagUi(resultado = r, mensaje = "Listo. Quedó en el Registro.")
+                diagPrefs.edit().putString("dia:${st.serial}", hoyDiag()).apply()
+                _diagProg.value = DiagProg()
+                guardarDiagnosticoNube(r, st, d, auto)
                 sincronizarPronto()
             } catch (e: Exception) {
-                addLog("Diagnóstico interrumpido: ${e.message}"); _diag.value = DiagUi(mensaje = "Interrumpido: ${e.message}")
-            } finally { endOp() }
+                addLog("Diagnóstico interrumpido: ${e.message}"); _diag.value = DiagUi(mensaje = "Interrumpido: ${e.message}"); _diagProg.value = DiagProg(auto = auto, aviso = avisoDiag(e.message ?: "error"))
+            } finally { _busy.value = false; endOp() }
         }
     }
 

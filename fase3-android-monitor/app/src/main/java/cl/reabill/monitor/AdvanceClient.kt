@@ -134,21 +134,36 @@ class AdvanceClient(private val usb: UsbSerialManager) : ValidatorClient {
 
     @Volatile var lastBeginResp: String = ""
 
-    fun readDiagnostic(): Pair<Diag?, String> {
+    fun readDiagnostic(progreso: (Float) -> Unit = {}, cancelado: () -> Boolean = { false }): Pair<Diag?, String> {
         fun esD(it: ByteArray) = (it[2].toInt() and 0x7F) == 0x0D
         fun ocupado(it: ByteArray) = it.size == 10 && esD(it) && (it[3].toInt() and 0x80) != 0
-        fun pedir(arg: Int, largo: Int): ByteArray? {
+        val t0 = System.currentTimeMillis()
+        var motivo = ""
+        fun pedir(arg: Int, largo: Int, desde: Float, hasta: Float): ByteArray? {
+            val ti = System.currentTimeMillis()
+            progreso(desde)
             var r = exchangeOnce(0x0D, byteArrayOf(arg.toByte()), 8000) { esD(it) && (it.size == largo || ocupado(it)) }
             var n = 0
             while (r != null && r.size == 10 && n < 100) {
+                if (cancelado()) { motivo = "cancelado"; return null }
+                if (System.currentTimeMillis() - t0 > 30_000L) { motivo = "tardó más de 30 s"; return null }
                 n++
+                val seg = (System.currentTimeMillis() - ti) / 1000f
+                progreso(desde + (hasta - desde) * 0.95f * (1f - 1f / (1f + seg / 3f)))
                 Thread.sleep(90)
                 r = exchangeOnce(0x01, ByteArray(0), 4000) { it.size == largo && esD(it) || it.size == 10 }
             }
-            return if (r != null && r.size == largo && esD(r)) r else null
+            val ok = r != null && r.size == largo && esD(r)
+            if (ok) progreso(hasta)
+            return if (ok) r else null
         }
-        val b = pedir(1, 62) ?: return null to "sin respuesta al diagnóstico (0D 1)"
-        val f = pedir(2, 13) ?: return null to "sin respuesta al cierre del diagnóstico (0D 2)"
+        fun abortar(msg: String): Pair<Diag?, String> {
+            try { exchangeOnce(0x0D, byteArrayOf(2), 3000) { esD(it) } } catch (_: Exception) {}
+            return null to motivo.ifEmpty { msg }
+        }
+        val b = pedir(1, 62, 0.04f, 0.6f) ?: return abortar("sin respuesta al diagnóstico (0D 1)")
+        if (cancelado()) { motivo = "cancelado"; return abortar("") }
+        val f = pedir(2, 13, 0.6f, 1f) ?: return abortar("sin respuesta al cierre del diagnóstico (0D 2)")
         return Diag(b.copyOfRange(8, 8 + 52), f.copyOfRange(8, 8 + 3)) to ""
     }
 

@@ -82,7 +82,7 @@ class NubeHttp(private val base: String, private val apiKey: String, private val
             val siguiente = if (ultimoTiempo == null) "" else "&or=" + URLEncoder.encode(
                 "(actualizado.gt.${literal(ultimoTiempo)},and(actualizado.eq.${literal(ultimoTiempo)},clave.gt.${literal(ultimaClave!!)}))", "UTF-8")
 
-            val url = u("/rest/v1/billmon_kv?select=clave,valor,ts,por,actualizado&clave=not.like.reg:*&clave=not.like.tr:*${if (sinMaquinas) "&clave=not.like.maquinas" else ""}$desdeFiltro$siguiente&order=actualizado.asc,clave.asc&limit=$pagina")
+            val url = u("/rest/v1/billmon_kv?select=clave,valor,ts,por,actualizado&clave=not.like.reg:*&clave=not.like.tr:*&clave=not.like.dg:*${if (sinMaquinas) "&clave=not.like.maquinas" else ""}$desdeFiltro$siguiente&order=actualizado.asc,clave.asc&limit=$pagina")
             val (code, txt) = llamar("GET", url, null)
             revisar(code, txt)
             val arr = JSONArray(txt)
@@ -163,6 +163,25 @@ class NubeHttp(private val base: String, private val apiKey: String, private val
             TramaNube(o.getString("clave"), o.optLong("ts"), o.optString("por"), o.optString("serie"), o.optString("modelo"), o.optString("archivo"),
                 o.optString("tam").toLongOrNull() ?: 0L, o.optString("tramas").toIntOrNull() ?: 0, o.optString("mda").takeIf { it != "null" } ?: "", o.optString("maq").takeIf { it != "null" } ?: "")
         }
+    }
+
+    fun listarDiagnosticos(pagina: Int = 1000): List<FilaNube> {
+        val out = ArrayList<FilaNube>()
+        var offset = 0
+        while (true) {
+            val url = u("/rest/v1/billmon_kv?select=clave,valor,ts,por&clave=like." + URLEncoder.encode("dg:*", "UTF-8") + "&order=ts.asc,clave.asc&limit=$pagina&offset=$offset")
+            val (code, txt) = llamar("GET", url, null)
+            revisar(code, txt)
+            val arr = JSONArray(txt)
+            for (i in 0 until arr.length()) {
+                val o = arr.getJSONObject(i)
+                val v = o.optJSONObject("valor") ?: continue
+                out.add(FilaNube(o.getString("clave"), v, o.optLong("ts"), o.optString("por").takeIf { it.isNotBlank() }))
+            }
+            if (arr.length() < pagina) break
+            offset += pagina
+        }
+        return out
     }
 
     fun bajarTrama(clave: String): String? {

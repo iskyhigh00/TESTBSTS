@@ -97,8 +97,8 @@ android {
         applicationId = "cl.reabill.monitor"
         minSdk = 26
         targetSdk = 35
-        versionCode = 263
-        versionName = "3.1.6"
+        versionCode = 264
+        versionName = "3.2.0"
 
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
 

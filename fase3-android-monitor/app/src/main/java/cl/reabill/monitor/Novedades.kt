@@ -2,6 +2,11 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "3.2.0" to listOf(
+            "Diagnóstico automático: al conectar un SC Advance se hace solo (una vez por billetero al día), con barra de avance estimada y botón Cancelar. Si algo sale mal, la app te dice que saques el billetero del cashbox, esperes 5 segundos y lo vuelvas a poner.",
+            "Los diagnósticos (sensor, umbral y valores A/C/E/F junto a la aceptación) se suben solos a la nube, y el admin los baja en un CSV desde Ajustes para buscar patrones.",
+            "Pantalla principal más ordenada: Imprimir, Cargar bill-set, Diagnóstico, Calibrar y Máquinas quedan juntos bajo «ACCIONES»; la barra de abajo solo muestra Conectar.",
+        ),
         "3.1.6" to listOf(
             "Menos datos: los teléfonos suben las tramas solos como máximo cada 3 horas; solo el admin baja el catálogo de máquinas; y el admin tiene «Bajar lo nuevo de la nube» (solo lo subido desde la última descarga) además de «Bajar todo».",
         ),

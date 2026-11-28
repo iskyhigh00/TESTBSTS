@@ -65,6 +65,8 @@ fun DiagSheet(visible: Boolean, vm: MonitorViewModel, serial: String, onClose: (
                 }
                 if (ui.mensaje.isNotEmpty()) Text(ui.mensaje, style = ActaType.Body, modifier = Modifier.padding(top = 14.dp))
             }
+            val prog by vm.diagProg.collectAsStateWithLifecycle()
+            DiagProgresoStrip(prog, onCancel = { vm.cancelarDiagnostico() }, onEntendido = { vm.diagAvisoVisto() }, modifier = Modifier.padding(bottom = 10.dp))
             HoldButton("Leer diagnóstico", "mantener presionado", onArmed = { vm.leerDiagnostico() }, enabled = !ui.leyendo, modifier = Modifier.fillMaxWidth())
             Spacer(Modifier.height(8.dp))
             ActaButton("Volver", onClick = { close() }, enabled = !ui.leyendo, modifier = Modifier.fillMaxWidth())

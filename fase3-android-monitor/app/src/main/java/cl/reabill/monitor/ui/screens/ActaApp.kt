@@ -146,6 +146,9 @@ fun ActaApp(vm: MonitorViewModel) {
     val resumenLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
         if (uri != null) vm.exportarResumenCsv(uri)
     }
+    val diagCsvLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
+        if (uri != null) vm.exportarDiagnosticosNube(uri)
+    }
     val weekly by vm.weekly.collectAsStateWithLifecycle()
     val mdaMap by vm.mdaMap.collectAsStateWithLifecycle()
     var showMda by remember { mutableStateOf(false) }
@@ -666,10 +669,13 @@ fun ActaApp(vm: MonitorViewModel) {
                 if (connected && maqTxt != null) Text(maqTxt, style = ActaType.Label, modifier = Modifier.padding(horizontal = Gutter).padding(top = 8.dp))
                 val falla by vm.falla.collectAsStateWithLifecycle()
                 if (connected && falla.isNotEmpty()) Text(falla, style = ActaType.Body.copy(color = Acta.Error, fontWeight = FontWeight.Bold), modifier = Modifier.padding(horizontal = Gutter).padding(top = 10.dp))
+                val diagProg by vm.diagProg.collectAsStateWithLifecycle()
+                DiagProgresoStrip(diagProg, onCancel = { vm.cancelarDiagnostico() }, onEntendido = { vm.diagAvisoVisto() }, modifier = Modifier.padding(horizontal = Gutter).padding(top = 12.dp))
                 val mdaActual = mdaMap[status.serial]
 
                 Column(Modifier.padding(horizontal = Gutter).padding(top = 16.dp)) {
 
+                    Text("ACCIONES", style = ActaType.Label, modifier = Modifier.padding(bottom = 8.dp))
                     val pendAqui = mdaActual?.let { cl.reabill.monitor.Mda.norm(it) }?.let { m -> revPend.firstOrNull { it.mda == m } }
                     if (connected && pendAqui != null) ActaButton(
                         "Revisar MDA ${pendAqui.mda}", onClick = { revisando = pendAqui.mda }, filled = true,
@@ -686,13 +692,32 @@ fun ActaApp(vm: MonitorViewModel) {
                             enabled = connected && !busy, modifier = Modifier.weight(1f)
                         )
                     }
-                    if (acceso.admin && kind == cl.reabill.monitor.FirmwareFile.KIND_ADVANCE) ActaButton(
-                        "Diagnóstico", onClick = { showDiag = true }, enabled = connected && !busy,
-                        modifier = Modifier.fillMaxWidth().padding(top = 10.dp)
-                    )
                     if (printUi.message.isNotEmpty()) {
                         Text(printUi.message, style = ActaType.Label, modifier = Modifier.padding(top = 8.dp))
                     }
+                    val verDiag = acceso.admin && kind == cl.reabill.monitor.FirmwareFile.KIND_ADVANCE
+                    val verCal = connected && acceso.puede(cl.reabill.monitor.Proc.CALIBRAR)
+                    if (verDiag || verCal) Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        if (verDiag) ActaButton(
+                            "Diagnóstico", onClick = { showDiag = true }, enabled = connected && !busy,
+                            modifier = Modifier.weight(1f)
+                        )
+                        if (verCal) HoldButton(
+                            "Calibrar", "mantener presionado",
+                            onArmed = { calMarker = log.firstOrNull(); showCal = true; vm.startCalibration() },
+                            enabled = !busy && acceso.puede(cl.reabill.monitor.Proc.LEER), modifier = Modifier.weight(1f)
+                        )
+                    }
+                    ActaButton(
+                        "Máquinas", onClick = { filtroLista = ""; soloRevisar = false; vm.clearOcr(); showLista = true },
+                        modifier = Modifier.fillMaxWidth().padding(top = 10.dp)
+                    )
+                    TareasStrip(
+                        porRevisar = revPend.size, etiquetas = etqPend.size,
+                        onRevisar = { filtroLista = ""; soloRevisar = true; vm.clearOcr(); showLista = true },
+                        onEtiquetas = { showEtq = true },
+                        modifier = Modifier.padding(top = 10.dp)
+                    )
                 }
 
                 if (connected && ifaz.soportada) InterfazSection(
@@ -714,18 +739,6 @@ fun ActaApp(vm: MonitorViewModel) {
 
                 if (history.isNotEmpty()) HistorySection(history, status.serial, onShowAll = { showHistory = true })
 
-                Column(Modifier.padding(horizontal = Gutter).padding(top = 16.dp)) {
-                    ActaButton(
-                        "Máquinas", onClick = { filtroLista = ""; soloRevisar = false; vm.clearOcr(); showLista = true },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    TareasStrip(
-                        porRevisar = revPend.size, etiquetas = etqPend.size,
-                        onRevisar = { filtroLista = ""; soloRevisar = true; vm.clearOcr(); showLista = true },
-                        onEtiquetas = { showEtq = true },
-                        modifier = Modifier.padding(top = 10.dp)
-                    )
-                }
                 Spacer(Modifier.height(18.dp))
             }
 
@@ -737,7 +750,7 @@ fun ActaApp(vm: MonitorViewModel) {
                     showCal = true
                     vm.startCalibration()
                 },
-                puedeCalibrar = acceso.puede(cl.reabill.monitor.Proc.CALIBRAR)
+                puedeCalibrar = false
             )
         }
 
@@ -753,7 +766,8 @@ fun ActaApp(vm: MonitorViewModel) {
             onImport = { importLauncher.launch(arrayOf("*/*")) },
             onExportTraza = { trazaLauncher.launch("BMTr_" + java.text.SimpleDateFormat("yyyyMMdd-HHmm", java.util.Locale.US).format(java.util.Date()) + "_TELEFONO.zip") },
             onExportTrazaNube = { solo -> vm.elegirTramasNube(solo); trazaNubeLauncher.launch("BMTr_" + java.text.SimpleDateFormat("yyyyMMdd-HHmm", java.util.Locale.US).format(java.util.Date()) + (if (solo) "_NUBE-nuevas.zip" else "_NUBE-todas.zip")) },
-            onExportResumen = { resumenLauncher.launch("BMRes_" + java.text.SimpleDateFormat("yyyyMMdd-HHmm", java.util.Locale.US).format(java.util.Date()) + ".csv") }
+            onExportResumen = { resumenLauncher.launch("BMRes_" + java.text.SimpleDateFormat("yyyyMMdd-HHmm", java.util.Locale.US).format(java.util.Date()) + ".csv") },
+            onExportDiag = { diagCsvLauncher.launch("BMDiag_" + java.text.SimpleDateFormat("yyyyMMdd-HHmm", java.util.Locale.US).format(java.util.Date()) + ".csv") }
         )
         FlashSheet(
             visible = showFlash, vm = vm, serial = status.serial, billSet = status.billSet,

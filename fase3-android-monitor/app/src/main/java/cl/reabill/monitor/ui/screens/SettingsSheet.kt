@@ -114,7 +114,7 @@ internal fun SettingsSheet(
     visible: Boolean, vm: MonitorViewModel,
     onClose: () -> Unit, onLabelConfig: () -> Unit, onChangelog: () -> Unit,
     onExport: () -> Unit, onImport: () -> Unit,
-    onExportTraza: () -> Unit, onExportTrazaNube: (Boolean) -> Unit, onExportResumen: () -> Unit
+    onExportTraza: () -> Unit, onExportTrazaNube: (Boolean) -> Unit, onExportResumen: () -> Unit, onExportDiag: () -> Unit
 ) {
     BackHandler(enabled = visible, onBack = onClose)
     AnimatedVisibility(
@@ -261,6 +261,11 @@ internal fun SettingsSheet(
                         style = ActaType.Label, modifier = Modifier.padding(bottom = 8.dp)
                     )
                     ActaButton("Guardar resumen (CSV)", onClick = onExportResumen, height = 46.dp, modifier = Modifier.fillMaxWidth())
+                    Text(
+                        "Diagnósticos que hacen los billeteros al conectarse (uno por billetero al día): sensor, umbral, A/C/E/F y aceptación, para buscar patrones.",
+                        style = ActaType.Label, modifier = Modifier.padding(top = 12.dp, bottom = 8.dp)
+                    )
+                    ActaButton("Bajar diagnósticos de la nube (CSV)", onClick = onExportDiag, height = 46.dp, modifier = Modifier.fillMaxWidth())
                 }
 
                 if (acceso.admin) PrefGroup("Respaldo") {

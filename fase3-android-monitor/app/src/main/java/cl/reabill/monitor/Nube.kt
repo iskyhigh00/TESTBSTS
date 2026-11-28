@@ -257,6 +257,30 @@ class Nube(
     }
 
     @Synchronized
+    fun bajarDiagnosticosCsv(out: java.io.OutputStream): String? {
+        if (!esAdmin) return "Solo el admin puede bajar los diagnósticos."
+        return try {
+            val filas = try { entrar(); cliente().listarDiagnosticos() } catch (e: NubeError) {
+                if (e.http == 401) { entrar(forzar = true); cliente().listarDiagnosticos() } else throw e
+            }
+            if (filas.isEmpty()) return "Todavía no hay diagnósticos en la nube."
+            fun c(s: String?) = "\"" + (s ?: "").replace("\"", "\"\"") + "\""
+            fun n(o: JSONObject, k: String) = if (o.isNull(k) || !o.has(k)) "" else o.get(k).toString()
+            val sb = StringBuilder("\uFEFF")
+            sb.append("fecha;serie;MDA;maquina;billetero_modelo;aplicacion;bill_set;sensor;umbral;A;C;E;F;aceptacion_vida_pct;aceptacion_reciente_pct;aceptacion_sistema_pct;valido;automatico;usuario;version\n")
+            val fmt = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.US)
+            for (f in filas.sortedBy { it.ts }) {
+                val v = f.valor
+                sb.append(listOf(c(fmt.format(java.util.Date(v.optLong("t", f.ts)))), c(v.optString("serie")), c(v.optString("mda")), c(v.optString("maq")), c(v.optString("modelo")),
+                    c(v.optString("app")), c(v.optString("bs")), n(v, "sensor"), n(v, "umbral"), n(v, "a"), n(v, "c"), n(v, "e"), n(v, "f"),
+                    n(v, "vida"), n(v, "rec"), n(v, "sis"), n(v, "ok"), n(v, "auto"), c(v.optString("usuario").ifEmpty { f.por }), c(v.optString("ver"))).joinToString(";")).append("\n")
+            }
+            out.write(sb.toString().toByteArray(Charsets.UTF_8))
+            null
+        } catch (e: NubeError) { e.usuario } catch (e: java.io.IOException) { "Sin conexión." } catch (e: Exception) { e.message ?: e.javaClass.simpleName }
+    }
+
+    @Synchronized
     fun bajarTramasZip(out: java.io.OutputStream, soloNuevas: Boolean = false, progreso: (Int, Int) -> Unit = { _, _ -> }): String? {
         if (!esAdmin) return "Solo el admin puede bajar las tramas."
         return try {

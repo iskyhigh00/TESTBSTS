@@ -1263,7 +1263,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             try {
                 withContext(Dispatchers.IO) {
-                    getApplication<Application>().contentResolver.openOutputStream(uri, "wt")?.use { traza.exportarZip(it) }
+                    getApplication<Application>().contentResolver.openOutputStream(uri, "wt")?.use { traza.exportarZip(it, nube.nombre ?: nube.email) }
                         ?: throw IllegalStateException("no se pudo abrir el archivo de destino")
                 }
                 addLog("Tramas USB guardadas (${traza.resumen()}).")

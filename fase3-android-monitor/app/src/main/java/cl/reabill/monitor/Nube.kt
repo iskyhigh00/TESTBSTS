@@ -265,7 +265,12 @@ class Nube(
             }
             var bajadas = 0
             java.util.zip.ZipOutputStream(out).use { z ->
-                val ind = StringBuilder("fecha-hora | modelo | serie | MDA | máquina | usuario | KB | tramas enviadas\n")
+                val ind = StringBuilder("ORIGEN: NUBE (sesiones de todos los teléfonos)\n")
+                ind.append("Generado: ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.US).format(java.util.Date())} por ${nombre ?: email}\n")
+                ind.append("Sesiones: ${lista.size}" + (if (lista.isNotEmpty()) " · de ${lista.last().archivo.substringBefore("_")} a ${lista.first().archivo.substringBefore("_")}" else "") + "\n")
+                ind.append("Por usuario: " + lista.groupingBy { it.por.ifBlank { "?" } }.eachCount().entries.sortedByDescending { it.value }.joinToString(" · ") { "${it.key} ${it.value}" } + "\n")
+                ind.append("(fecha-hora = hora del teléfono que grabó la sesión; usuario = quien tenía la app)\n\n")
+                ind.append("fecha-hora | modelo | serie | MDA | máquina | usuario | KB | tramas enviadas\n")
                 for (t in lista) ind.append("${t.archivo.substringBefore("_")} | ${t.modelo} | ${t.serie} | ${t.mda} | ${t.maq} | ${t.por} | ${t.tam / 1024} | ${t.tramas}\n")
                 z.putNextEntry(java.util.zip.ZipEntry("INDICE.txt")); z.write(ind.toString().toByteArray(Charsets.UTF_8)); z.closeEntry()
                 for ((i, t) in lista.withIndex()) {

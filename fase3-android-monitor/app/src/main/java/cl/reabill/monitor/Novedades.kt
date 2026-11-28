@@ -2,6 +2,9 @@ package cl.reabill.monitor
 
 object Novedades {
     val NOTAS: Map<String, List<String>> = linkedMapOf(
+        "3.1.5" to listOf(
+            "ZIP de tramas más claros: «BMTr_fecha_TELEFONO.zip» (lo grabado en este teléfono) y «BMTr_fecha_NUBE.zip» (todos los teléfonos). El índice dice el ORIGEN, quién lo generó y cuándo, el rango de fechas y cuántas sesiones hizo cada usuario.",
+        ),
         "3.1.1" to listOf(
             "Nuevo icono de BILLMON con la fotografía del MEI SC Advance.",
         ),

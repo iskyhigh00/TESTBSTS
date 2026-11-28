@@ -751,8 +751,8 @@ fun ActaApp(vm: MonitorViewModel) {
             onChangelog = { showCambios = true },
             onExport = { exportLauncher.launch("billmon-respaldo-" + java.text.SimpleDateFormat("yyyyMMdd-HHmm", java.util.Locale.US).format(java.util.Date()) + ".json") },
             onImport = { importLauncher.launch(arrayOf("*/*")) },
-            onExportTraza = { trazaLauncher.launch("BMTr_" + java.text.SimpleDateFormat("yyyyMMdd-HHmm", java.util.Locale.US).format(java.util.Date()) + ".zip") },
-            onExportTrazaNube = { trazaNubeLauncher.launch("BMTr_" + java.text.SimpleDateFormat("yyyyMMdd-HHmm", java.util.Locale.US).format(java.util.Date()) + "_nube.zip") },
+            onExportTraza = { trazaLauncher.launch("BMTr_" + java.text.SimpleDateFormat("yyyyMMdd-HHmm", java.util.Locale.US).format(java.util.Date()) + "_TELEFONO.zip") },
+            onExportTrazaNube = { trazaNubeLauncher.launch("BMTr_" + java.text.SimpleDateFormat("yyyyMMdd-HHmm", java.util.Locale.US).format(java.util.Date()) + "_NUBE.zip") },
             onExportResumen = { resumenLauncher.launch("BMRes_" + java.text.SimpleDateFormat("yyyyMMdd-HHmm", java.util.Locale.US).format(java.util.Date()) + ".csv") }
         )
         FlashSheet(

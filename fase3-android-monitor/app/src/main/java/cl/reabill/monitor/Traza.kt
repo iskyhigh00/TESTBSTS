@@ -154,13 +154,22 @@ class TrazaUsb(
 
     private fun contar(f: File): Int { var n = 0; try { f.forEachLine { if (it.contains(" OUT ")) n++ } } catch (e: Exception) { }; return n }
 
-    @Synchronized fun exportarZip(out: OutputStream): Int {
+    private fun usuarioDe(f: File): String = try {
+        f.useLines { it.firstOrNull() }?.let { Regex("usuario (.+?) · PID").find(it)?.groupValues?.get(1) } ?: ""
+    } catch (e: Exception) { "" }
+
+    @Synchronized fun exportarZip(out: OutputStream, quien: String = ""): Int {
         val fs = listar()
         ZipOutputStream(out).use { z ->
-            val ind = StringBuilder("fecha-hora | modelo | serie | KB | tramas enviadas\n")
-            for (f in fs) {
+            val fmt = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US)
+            val ind = StringBuilder("ORIGEN: ESTE TELÉFONO (solo lo grabado aquí)\n")
+            ind.append("Generado: ${fmt.format(Date())}" + (if (quien.isNotBlank()) " por $quien" else "") + "\n")
+            ind.append("Sesiones: ${fs.size}" + (if (fs.isNotEmpty()) " · de ${fs.first().name.substringBefore("_")} a ${fs.last().name.substringBefore("_")}" else "") + "\n")
+            ind.append("(fecha-hora = hora de este teléfono al conectar el billetero)\n\n")
+            ind.append("fecha-hora | modelo | serie | usuario | KB | tramas enviadas\n")
+            for (f in fs.sortedByDescending { it.name }) {
                 val p = f.name.removeSuffix(".txt").split("_")
-                ind.append("${p.getOrNull(0)} | ${p.getOrNull(1) ?: ""} | ${p.getOrNull(2) ?: ""} | ${f.length() / 1024} | ${contar(f)}\n")
+                ind.append("${p.getOrNull(0)} | ${p.getOrNull(1) ?: ""} | ${p.getOrNull(2) ?: ""} | ${usuarioDe(f)} | ${f.length() / 1024} | ${contar(f)}\n")
             }
             z.putNextEntry(ZipEntry("INDICE.txt")); z.write(ind.toString().toByteArray(Charsets.UTF_8)); z.closeEntry()
             for (f in fs) {
